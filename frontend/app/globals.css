@@ -1,0 +1,32 @@
+@import "tailwindcss";
+
+:root {
+  --dofus-bg: #120e0a;
+  --dofus-panel: #1a1510;
+  --dofus-gold: #e8b84a;
+  --dofus-cream: #f5e6c8;
+  --dofus-muted: #a89878;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body.dofus-app {
+  min-height: 100vh;
+  background: radial-gradient(
+      ellipse 120% 80% at 50% -20%,
+      rgba(232, 184, 74, 0.12),
+      transparent 50%
+    ),
+    linear-gradient(180deg, #1e1814 0%, #120e0a 40%, #0a0806 100%);
+  color: var(--dofus-cream);
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+.dofus-panel {
+  box-shadow:
+    inset 0 1px 0 rgba(255, 230, 180, 0.06),
+    0 4px 24px rgba(0, 0, 0, 0.35);
+}
