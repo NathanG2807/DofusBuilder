@@ -1,0 +1,18 @@
+services:
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: dia-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: dofusbuilder
+    ports:
+      # Host 5433 avoids conflict with a local PostgreSQL install on 5432 (common on dev machines).
+      - "5433:5432"
+    volumes:
+      - dia_pgdata:/var/lib/postgresql/data
+      - ./db/init.sql:/docker-entrypoint-initdb.d/01-init.sql:ro
+
+volumes:
+  dia_pgdata:
