@@ -29,6 +29,12 @@ class Settings(BaseSettings):
     # ETL: dofusdu path language (en, fr, de, es, pt). Item names follow this locale;
     # equipment type slugs in DB stay canonical via `etl/equipment_type_ids.py`.
     dofusdu_locale: str = "fr"
+    # CORS origins as comma-separated URLs.
+    cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
 
 @lru_cache
