@@ -18,7 +18,12 @@ async def lifespan(_: FastAPI):
 
 
 _settings = get_settings()
-_cors_origins = [o.strip() for o in _settings.cors_origins.split(",") if o.strip()]
+_cors_origins = [
+    o.strip()
+    for o in _settings.cors_origins.replace("\n", ",").split(",")
+    if o.strip()
+]
+_cors_origin_regex = _settings.cors_origin_regex.strip() or None
 
 app = FastAPI(
     title="Dofus Intelligence Architect API",
@@ -29,10 +34,19 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=_cors_origins,
+    allow_origin_regex=_cors_origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.get("/debug/cors")
+async def debug_cors():
+    return {
+        "allow_origins": _cors_origins,
+        "allow_origin_regex": _cors_origin_regex,
+    }
 
 app.include_router(auth.router, prefix="/api/v1")
 app.include_router(items.router, prefix="/api/v1")

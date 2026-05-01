@@ -31,6 +31,8 @@ class Settings(BaseSettings):
     dofusdu_locale: str = "fr"
     # CORS origins as comma-separated URLs.
     cors_origins: str = "http://localhost:3000,http://127.0.0.1:3000"
+    # Optional regex pattern (e.g. r"https://.*\.vercel\.app$") matching extra origins.
+    cors_origin_regex: str = ""
 
 
 @lru_cache
