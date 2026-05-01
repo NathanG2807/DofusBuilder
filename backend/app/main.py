@@ -17,16 +17,18 @@ async def lifespan(_: FastAPI):
     await engine.dispose()
 
 
+_settings = get_settings()
+_cors_origins = [o.strip() for o in _settings.cors_origins.split(",") if o.strip()]
+
 app = FastAPI(
     title="Dofus Intelligence Architect API",
     lifespan=lifespan,
     version="0.3.0",
 )
-settings = get_settings()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=settings.cors_origins_list,
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
