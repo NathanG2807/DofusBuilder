@@ -54,6 +54,8 @@ export type FullBuild = {
   total_stats: Record<string, number>;
   active_set_bonuses: string[];
   active_set_details?: ActiveSetDetail[];
+  exo_pa?: boolean;
+  exo_pm?: boolean;
 };
 
 export type OptimizationRequest = {
@@ -63,6 +65,8 @@ export type OptimizationRequest = {
   min_pa: number;
   min_pm: number;
   focus_stats: string[];
+  allow_exo_pa?: boolean;
+  allow_exo_pm?: boolean;
   mode: "solver" | "genetic";
 };
 

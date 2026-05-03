@@ -8,7 +8,11 @@ import { STAT_GROUPS } from "@/lib/statLabels";
 type RawEffect = Record<string, unknown>;
 
 // ── Lookup statKey → icon (construit depuis STAT_GROUPS) ──────────────────────
-const STAT_KEY_TO_ICON: Record<string, string> = {};
+const STAT_KEY_TO_ICON: Record<string, string> = {
+  // PA et PM ne sont pas dans STAT_GROUPS mais ont leurs propres assets
+  pa: "pa",
+  pm: "pm",
+};
 for (const group of STAT_GROUPS) {
   for (const stat of group.stats) {
     STAT_KEY_TO_ICON[stat.key] = stat.icon;
@@ -17,7 +21,7 @@ for (const group of STAT_GROUPS) {
 
 // ── Mapping ID d'effet → statKey (miroir de effect_mapping.py, IDs vérifiés en DB) ───
 const EFFECT_ID_TO_KEY: Record<number, string> = {
-  // Primaires
+  // Caractéristiques primaires
   8:   "pm",
   9:   "vitality",
   10:  "wisdom",
@@ -75,6 +79,12 @@ const EFFECT_ID_TO_KEY: Record<number, string> = {
   63:  "resistance_earth_percent",
   65:  "resistance_melee_percent",
   108: "resistance_distance_percent",
+  // Dégâts en vol / Lifesteal (vol de vitalité par élément)
+  79:  "damage_water",
+  80:  "damage_fire",
+  83:  "damage_air",
+  84:  "damage_earth",
+  86:  "damage_neutral",
 };
 
 // ── Mapping nom d'effet → statKey ─────────────────────────────────────────────
@@ -148,6 +158,33 @@ const EFFECT_NAME_TO_KEY: Record<string, string> = {
   "% dommages sorts": "damage_spell_percent",
   "% weapon damage": "damage_weapon_percent",
   "% dommages d'armes": "damage_weapon_percent",
+  // Dégâts en vol / Lifesteal (FR)
+  "vol de vitalité eau": "damage_water",
+  "vol de vitalité feu": "damage_fire",
+  "vol de vitalité air": "damage_air",
+  "vol de vitalité terre": "damage_earth",
+  "vol de vitalité neutre": "damage_neutral",
+  "vol eau": "damage_water",
+  "vol feu": "damage_fire",
+  "vol air": "damage_air",
+  "vol terre": "damage_earth",
+  "vol neutre": "damage_neutral",
+  "dommages en vol eau": "damage_water",
+  "dommages en vol feu": "damage_fire",
+  "dommages en vol air": "damage_air",
+  "dommages en vol terre": "damage_earth",
+  "dommages en vol neutre": "damage_neutral",
+  // Lifesteal (EN)
+  "water life steal": "damage_water",
+  "fire life steal": "damage_fire",
+  "air life steal": "damage_air",
+  "earth life steal": "damage_earth",
+  "neutral life steal": "damage_neutral",
+  "water steal damage": "damage_water",
+  "fire steal damage": "damage_fire",
+  "air steal damage": "damage_air",
+  "earth steal damage": "damage_earth",
+  "neutral steal damage": "damage_neutral",
   // Résistances fixes (noms FR + EN)
   "earth resistance": "resistance_earth",
   "résistance terre": "resistance_earth",
@@ -186,12 +223,35 @@ const EFFECT_NAME_TO_KEY: Record<string, string> = {
   "% résistance d'armes": "resistance_weapon_percent",
 };
 
+// ── Table élément → statKey pour les patterns ────────────────────────────────
+const ELEMENT_TO_DAMAGE_KEY: Record<string, string> = {
+  feu: "damage_fire", fire: "damage_fire",
+  eau: "damage_water", water: "damage_water",
+  air: "damage_air",
+  terre: "damage_earth", earth: "damage_earth",
+  neutre: "damage_neutral", neutral: "damage_neutral",
+};
+
 function effectTypeToStatKey(type: { name?: string; id?: number } | null): string | null {
   if (!type) return null;
   if (type.id != null && EFFECT_ID_TO_KEY[type.id]) return EFFECT_ID_TO_KEY[type.id];
   const name = type.name?.trim().toLowerCase() ?? "";
   if (!name) return null;
   if (EFFECT_NAME_TO_KEY[name]) return EFFECT_NAME_TO_KEY[name];
+
+  // Pattern "vol de vitalité [element]" ou "dommages en vol [element]"
+  const mVol = name.match(/^(?:vol(?:\s+de\s+vitalit[eé])?|dommages\s+en\s+vol)\s+(.+)$/);
+  if (mVol) {
+    const el = mVol[1].trim();
+    if (ELEMENT_TO_DAMAGE_KEY[el]) return ELEMENT_TO_DAMAGE_KEY[el];
+  }
+  // Pattern "vol [element] de vitalité" ou variantes
+  const mVolInv = name.match(/^vol\s+(.+?)\s+(?:de\s+vitalit[eé]|steal)?$/);
+  if (mVolInv) {
+    const el = mVolInv[1].trim();
+    if (ELEMENT_TO_DAMAGE_KEY[el]) return ELEMENT_TO_DAMAGE_KEY[el];
+  }
+
   // "% résistance X" → resistance_X_percent
   const mResFr = name.match(/^%\s*résistances?\s+(.+)$/);
   if (mResFr) {
@@ -250,4 +310,38 @@ export function effectMaxLabel(eff: RawEffect): string {
 
   if (!type) return (eff.formatted as string) ?? String(value);
   return `${value} ${type}`;
+}
+
+/**
+ * Retourne l'affichage complet "de X à Y TypeNom" pour les effets actifs (dégâts d'arme).
+ * Si min === max ou si une borne est ignorée, simplifie en "X TypeNom".
+ */
+export function effectRangeLabel(eff: RawEffect): string {
+  const type = (eff.type as { name?: string } | null)?.name ?? "";
+  const ignoreMin = Boolean(eff.ignore_int_min);
+  const ignoreMax = Boolean(eff.ignore_int_max);
+
+  if (ignoreMin && ignoreMax) {
+    return (eff.formatted as string) ?? "";
+  }
+
+  const min =
+    typeof eff.int_minimum === "number"
+      ? eff.int_minimum
+      : typeof eff.int_minimum === "string"
+      ? parseInt(eff.int_minimum, 10)
+      : 0;
+  const max =
+    typeof eff.int_maximum === "number"
+      ? eff.int_maximum
+      : typeof eff.int_maximum === "string"
+      ? parseInt(eff.int_maximum, 10)
+      : 0;
+
+  const suffix = type ? ` ${type}` : "";
+
+  if (ignoreMax || min === max) {
+    return `${min}${suffix}`;
+  }
+  return `${min} à ${max}${suffix}`;
 }

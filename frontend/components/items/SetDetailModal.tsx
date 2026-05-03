@@ -39,7 +39,7 @@ function SetItemCard({
     (item.effects?.filter((e) => e != null) as Record<string, unknown>[]) ?? [];
 
   return (
-    <div className="rounded-lg border border-[#3d3428] bg-[#16130f] p-2.5">
+    <div className="rounded-lg border border-[#2a2a2a] bg-[#161616] p-2.5">
       <div className="flex items-start gap-2.5">
         {item.image_url_icon ? (
           // eslint-disable-next-line @next/next/no-img-element
@@ -48,18 +48,18 @@ function SetItemCard({
             alt=""
             width={48}
             height={48}
-            className="h-[48px] w-[48px] shrink-0 rounded-md border border-[#4a3d2e] bg-black/40 object-contain"
+            className="h-[48px] w-[48px] shrink-0 rounded-md border border-[#383838] bg-black/40 object-contain"
           />
         ) : (
-          <div className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-md border border-[#4a3d2e] bg-black/40 text-xl">
+          <div className="flex h-[48px] w-[48px] shrink-0 items-center justify-center rounded-md border border-[#383838] bg-black/40 text-xl text-[#555555]">
             ?
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold leading-tight text-[#f5e6c8]">
+          <p className="text-sm font-semibold leading-tight text-[#e0d0a0]">
             {item.name}
           </p>
-          <p className="mt-0.5 text-[11px] text-[#8a7a62]">
+          <p className="mt-0.5 text-[11px] text-[#888888]">
             Niv. {item.level} · {typeLabel(item.type_name_id)}
           </p>
           <div className="mt-1.5 flex gap-1.5">
@@ -67,7 +67,7 @@ function SetItemCard({
               <button
                 type="button"
                 onClick={() => setExpanded((v) => !v)}
-                className="rounded bg-[#2a2218] px-2 py-0.5 text-[10px] text-[#c9a227] hover:bg-[#3a3220]"
+                className="btn-dofus-gray rounded px-2 py-0.5 text-[10px]"
               >
                 {expanded ? "▲ Stats" : "▼ Stats"}
               </button>
@@ -76,7 +76,7 @@ function SetItemCard({
               <button
                 type="button"
                 onClick={() => onEquip(item)}
-                className="rounded bg-[#c9a227]/15 px-2 py-0.5 text-[10px] font-medium text-[#e8c96e] hover:bg-[#c9a227]/30"
+                className="btn-dofus-green rounded px-2 py-0.5 text-[10px]"
               >
                 Équiper
               </button>
@@ -84,8 +84,8 @@ function SetItemCard({
           </div>
         </div>
       </div>
-          {expanded && rawEffects.length > 0 && (
-        <ul className="mt-2 space-y-0.5 border-t border-[#2a2218] pt-2 text-[11px] text-[#e8d4a8]">
+      {expanded && rawEffects.length > 0 && (
+        <ul className="mt-2 space-y-0.5 border-t border-[#222222] pt-2 text-[11px] text-[#d0d0d0]">
           {rawEffects.map((eff, i) => (
             <EffectLine key={i} eff={eff} />
           ))}
@@ -140,7 +140,6 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
     setEquipMsg(`${item.name} ajouté au build.`);
   }
 
-  // Fermer sur Escape ou clic fond
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") onClose();
@@ -156,24 +155,28 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
       onMouseDown={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}
     >
-      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border-2 border-[#c9a227]/60 bg-[#1a1510] shadow-[0_16px_64px_rgba(0,0,0,0.7)]">
+      <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#3a3a3a] bg-[#181818] shadow-[0_16px_64px_rgba(0,0,0,0.8)]">
+
+        {/* Liseré vert en haut */}
+        <div className="h-[2px] w-full shrink-0 bg-gradient-to-r from-transparent via-[#5a9818]/70 to-transparent" />
+
         {/* En-tête */}
-        <div className="flex items-start justify-between border-b border-[#3d3428] bg-[#1e1814] px-5 py-4">
+        <div className="flex items-start justify-between border-b border-[#222222] bg-[#1a1a1a] px-5 py-4">
           <div>
             {loading ? (
-              <div className="h-5 w-40 animate-pulse rounded bg-[#3d3428]" />
+              <div className="h-5 w-40 animate-pulse rounded bg-[#282828]" />
             ) : (
               <h2 className="font-serif text-xl font-bold text-[#f0d78c]">
                 {setInfo?.name ?? `Panoplie #${setId}`}
               </h2>
             )}
             {!loading && totalTiers > 0 && (
-              <p className="mt-0.5 text-[12px] text-[#8a7a62]">
+              <p className="mt-0.5 text-[12px] text-[#888888]">
                 {totalTiers} objets dans la panoplie
               </p>
             )}
@@ -181,7 +184,7 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
           <button
             type="button"
             onClick={onClose}
-            className="ml-4 rounded-lg p-1.5 text-[#8a7a62] transition hover:bg-[#2a2218] hover:text-[#f0d78c]"
+            className="ml-4 rounded-lg p-1.5 text-[#666666] transition hover:bg-[#222222] hover:text-[#e0e0e0]"
             aria-label="Fermer"
           >
             ✕
@@ -195,7 +198,7 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
               {[1, 2, 3].map((i) => (
                 <div
                   key={i}
-                  className="h-16 animate-pulse rounded-lg bg-[#2a2218]"
+                  className="h-16 animate-pulse rounded-lg bg-[#222222]"
                 />
               ))}
             </div>
@@ -214,12 +217,12 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
                 <button
                   type="button"
                   onClick={() => void handleEquipAll()}
-                  className="rounded-lg border border-[#c9a227]/60 bg-[#c9a227]/15 px-4 py-2 text-sm font-semibold text-[#e8c96e] transition hover:bg-[#c9a227]/30"
+                  className="btn-dofus-green rounded-lg px-4 py-2 text-sm"
                 >
                   ⚔ Équiper la panoplie entière
                 </button>
                 {equipMsg && (
-                  <span className="text-[12px] text-[#a0c878]">{equipMsg}</span>
+                  <span className="text-[12px] text-emerald-400">{equipMsg}</span>
                 )}
               </div>
 
@@ -236,8 +239,8 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
 
               {/* Bonus de panoplie par palier */}
               {setInfo?.bonus_effects && totalTiers > 0 && (
-                <div className="mt-5 border-t border-[#3d3428] pt-4">
-                  <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-[#c9a227]">
+                <div className="mt-5 border-t border-[#222222] pt-4">
+                  <h3 className="mb-3 text-[13px] font-semibold uppercase tracking-wider text-[#888888]">
                     Bonus de panoplie
                   </h3>
                   <div className="space-y-2">
@@ -251,18 +254,18 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
                         return (
                           <div
                             key={tier}
-                            className="rounded-lg border border-[#3d3428] bg-[#16130f] px-3 py-2"
+                            className="rounded-lg border border-[#282828] bg-[#161616] px-3 py-2"
                           >
-                            <p className="mb-1 text-[11px] font-semibold text-[#e8c96e]">
+                            <p className="mb-1 text-[11px] font-semibold text-[#9cce38]">
                               {tier} pièces
                             </p>
                             <ul className="space-y-0.5">
                               {effects.map((eff, i) => (
                                 <li
                                   key={i}
-                                  className="flex items-start gap-1 text-[12px] text-[#c4b888]"
+                                  className="flex items-start gap-1 text-[12px] text-[#c0c0c0]"
                                 >
-                                  <span className="mt-0.5 shrink-0 text-[#c9a227]">
+                                  <span className="mt-0.5 shrink-0 text-[#5a9818]">
                                     •
                                   </span>
                                   {eff}

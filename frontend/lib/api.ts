@@ -131,10 +131,12 @@ export type ItemSearchParams = {
   page_size?: number;
   min_level?: number;
   max_level?: number;
-  type_name_id?: string;
+  /** Un ou plusieurs slugs de type (OR). Ex: ["dofus","trophy"]. */
+  type_name_id?: string | string[];
   is_weapon?: boolean;
   parent_set_id?: number;
-  stat_key?: string;
+  /** Une ou plusieurs clés stat — l'item doit toutes les satisfaire (ET). */
+  stat_key?: string | string[];
   min_stat_value?: number;
 };
 
@@ -147,13 +149,19 @@ export async function searchItems(
   if (params.q?.trim()) sp.set("q", params.q.trim());
   if (params.min_level != null) sp.set("min_level", String(params.min_level));
   if (params.max_level != null) sp.set("max_level", String(params.max_level));
-  if (params.type_name_id) sp.set("type_name_id", params.type_name_id);
+  if (params.type_name_id) {
+    const types = Array.isArray(params.type_name_id)
+      ? params.type_name_id
+      : [params.type_name_id];
+    for (const t of types) sp.append("type_name_id", t);
+  }
   if (params.is_weapon === true) sp.set("is_weapon", "true");
   if (params.is_weapon === false) sp.set("is_weapon", "false");
   if (params.parent_set_id != null)
     sp.set("parent_set_id", String(params.parent_set_id));
   if (params.stat_key && params.min_stat_value != null) {
-    sp.set("stat_key", params.stat_key);
+    const keys = Array.isArray(params.stat_key) ? params.stat_key : [params.stat_key];
+    for (const k of keys) sp.append("stat_key", k);
     sp.set("min_stat_value", String(params.min_stat_value));
   }
   const r = await fetch(`${getApiBase()}/api/v1/items?${sp}`, {

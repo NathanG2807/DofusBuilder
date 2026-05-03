@@ -15,7 +15,7 @@ import {
 import { SLOT_DEFS } from "@/lib/slots";
 import type { SlotId } from "@/lib/slots";
 import type { ItemOut } from "@/types/api";
-import { useBuildStore } from "@/store/build-store";
+import { useBuildStore, type ExoType } from "@/store/build-store";
 import { DOFUS_CLASS_OPTIONS } from "@/lib/dofusClasses";
 import { classImageFallback, classImageUrl } from "@/lib/classImage";
 import { isConditionMet } from "@/lib/conditionCheck";
@@ -46,8 +46,10 @@ function SlotCell({
   item,
   rawItemId,
   conditionOk = true,
+  exoType,
   onSelect,
   onUnequip,
+  onToggleExo,
   onHoverEnter,
   onHoverMove,
   onHoverLeave,
@@ -58,36 +60,44 @@ function SlotCell({
   item: ItemOut | undefined;
   rawItemId: number | null | undefined;
   conditionOk?: boolean;
+  exoType?: ExoType;
   onSelect: () => void;
   onUnequip: () => void;
+  onToggleExo: (type: ExoType) => void;
   onHoverEnter: (e: React.MouseEvent) => void;
   onHoverMove: (e: React.MouseEvent) => void;
   onHoverLeave: () => void;
 }) {
   const label = SLOT_SHORT_LABEL[slotId];
-  const boxSize = compact ? "h-[48px] w-[48px]" : "h-[54px] w-[54px]";
-  const imgPx = compact ? 32 : 38;
+  const boxSize = compact
+    ? "h-[40px] w-[40px] sm:h-[48px] sm:w-[48px]"
+    : "h-[46px] w-[46px] sm:h-[54px] sm:w-[54px]";
+  const imgPx = compact ? 28 : 34;
+
+  const borderClass = exoType === "pa"
+    ? "border-[#4a90d9] bg-[#06111f] shadow-[0_0_0_2px_rgba(74,144,217,0.35)]"
+    : exoType === "pm"
+    ? "border-[#72bc1e] bg-[#091800] shadow-[0_0_0_2px_rgba(114,188,30,0.35)]"
+    : selected
+    ? "border-[#72bc1e]/80 bg-[#1a2c0a] shadow-[0_0_0_2px_rgba(114,188,30,0.25)]"
+    : !conditionOk
+    ? "border-red-600/80 bg-[#2a1010] shadow-[0_0_0_2px_rgba(220,50,50,0.25)] hover:border-red-500"
+    : "border-[#2a2a2a] bg-[#181818] hover:border-[#3a3a3a] hover:bg-[#202020]";
 
   return (
     <button
       type="button"
       onClick={onSelect}
       title={label}
-      className={`group flex flex-col items-center gap-0.5 rounded-lg border p-1.5 transition ${
-        selected
-          ? "border-amber-400/90 bg-[#3a3430] shadow-[0_0_0_2px_rgba(245,180,60,0.3)]"
-          : !conditionOk
-          ? "border-red-600/80 bg-[#2a1010] shadow-[0_0_0_2px_rgba(220,50,50,0.25)] hover:border-red-500"
-          : "border-[#4a433c] bg-[#1e1a17] hover:border-[#6a5d52] hover:bg-[#2a2520]"
-      }`}
+      className={`group flex flex-col items-center gap-0.5 rounded-lg border p-1 sm:p-1.5 transition ${borderClass}`}
     >
-      <span className="max-w-[72px] truncate text-[9px] font-semibold uppercase tracking-wide text-[#7a7068]">
+      <span className="max-w-[64px] truncate text-[8px] font-semibold uppercase tracking-wide text-[#555555]">
         {label}
       </span>
 
       {/* Image ou placeholder */}
       <div
-        className={`relative flex ${boxSize} items-center justify-center overflow-hidden rounded border border-[#3d3834] bg-[#14120f]`}
+        className={`relative flex ${boxSize} items-center justify-center overflow-hidden rounded border border-[#252525] bg-[#141414]`}
         onMouseEnter={(e) => item && onHoverEnter(e)}
         onMouseMove={onHoverMove}
         onMouseLeave={onHoverLeave}
@@ -102,10 +112,12 @@ function SlotCell({
             className="max-h-[88%] max-w-[88%] object-contain"
           />
         ) : rawItemId != null ? (
-          <span className="text-[9px] text-[#6a6258]">#{rawItemId}</span>
+          <span className="text-[9px] text-[#555555]">#{rawItemId}</span>
         ) : (
-          <span className="text-[18px] font-extralight text-[#3a3530]">+</span>
+          <span className="text-[18px] font-extralight text-[#2a2a2a]">+</span>
         )}
+
+        {/* Bouton retirer */}
         {item && (
           <span
             role="button"
@@ -120,12 +132,52 @@ function SlotCell({
             ×
           </span>
         )}
+
+        {/* Boutons exo FM — apparaissent au hover (pas sur dofus/trophées/familier) */}
+        {item && !slotId.startsWith("dofus") && slotId !== "pet" && (
+          <div className="absolute bottom-0 left-0 right-0 hidden justify-center gap-0.5 bg-[#0a0a0a]/85 py-0.5 group-hover:flex">
+            <span
+              role="button"
+              tabIndex={0}
+              title={exoType === "pa" ? "Retirer exo PA" : "Ajouter exo +1 PA"}
+              onClick={(e) => { e.stopPropagation(); onToggleExo("pa"); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleExo("pa"); }
+              }}
+              className={`flex cursor-pointer items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-bold transition ${
+                exoType === "pa"
+                  ? "bg-[#051225] text-[#4a90d9]"
+                  : "bg-[#1a1a1a] text-[#555555] hover:text-[#4a90d9]"
+              }`}
+            >
+              +{/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/build/pa.png" alt="PA" width={9} height={9} className="h-[9px] w-[9px] object-contain" />
+            </span>
+            <span
+              role="button"
+              tabIndex={0}
+              title={exoType === "pm" ? "Retirer exo PM" : "Ajouter exo +1 PM"}
+              onClick={(e) => { e.stopPropagation(); onToggleExo("pm"); }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleExo("pm"); }
+              }}
+              className={`flex cursor-pointer items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-bold transition ${
+                exoType === "pm"
+                  ? "bg-[#1a3300] text-[#9cce38]"
+                  : "bg-[#1a1a1a] text-[#555555] hover:text-[#9cce38]"
+              }`}
+            >
+              +{/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/assets/build/pm.png" alt="PM" width={9} height={9} className="h-[9px] w-[9px] object-contain" />
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Nom raccourci */}
       {item && (
         <p
-          className="max-w-[72px] truncate text-[8px] leading-tight text-[#c0b8b0]"
+          className="max-w-[64px] truncate text-[8px] leading-tight text-[#aaaaaa]"
           title={item.name}
         >
           {item.name}
@@ -146,14 +198,13 @@ function ClassPortrait({
   const url = classImageUrl(classId, sex);
   const [errored, setErrored] = useState(false);
 
-  // Reset l'erreur dès que la combinaison classe/sexe change.
   useEffect(() => { setErrored(false); }, [classId, sex]);
 
   if (errored) {
     return (
       <div className="flex h-full w-full flex-col items-center justify-center gap-2 text-center">
         <span className="text-[40px] opacity-20">?</span>
-        <span className="text-[10px] text-[#5a5248]">Image non disponible</span>
+        <span className="text-[10px] text-[#444444]">Image non disponible</span>
       </div>
     );
   }
@@ -175,23 +226,21 @@ function StatGem({
   src,
   label,
   value,
-  size = 64,
+  containerClass = "h-16 w-16",
   fontSize = "text-[15px]",
 }: {
   src: string;
   label: string;
   value: number;
-  size?: number;
+  containerClass?: string;
   fontSize?: string;
 }) {
   return (
-    <div className="relative flex items-center justify-center" style={{ width: size, height: size }}>
+    <div className={`relative flex items-center justify-center ${containerClass}`}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img
         src={src}
         alt={label}
-        width={size}
-        height={size}
         className="h-full w-full object-contain drop-shadow-lg"
       />
       <span
@@ -204,28 +253,29 @@ function StatGem({
 }
 
 function BuildStatsSummary() {
-  const stats = useBuildStore((s) => s.stats);
-  const charStats = useBuildStore((s) => s.charStats);
+  const stats       = useBuildStore((s) => s.stats);
+  const charStats   = useBuildStore((s) => s.charStats);
+  const parchoStats = useBuildStore((s) => s.parchoStats);
+  const exoFm       = useBuildStore((s) => s.exoFm);
   const effectiveStats = useMemo(
     () => applyCharacterInvestments(stats, charStats),
     [stats, charStats],
   );
-  const pa    = effectiveStats.pa      ?? 0;
-  const pm    = effectiveStats.pm      ?? 0;
-  const invoc = effectiveStats.summons ?? 0;
-  const pv    = effectiveStats.vitality ?? 0;
+  const exoPa = useMemo(() => Object.values(exoFm).filter((v) => v === "pa").length, [exoFm]);
+  const exoPm = useMemo(() => Object.values(exoFm).filter((v) => v === "pm").length, [exoFm]);
+  const pa    = (effectiveStats.pa      ?? 0) + exoPa;
+  const pm    = (effectiveStats.pm      ?? 0) + exoPm;
+  const invoc = effectiveStats.summons  ?? 0;
+  const pv    = (effectiveStats.vitality ?? 0) + (parchoStats.vitality ?? 0);
 
   return (
-    <div className="mt-2 flex flex-col items-center gap-1">
-      {/* Ligne : PA — Cœur (vitalité) — PM */}
-      <div className="flex items-center gap-2">
-        <StatGem src="/assets/build/pa.png"  label="PA" value={pa} size={58} fontSize="text-[14px]" />
-        <StatGem src="/assets/build/pv.png"  label="Vitalité" value={pv} size={76} fontSize="text-[16px]" />
-        <StatGem src="/assets/build/pm.png"  label="PM" value={pm} size={58} fontSize="text-[14px]" />
+    <div className="mt-1 flex flex-col items-center gap-1 sm:mt-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        <StatGem src="/assets/build/pa.png"  label="PA"       value={pa}    containerClass="h-[46px] w-[46px] sm:h-[58px] sm:w-[58px]" fontSize="text-[13px] sm:text-[14px]" />
+        <StatGem src="/assets/build/pv.png"  label="Vitalité" value={pv}    containerClass="h-[62px] w-[62px] sm:h-[76px] sm:w-[76px]" fontSize="text-[14px] sm:text-[16px]" />
+        <StatGem src="/assets/build/pm.png"  label="PM"       value={pm}    containerClass="h-[46px] w-[46px] sm:h-[58px] sm:w-[58px]" fontSize="text-[13px] sm:text-[14px]" />
       </div>
-
-      {/* Invocation — plus petite, centrée en dessous */}
-      <StatGem src="/assets/build/invoc.png" label="Invocations" value={invoc} size={44} fontSize="text-[12px]" />
+      <StatGem src="/assets/build/invoc.png" label="Invocations" value={invoc} containerClass="h-[36px] w-[36px] sm:h-[44px] sm:w-[44px]" fontSize="text-[11px] sm:text-[12px]" />
     </div>
   );
 }
@@ -243,10 +293,10 @@ function StuffLevelBadge() {
 
   if (stuffLevel === 0) return null;
   return (
-    <div className="flex items-center gap-0.5 rounded border border-[#5c4a32] bg-[#14120f] px-1.5 py-1">
+    <div className="flex items-center gap-0.5 rounded border border-[#383838] bg-[#141414] px-1.5 py-1">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/assets/elements/lvl.png" alt="lvl" width={13} height={13} className="h-[13px] w-[13px] object-contain" />
-      <span className="text-[12px] font-semibold text-[#c9a227]">{stuffLevel}</span>
+      <span className="text-[12px] font-semibold text-[#9cce38]">{stuffLevel}</span>
     </div>
   );
 }
@@ -271,8 +321,10 @@ export function InventoryGrid() {
     [stats, charStats],
   );
 
-  const { hover, show, move, scheduleHide } = useItemHoverCard();
+  const exoFm = useBuildStore((s) => s.exoFm);
+  const setExoFm = useBuildStore((s) => s.setExoFm);
 
+  const { hover, show, move, scheduleHide } = useItemHoverCard();
   function slotProps(id: SlotId) {
     const itemId = currentBuild[id];
     const item = itemId != null ? itemById[itemId] : undefined;
@@ -284,8 +336,10 @@ export function InventoryGrid() {
       item,
       rawItemId: itemId,
       conditionOk,
+      exoType: exoFm[id],
       onSelect: () => setSelectedSlot(selected ? null : id),
       onUnequip: () => updateSlot(id, null),
+      onToggleExo: (type: ExoType) => setExoFm(id, type),
       onHoverEnter: (e: React.MouseEvent) => { if (item) show(item, e); },
       onHoverMove: move,
       onHoverLeave: scheduleHide,
@@ -293,14 +347,14 @@ export function InventoryGrid() {
   }
 
   return (
-    <section className="rounded-xl border border-[#4a433c] bg-[#1e1a17] p-3">
+    <section className="rounded-xl border border-[#282828] bg-[#181818] p-3">
       {/* ─── Sélecteurs classe / sexe / niveau ─── */}
       <div className="mb-3 flex items-center gap-1.5">
         {/* Classe */}
         <select
           value={classId}
           onChange={(e) => setClassId(Number(e.target.value))}
-          className="min-w-0 flex-1 rounded border border-[#5c4a32] bg-[#14120f] px-1.5 py-1 text-[12px] text-[#f0e4c4]"
+          className="min-w-0 flex-1 rounded border border-[#383838] bg-[#141414] px-1.5 py-1 text-[12px] text-[#d0d0d0] focus:outline-none"
         >
           {DOFUS_CLASS_OPTIONS.map((o) => (
             <option key={o.id} value={o.id}>{o.label}</option>
@@ -308,7 +362,7 @@ export function InventoryGrid() {
         </select>
 
         {/* Sexe */}
-        <div className="flex overflow-hidden rounded border border-[#5c4a32]">
+        <div className="flex overflow-hidden rounded border border-[#383838]">
           {(["male", "female"] as const).map((s) => (
             <button
               key={s}
@@ -316,8 +370,8 @@ export function InventoryGrid() {
               onClick={() => setSex(s)}
               className={`px-2 py-1 text-[11px] font-medium transition ${
                 sex === s
-                  ? "bg-[#c9a227]/20 text-[#e8c96e]"
-                  : "bg-[#14120f] text-[#8a7a62] hover:bg-[#2a2218]"
+                  ? "bg-[#1a2c0a] text-[#9cce38]"
+                  : "bg-[#141414] text-[#666666] hover:bg-[#1e1e1e]"
               }`}
             >
               {s === "male" ? "♂" : "♀"}
@@ -326,19 +380,18 @@ export function InventoryGrid() {
         </div>
 
         {/* Niveau personnage */}
-        <div className="flex items-center gap-0.5 rounded border border-[#5c4a32] bg-[#14120f] px-1.5 py-1">
-          <span className="text-[10px] text-[#6a5c48]">Niv.</span>
+        <div className="flex items-center gap-0.5 rounded border border-[#383838] bg-[#141414] px-1.5 py-1">
+          <span className="text-[10px] text-[#555555]">Niv.</span>
           <input
             type="number"
             min={1}
             max={200}
             value={level}
             onChange={(e) => setLevel(Math.min(200, Math.max(1, Number(e.target.value))))}
-            className="w-10 bg-transparent text-center text-[12px] text-[#f0e4c4] outline-none"
+            className="w-10 bg-transparent text-center text-[12px] text-[#d0d0d0] outline-none"
           />
         </div>
 
-        {/* Niveau du stuff (calculé) */}
         <StuffLevelBadge />
       </div>
 
@@ -350,8 +403,8 @@ export function InventoryGrid() {
         </div>
 
         {/* Portrait de classe + résumé stats */}
-        <div className="relative flex flex-1 flex-col items-center justify-start pt-6">
-          <div className="relative h-[360px] w-full max-w-[260px] overflow-hidden">
+        <div className="relative flex flex-1 flex-col items-center justify-start pt-4 sm:pt-6">
+          <div className="relative h-[240px] w-full max-w-[180px] overflow-hidden sm:h-[360px] sm:max-w-[260px]">
             <ClassPortrait classId={classId} sex={sex} />
           </div>
           <BuildStatsSummary />
@@ -363,9 +416,9 @@ export function InventoryGrid() {
         </div>
       </div>
 
-        {/* ─── Rangée Dofus / Trophées (6 emplacements combinés) ─── */}
-      <div className="mt-3 border-t border-[#3d3834] pt-3">
-        <p className="mb-2 text-center text-[9px] font-semibold uppercase tracking-widest text-[#6a6258]">
+      {/* ─── Rangée Dofus / Trophées ─── */}
+      <div className="mt-3 border-t border-[#222222] pt-3">
+        <p className="mb-2 text-center text-[9px] font-semibold uppercase tracking-widest text-[#484848]">
           Dofus &amp; Trophées
         </p>
         <div className="flex flex-wrap justify-center gap-1.5">

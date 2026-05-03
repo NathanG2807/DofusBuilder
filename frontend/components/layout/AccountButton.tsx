@@ -42,7 +42,6 @@ export function AccountButton() {
   const stats = useBuildStore((s) => s.stats);
   const activeSetBonuses = useBuildStore((s) => s.activeSetBonuses);
 
-  // Sync saveName with build name
   useEffect(() => {
     setSaveName(buildName);
   }, [buildName]);
@@ -69,7 +68,6 @@ export function AccountButton() {
     return () => { cancel = true; };
   }, [refreshBuilds]);
 
-  // Close on outside click
   useEffect(() => {
     if (!open) return;
     function handler(e: MouseEvent) {
@@ -166,45 +164,45 @@ export function AccountButton() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-lg border border-[#5c4a32] bg-[#241f1c] px-3 py-1.5 text-sm transition hover:bg-[#2e2925]"
+        className="btn-dofus-gray flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm"
       >
         {user ? (
           <>
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#c9a227]/20 text-[11px] font-bold uppercase text-[#e8c96e]">
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5a9818]/20 text-[11px] font-bold uppercase text-[#9cce38]">
               {user.username[0]}
             </span>
-            <span className="max-w-[100px] truncate text-[#f0e4c4]">{user.username}</span>
+            <span className="max-w-[100px] truncate text-[#d0d0d0]">{user.username}</span>
           </>
         ) : (
           <>
-            <span className="text-[#c9a227]">
+            <span className="text-[#888888]">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <circle cx="12" cy="8" r="4" />
                 <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
               </svg>
             </span>
-            <span className="text-[#d4c4a8]">Connexion</span>
+            <span className="text-[#c0c0c0]">Connexion</span>
           </>
         )}
-        <svg className={`h-3 w-3 text-[#8a7a62] transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <svg className={`h-3 w-3 text-[#666666] transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
 
       {/* ─── Dropdown ─── */}
       {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[320px] overflow-hidden rounded-xl border border-[#5c4a32] bg-[#1e1a16] shadow-[0_8px_32px_rgba(0,0,0,0.55)]">
+        <div className="absolute right-0 top-full z-50 mt-2 w-[320px] overflow-hidden rounded-xl border border-[#383838] bg-[#1a1a1a] shadow-[0_8px_32px_rgba(0,0,0,0.7)]">
           {!user ? (
             /* ── Formulaire connexion / inscription ── */
             <div className="p-4">
-              <div className="mb-3 flex gap-3 border-b border-[#3d3428] pb-3">
+              <div className="mb-3 flex gap-3 border-b border-[#252525] pb-3">
                 {(["login", "register"] as const).map((m) => (
                   <button
                     key={m}
                     type="button"
                     onClick={() => { setAuthMode(m); setAuthError(null); }}
                     className={`text-sm font-medium transition ${
-                      authMode === m ? "text-[#e8c96e]" : "text-[#6a5c48] hover:text-[#c4b498]"
+                      authMode === m ? "text-[#9cce38]" : "text-[#555555] hover:text-[#aaaaaa]"
                     }`}
                   >
                     {m === "login" ? "Connexion" : "Inscription"}
@@ -213,7 +211,7 @@ export function AccountButton() {
               </div>
               <form className="space-y-2" onSubmit={handleAuth}>
                 <input
-                  className="w-full rounded-lg border border-[#5c4a32] bg-[#120e0a] px-3 py-2 text-sm text-[#f5e6c8] placeholder:text-[#6a5c48]"
+                  className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
                   placeholder="Nom d'utilisateur"
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
@@ -222,7 +220,7 @@ export function AccountButton() {
                 />
                 {authMode === "register" && (
                   <input
-                    className="w-full rounded-lg border border-[#5c4a32] bg-[#120e0a] px-3 py-2 text-sm text-[#f5e6c8] placeholder:text-[#6a5c48]"
+                    className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
                     type="email"
                     placeholder="Email"
                     value={email}
@@ -232,7 +230,7 @@ export function AccountButton() {
                   />
                 )}
                 <input
-                  className="w-full rounded-lg border border-[#5c4a32] bg-[#120e0a] px-3 py-2 text-sm text-[#f5e6c8] placeholder:text-[#6a5c48]"
+                  className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
                   type="password"
                   placeholder="Mot de passe"
                   value={password}
@@ -244,7 +242,7 @@ export function AccountButton() {
                 <button
                   type="submit"
                   disabled={busy}
-                  className="w-full rounded-lg bg-gradient-to-b from-[#e8b84a] to-[#b8891c] py-2 text-sm font-medium text-[#1a1208] hover:brightness-110 disabled:opacity-50"
+                  className="btn-dofus-green w-full rounded-lg py-2 text-sm disabled:opacity-50"
                 >
                   {authMode === "register" ? "Créer le compte" : "Se connecter"}
                 </button>
@@ -254,9 +252,9 @@ export function AccountButton() {
             /* ── Panel connecté ── */
             <div>
               {/* En-tête utilisateur */}
-              <div className="flex items-center justify-between border-b border-[#3d3428] px-4 py-3">
+              <div className="flex items-center justify-between border-b border-[#252525] px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#c9a227]/20 text-sm font-bold uppercase text-[#e8c96e]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5a9818]/20 text-sm font-bold uppercase text-[#9cce38]">
                     {user.username[0]}
                   </span>
                   <span className="font-medium text-[#f0d78c]">{user.username}</span>
@@ -264,20 +262,20 @@ export function AccountButton() {
                 <button
                   type="button"
                   onClick={handleLogout}
-                  className="text-xs text-[#8a7a62] hover:text-[#d4c4a8]"
+                  className="text-xs text-[#666666] hover:text-[#aaaaaa]"
                 >
                   Déconnexion
                 </button>
               </div>
 
               {/* Sauvegarder */}
-              <form className="border-b border-[#3d3428] px-4 py-3" onSubmit={handleSave}>
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#8a7a62]">
+              <form className="border-b border-[#252525] px-4 py-3" onSubmit={handleSave}>
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#666666]">
                   Sauvegarder le build actuel
                 </p>
                 <div className="flex gap-2">
                   <input
-                    className="min-w-0 flex-1 rounded-lg border border-[#5c4a32] bg-[#120e0a] px-2 py-1.5 text-sm text-[#f5e6c8]"
+                    className="min-w-0 flex-1 rounded-lg border border-[#383838] bg-[#111111] px-2 py-1.5 text-sm text-[#e0e0e0] focus:outline-none"
                     value={saveName}
                     onChange={(e) => setSaveName(e.target.value)}
                     placeholder="Nom du build"
@@ -285,12 +283,12 @@ export function AccountButton() {
                   <button
                     type="submit"
                     disabled={busy}
-                    className="shrink-0 rounded-lg bg-gradient-to-b from-[#e8b84a] to-[#b8891c] px-3 py-1.5 text-sm font-medium text-[#1a1208] disabled:opacity-50"
+                    className="btn-dofus-green shrink-0 rounded-lg px-3 py-1.5 text-sm disabled:opacity-50"
                   >
                     Sauver
                   </button>
                 </div>
-                <label className="mt-1.5 flex cursor-pointer items-center gap-2 text-[12px] text-[#a89878]">
+                <label className="mt-1.5 flex cursor-pointer items-center gap-2 text-[12px] text-[#888888]">
                   <input
                     type="checkbox"
                     checked={isPublic}
@@ -306,26 +304,26 @@ export function AccountButton() {
 
               {/* Liste des builds */}
               <div className="px-4 py-3">
-                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#8a7a62]">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#666666]">
                   Mes builds
                 </p>
                 {listError && <p className="mb-1 text-xs text-red-400">{listError}</p>}
                 <ul className="max-h-52 space-y-1.5 overflow-y-auto">
                   {builds.length === 0 && (
-                    <li className="text-xs text-[#6a5c48]">Aucun build enregistré.</li>
+                    <li className="text-xs text-[#444444]">Aucun build enregistré.</li>
                   )}
                   {builds.map((b) => (
                     <li
                       key={b.id}
-                      className="flex items-center gap-1.5 rounded-lg border border-[#3d3428] bg-[#120e0a]/80 px-2 py-1.5"
+                      className="flex items-center gap-1.5 rounded-lg border border-[#282828] bg-[#111111]/80 px-2 py-1.5"
                     >
-                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#f0e4c4]">
+                      <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#d0d0d0]">
                         {b.name}
                       </span>
-                      <button type="button" onClick={() => void handleLoad(b)} className="shrink-0 text-[11px] text-[#e8c96e] hover:underline">
+                      <button type="button" onClick={() => void handleLoad(b)} className="shrink-0 text-[11px] text-[#9cce38] hover:underline">
                         Charger
                       </button>
-                      <button type="button" onClick={() => void copyLink(b.id)} className="shrink-0 text-[11px] text-[#8a7a62] hover:underline">
+                      <button type="button" onClick={() => void copyLink(b.id)} className="shrink-0 text-[11px] text-[#888888] hover:underline">
                         Lien
                       </button>
                       <button type="button" onClick={() => void handleDelete(b.id)} className="shrink-0 text-[11px] text-red-400/80 hover:underline">

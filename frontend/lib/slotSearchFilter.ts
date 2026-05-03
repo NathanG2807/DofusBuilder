@@ -8,8 +8,7 @@ export function searchFiltersForSlot(
   if (!slot) return {};
   if (slot === "weapon") return { is_weapon: true };
   if (slot === "ring1" || slot === "ring2") return { type_name_id: "ring" };
-  if (slot.startsWith("dofus")) return { type_name_id: "dofus" };
-  if (slot.startsWith("trophy")) return { type_name_id: "trophy" };
+  if (slot.startsWith("dofus")) return { type_name_id: ["dofus", "trophy"] };
   if (
     slot === "hat" ||
     slot === "cloak" ||

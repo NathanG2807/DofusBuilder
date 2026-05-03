@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import re
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import Integer, cast, func, select
@@ -25,22 +25,20 @@ async def list_items(
     q: Optional[str] = Query(None, description="Recherche insensible à la casse sur le nom"),
     min_level: Optional[int] = Query(None, ge=0, le=200),
     max_level: Optional[int] = Query(None, ge=0, le=200),
-    type_name_id: Optional[str] = Query(
-        None,
-        description="Slug de type d'équipement (ex: hat, ring, boots)",
-        max_length=100,
+    type_name_id: List[str] = Query(
+        default=[],
+        description="Slug(s) de type d'équipement (ex: hat, ring, dofus). Répétable pour OR.",
     ),
     is_weapon: Optional[bool] = Query(None, description="Filtrer armes / non-armes"),
     parent_set_id: Optional[int] = Query(None, description="Filtrer par panoplie (ankama_id)"),
-    stat_key: Optional[str] = Query(
-        None,
-        description="Clé dans base_stats (ex: pa, vitality, damage_earth)",
-        max_length=64,
+    stat_key: List[str] = Query(
+        default=[],
+        description="Clé(s) dans base_stats. Répétable — l'item doit satisfaire TOUTES les conditions (ET).",
     ),
     min_stat_value: Optional[int] = Query(
         None,
         ge=0,
-        description="Valeur minimale pour stat_key (inclus)",
+        description="Valeur minimale pour chaque stat_key sélectionné (inclus)",
     ),
 ) -> ItemListResponse:
     filters = [sql_exclude_gm_items()]
@@ -51,24 +49,28 @@ async def list_items(
     if max_level is not None:
         filters.append(Item.level <= max_level)
     if type_name_id:
-        filters.append(Item.type_name_id == type_name_id)
+        if len(type_name_id) == 1:
+            filters.append(Item.type_name_id == type_name_id[0])
+        else:
+            filters.append(Item.type_name_id.in_(type_name_id))
     if is_weapon is not None:
         filters.append(Item.is_weapon == is_weapon)
     if parent_set_id is not None:
         filters.append(Item.parent_set_id == parent_set_id)
-    if stat_key is not None or min_stat_value is not None:
-        if not stat_key or min_stat_value is None:
+    if stat_key:
+        if min_stat_value is None:
             raise HTTPException(
                 status.HTTP_400_BAD_REQUEST,
-                detail="Fournir stat_key et min_stat_value ensemble.",
+                detail="Fournir min_stat_value avec stat_key.",
             )
-        if not _STAT_KEY_RE.match(stat_key):
-            raise HTTPException(
-                status.HTTP_400_BAD_REQUEST,
-                detail="stat_key invalide.",
-            )
-        jtext = Item.base_stats[stat_key].astext
-        filters.append(cast(jtext, Integer) >= min_stat_value)
+        for key in stat_key:
+            if not _STAT_KEY_RE.match(key):
+                raise HTTPException(
+                    status.HTTP_400_BAD_REQUEST,
+                    detail=f"stat_key invalide: {key}",
+                )
+            jtext = Item.base_stats[key].astext
+            filters.append(cast(jtext, Integer) >= min_stat_value)
 
     count_stmt = select(func.count()).select_from(Item)
     stmt = select(Item)

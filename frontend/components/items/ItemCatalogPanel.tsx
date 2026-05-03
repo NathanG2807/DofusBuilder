@@ -8,7 +8,6 @@ import {
 } from "@/components/items/ItemHoverCard";
 import { SetDetailModal } from "@/components/items/SetDetailModal";
 import { searchItems, searchSets } from "@/lib/api";
-import { CATALOG_STAT_KEYS } from "@/lib/statLabels";
 import { EQUIPMENT_TYPE_OPTIONS } from "@/lib/equipmentTypes";
 import { itemFitsSlot } from "@/lib/itemSlotMatch";
 import { searchFiltersForSlot } from "@/lib/slotSearchFilter";
@@ -16,7 +15,39 @@ import { useBuildStore } from "@/store/build-store";
 import type { ItemOut, ItemSetOut } from "@/types/api";
 import type { SlotId } from "@/lib/slots";
 
-/* ─── Onglet Panoplies ─── */
+/* ── Options du filtre stat (avec icônes) ────────────────────────────────── */
+const STAT_FILTER_OPTIONS = [
+  // PA / PM
+  { value: "pa",  label: "PA", icon: "pa" },
+  { value: "pm",  label: "PM", icon: "pm" },
+  // Primaires
+  { value: "vitality",         label: "Vita.",   icon: "vi"  },
+  { value: "strength",         label: "Force",   icon: "ter" },
+  { value: "intelligence",     label: "Intel.",  icon: "feu" },
+  { value: "chance",           label: "Chance",  icon: "eau" },
+  { value: "agility",          label: "Agil.",   icon: "air" },
+  { value: "wisdom",           label: "Sagesse", icon: "sa"  },
+  { value: "power",            label: "Puiss.",  icon: "pu"  },
+  // CC / Dommages
+  { value: "critical_percent",        label: "% CC",       icon: "cc"  },
+  { value: "critical_damage",         label: "Do Crit.",   icon: "dc"  },
+  { value: "damage",                  label: "Dommages",   icon: "dmg" },
+  { value: "damage_earth",            label: "Do Terre",   icon: "dtf" },
+  { value: "damage_fire",             label: "Do Feu",     icon: "dff" },
+  { value: "damage_water",            label: "Do Eau",     icon: "def" },
+  { value: "damage_air",              label: "Do Air",     icon: "daf" },
+  { value: "damage_neutral",          label: "Do Neutre",  icon: "dnf" },
+  { value: "damage_spell_percent",    label: "% Sorts",    icon: "ds"  },
+  { value: "damage_weapon_percent",   label: "% Armes",    icon: "dw"  },
+  // Divers
+  { value: "heals",       label: "Soins",   icon: "so"  },
+  { value: "prospecting", label: "Prosp.",  icon: "pp"  },
+  { value: "range",       label: "Portée",  icon: "po"  },
+  { value: "summons",     label: "Invoc.",  icon: "ic"  },
+  { value: "initiative",  label: "Init.",   icon: "ii"  },
+] as const;
+
+/* ── Onglet Panoplies ────────────────────────────────────────────────────── */
 function SetsCatalog() {
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
@@ -61,7 +92,7 @@ function SetsCatalog() {
         value={q}
         onChange={(e) => { setQ(e.target.value); setPage(1); }}
         placeholder="Nom de panoplie…"
-        className="rounded-lg border border-[#5c4a32] bg-[#120e0a] px-3 py-2 text-sm text-[#f5e6c8] placeholder:text-[#6a5c48]"
+        className="rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
       />
 
       {err && (
@@ -72,35 +103,35 @@ function SetsCatalog() {
 
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <p className="py-8 text-center text-sm text-[#8a7a62]">Chargement…</p>
+          <p className="py-8 text-center text-sm text-[#666666]">Chargement…</p>
         ) : sets.length === 0 ? (
-          <p className="py-8 text-center text-sm text-[#8a7a62]">Aucune panoplie trouvée.</p>
+          <p className="py-8 text-center text-sm text-[#666666]">Aucune panoplie trouvée.</p>
         ) : (
           <ul className="space-y-1.5">
             {sets.map((s) => {
               const count = s.equipment_ids?.length ?? 0;
               return (
-                <li key={s.ankama_id} className="flex items-center justify-between gap-2 rounded-lg border border-[#3d3428] bg-[#16130f] px-3 py-2">
+                <li key={s.ankama_id} className="flex items-center justify-between gap-2 rounded-lg border border-[#282828] bg-[#161616] px-3 py-2">
                   <div className="min-w-0">
-                    <p className="truncate text-[13px] font-medium text-[#f0e4c4]">
+                    <p className="truncate text-[13px] font-medium text-[#e8c96e]">
                       {s.name ?? `Panoplie #${s.ankama_id}`}
                     </p>
                     {count > 0 && (
-                      <p className="text-[11px] text-[#8a7a62]">{count} objets</p>
+                      <p className="text-[11px] text-[#666666]">{count} objets</p>
                     )}
                   </div>
                   <div className="flex shrink-0 gap-1.5">
                     <button
                       type="button"
                       onClick={() => setOpenSetId(s.ankama_id)}
-                      className="rounded border border-[#5c4a32] px-2.5 py-1 text-[11px] text-[#c9a227] hover:bg-[#2a2218]"
+                      className="btn-dofus-gray rounded px-2.5 py-1 text-[11px]"
                     >
                       Détail
                     </button>
                     <button
                       type="button"
                       onClick={() => void equipSet(s.ankama_id)}
-                      className="rounded border border-[#c9a227]/40 bg-[#c9a227]/10 px-2.5 py-1 text-[11px] font-medium text-[#e8c96e] hover:bg-[#c9a227]/25"
+                      className="btn-dofus-green rounded px-2.5 py-1 text-[11px]"
                     >
                       ⚔ Équiper
                     </button>
@@ -113,11 +144,11 @@ function SetsCatalog() {
       </div>
 
       {total > pageSize && (
-        <div className="flex items-center justify-between border-t border-[#3d3428] pt-2 text-[12px] text-[#b8a88c]">
+        <div className="flex items-center justify-between border-t border-[#222222] pt-2 text-[12px] text-[#888888]">
           <span>{total} panoplies · page {page}/{pages}</span>
           <div className="flex gap-1">
-            <button type="button" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="rounded border border-[#5c4a32] px-2 py-0.5 disabled:opacity-40">Préc.</button>
-            <button type="button" disabled={page >= pages} onClick={() => setPage(p => p + 1)} className="rounded border border-[#5c4a32] px-2 py-0.5 disabled:opacity-40">Suiv.</button>
+            <button type="button" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="btn-dofus-gray rounded px-2 py-0.5 text-[11px] disabled:opacity-40">Préc.</button>
+            <button type="button" disabled={page >= pages} onClick={() => setPage(p => p + 1)} className="btn-dofus-gray rounded px-2 py-0.5 text-[11px] disabled:opacity-40">Suiv.</button>
           </div>
         </div>
       )}
@@ -129,11 +160,14 @@ function SetsCatalog() {
   );
 }
 
-/* ─── Catalogue principal ─── */
+/* ── Catalogue principal ─────────────────────────────────────────────────── */
 export function ItemCatalogPanel() {
   const selectedSlot = useBuildStore((s) => s.selectedSlot);
   const equipItemOnSlot = useBuildStore((s) => s.equipItemOnSlot);
   const { hover, show, move, scheduleHide } = useItemHoverCard();
+
+  const currentBuild = useBuildStore((s) => s.currentBuild);
+  const itemById     = useBuildStore((s) => s.itemById);
 
   const [tab, setTab] = useState<"items" | "sets">("items");
 
@@ -142,11 +176,10 @@ export function ItemCatalogPanel() {
   const [minLv, setMinLv] = useState(1);
   const [maxLv, setMaxLv] = useState(200);
   const [typeId, setTypeId] = useState("");
-  const [weaponsOnly, setWeaponsOnly] = useState(false);
-  const [statKey, setStatKey] = useState("");
+
+  // Filtre stat : multi-sélection + valeur min commune
+  const [statKeys, setStatKeys] = useState<string[]>([]);
   const [minStat, setMinStat] = useState(1);
-  const [useStatFilter, setUseStatFilter] = useState(false);
-  const [respectSlot, setRespectSlot] = useState(true);
 
   const [page, setPage] = useState(1);
   const pageSize = 24;
@@ -164,14 +197,9 @@ export function ItemCatalogPanel() {
     setLoading(true);
     setErr(null);
     try {
-      const slotF =
-        respectSlot && selectedSlot
-          ? searchFiltersForSlot(selectedSlot)
-          : {};
+      const slotF = selectedSlot ? searchFiltersForSlot(selectedSlot) : {};
       const type_name_id = (typeId || slotF.type_name_id) || undefined;
-      let is_weapon: boolean | undefined;
-      if (weaponsOnly) is_weapon = true;
-      else if (slotF.is_weapon === true) is_weapon = true;
+      const is_weapon = slotF.is_weapon === true ? true : undefined;
 
       const res = await searchItems({
         q: debouncedQ || undefined,
@@ -181,9 +209,8 @@ export function ItemCatalogPanel() {
         max_level: maxLv,
         type_name_id,
         is_weapon,
-        stat_key: useStatFilter && statKey ? statKey : undefined,
-        min_stat_value:
-          useStatFilter && statKey ? minStat : undefined,
+        stat_key: statKeys.length > 0 ? statKeys : undefined,
+        min_stat_value: statKeys.length > 0 ? minStat : undefined,
       });
       setItems(res.items);
       setTotal(res.total);
@@ -194,33 +221,17 @@ export function ItemCatalogPanel() {
     } finally {
       setLoading(false);
     }
-  }, [
-    debouncedQ,
-    page,
-    minLv,
-    maxLv,
-    typeId,
-    weaponsOnly,
-    statKey,
-    minStat,
-    useStatFilter,
-    respectSlot,
-    selectedSlot,
-  ]);
+  }, [debouncedQ, page, minLv, maxLv, typeId, statKeys, minStat, selectedSlot]);
 
-  useEffect(() => {
-    void load();
-  }, [load]);
+  useEffect(() => { void load(); }, [load]);
 
   async function onEquip(it: ItemOut) {
     if (!selectedSlot) {
-      setErr("Clique d’abord sur un emplacement à gauche (inventaire).");
+      setErr("Clique d'abord sur un emplacement à gauche (inventaire).");
       return;
     }
     if (!itemFitsSlot(selectedSlot, it)) {
-      setErr(
-        `Cet objet ne va pas dans « ${slotLabelFr(selectedSlot)} ». Choisis un autre emplacement.`,
-      );
+      setErr(`Cet objet ne va pas dans « ${slotLabelFr(selectedSlot)} ». Choisis un autre emplacement.`);
       return;
     }
     setErr(null);
@@ -234,13 +245,13 @@ export function ItemCatalogPanel() {
   const pages = Math.max(1, Math.ceil(total / pageSize));
 
   return (
-    <section className="dofus-panel flex min-h-[420px] flex-col rounded-xl border-2 border-[#6b5428]/90 bg-[#1a1510]/95 p-4 shadow-inner">
+    <section className="dofus-panel flex min-h-[420px] flex-col rounded-xl border border-[#2e2e2e] bg-[#181818]/95 p-4">
+      {/* ── En-tête + onglets ── */}
       <div className="mb-3 flex items-center justify-between">
         <h2 className="font-serif text-lg font-semibold tracking-wide text-[#f0d78c]">
           Catalogue
         </h2>
-        {/* Onglets */}
-        <div className="flex overflow-hidden rounded-lg border border-[#5c4a32]">
+        <div className="flex overflow-hidden rounded-lg border border-[#383838]">
           {(["items", "sets"] as const).map((t) => (
             <button
               key={t}
@@ -248,8 +259,8 @@ export function ItemCatalogPanel() {
               onClick={() => setTab(t)}
               className={`px-3 py-1.5 text-[12px] font-medium transition ${
                 tab === t
-                  ? "bg-[#c9a227]/20 text-[#e8c96e]"
-                  : "bg-[#14120f] text-[#8a7a62] hover:bg-[#2a2218]"
+                  ? "bg-[#1a2c0a] text-[#9cce38]"
+                  : "bg-[#141414] text-[#888888] hover:bg-[#1e1e1e]"
               }`}
             >
               {t === "items" ? "Objets" : "Panoplies"}
@@ -261,231 +272,243 @@ export function ItemCatalogPanel() {
       {tab === "sets" ? (
         <SetsCatalog />
       ) : (
-      <>
-      <div className="flex flex-col gap-2 border-b border-[#3d3428] pb-3">
-        <input
-          type="search"
-          value={q}
-          onChange={(e) => {
-            setQ(e.target.value);
-            setPage(1);
-          }}
-          placeholder="Nom d'objet…"
-          className="rounded-lg border border-[#5c4a32] bg-[#120e0a] px-3 py-2 text-sm text-[#f5e6c8] placeholder:text-[#6a5c48]"
-        />
-        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <label className="flex flex-col text-[11px] text-[#b8a88c]">
-            Niv. min
-            <input
-              type="number"
-              min={1}
-              max={200}
-              value={minLv}
-              onChange={(e) => {
-                setMinLv(Number(e.target.value));
-                setPage(1);
-              }}
-              className="mt-0.5 rounded border border-[#5c4a32] bg-[#120e0a] px-2 py-1 text-[#f5e6c8]"
-            />
-          </label>
-          <label className="flex flex-col text-[11px] text-[#b8a88c]">
-            Niv. max
-            <input
-              type="number"
-              min={1}
-              max={200}
-              value={maxLv}
-              onChange={(e) => {
-                setMaxLv(Number(e.target.value));
-                setPage(1);
-              }}
-              className="mt-0.5 rounded border border-[#5c4a32] bg-[#120e0a] px-2 py-1 text-[#f5e6c8]"
-            />
-          </label>
-          <label className="col-span-2 flex flex-col text-[11px] text-[#b8a88c]">
-            Type
-            <select
-              value={typeId}
-              onChange={(e) => {
-                setTypeId(e.target.value);
-                setPage(1);
-              }}
-              className="mt-0.5 rounded border border-[#5c4a32] bg-[#120e0a] px-2 py-1 text-[#f5e6c8]"
-            >
-              {EQUIPMENT_TYPE_OPTIONS.map((o) => (
-                <option key={o.value || "all"} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-        </div>
-        <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[#d4c4a8]">
-          <input
-            type="checkbox"
-            checked={weaponsOnly}
-            onChange={(e) => {
-              setWeaponsOnly(e.target.checked);
-              setPage(1);
-            }}
-            className="rounded border-[#5c4a32]"
-          />
-          Armes seulement
-        </label>
-        <label className="flex cursor-pointer items-center gap-2 text-[12px] text-[#d4c4a8]">
-          <input
-            type="checkbox"
-            checked={respectSlot}
-            onChange={(e) => setRespectSlot(e.target.checked)}
-            className="rounded border-[#5c4a32]"
-          />
-          Limiter les résultats à l&apos;emplacement sélectionné
-        </label>
-        <div className="flex flex-wrap items-end gap-2">
-          <label className="flex flex-col text-[11px] text-[#b8a88c]">
-            Stat min.
-            <select
-              value={statKey}
-              onChange={(e) => setStatKey(e.target.value)}
-              className="mt-0.5 min-w-[140px] rounded border border-[#5c4a32] bg-[#120e0a] px-2 py-1 text-[#f5e6c8]"
-            >
-              <option value="">—</option>
-              {CATALOG_STAT_KEYS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="flex flex-col text-[11px] text-[#b8a88c]">
-            Valeur ≥
-            <input
-              type="number"
-              min={0}
-              value={minStat}
-              onChange={(e) => setMinStat(Number(e.target.value))}
-              className="mt-0.5 w-20 rounded border border-[#5c4a32] bg-[#120e0a] px-2 py-1 text-[#f5e6c8]"
-            />
-          </label>
-          <label className="flex items-center gap-2 text-[12px] text-[#d4c4a8]">
-            <input
-              type="checkbox"
-              checked={useStatFilter}
-              onChange={(e) => {
-                setUseStatFilter(e.target.checked);
-                setPage(1);
-              }}
-            />
-            Activer
-          </label>
-        </div>
-      </div>
+        <>
+          {/* ── Filtres ── */}
+          <div className="flex flex-col gap-2.5 border-b border-[#222222] pb-3">
 
-      {selectedSlot && (
-        <p className="mt-2 rounded-lg bg-[#2a2218] px-2 py-1.5 text-[12px] text-[#e8c96e]">
-          Emplacement :{" "}
-          <strong>{slotLabelFr(selectedSlot)}</strong> — clique sur un objet
-          pour équiper.
-        </p>
-      )}
+            {/* Recherche par nom */}
+            <input
+              type="search"
+              value={q}
+              onChange={(e) => { setQ(e.target.value); setPage(1); }}
+              placeholder="Nom d'objet…"
+              className="rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
+            />
 
-      {err && (
-        <p className="mt-2 rounded border border-red-900/50 bg-red-950/40 px-2 py-1.5 text-[12px] text-red-200">
-          {err}
-        </p>
-      )}
+            {/* Niveau + Type */}
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+              <label className="flex flex-col text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
+                Niv. min
+                <input
+                  type="number" min={1} max={200} value={minLv}
+                  onChange={(e) => { setMinLv(Number(e.target.value)); setPage(1); }}
+                  className="mt-0.5 rounded border border-[#383838] bg-[#111111] px-2 py-1 text-[12px] text-[#e0e0e0] focus:outline-none"
+                />
+              </label>
+              <label className="flex flex-col text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
+                Niv. max
+                <input
+                  type="number" min={1} max={200} value={maxLv}
+                  onChange={(e) => { setMaxLv(Number(e.target.value)); setPage(1); }}
+                  className="mt-0.5 rounded border border-[#383838] bg-[#111111] px-2 py-1 text-[12px] text-[#e0e0e0] focus:outline-none"
+                />
+              </label>
+              <label className="col-span-2 flex flex-col text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
+                Type
+                <select
+                  value={typeId}
+                  onChange={(e) => { setTypeId(e.target.value); setPage(1); }}
+                  className="mt-0.5 rounded border border-[#383838] bg-[#111111] px-2 py-1 text-[12px] text-[#e0e0e0] focus:outline-none"
+                >
+                  {EQUIPMENT_TYPE_OPTIONS.map((o) => (
+                    <option key={o.value || "all"} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
 
-      <div className="mt-2 flex-1 overflow-y-auto">
-        {loading ? (
-          <p className="py-8 text-center text-sm text-[#8a7a62]">Chargement…</p>
-        ) : items.length === 0 ? (
-          <p className="py-8 text-center text-sm text-[#8a7a62]">
-            Aucun objet trouvé.
-          </p>
-        ) : (
-          <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
-            {items.map((it) => {
-              const ok =
-                selectedSlot && itemFitsSlot(selectedSlot, it);
-              return (
-                <li key={it.ankama_id}>
-                  <div
-                    onMouseEnter={(e) => show(it, e)}
-                    onMouseMove={move}
-                    onMouseLeave={scheduleHide}
-                  >
+            {/* Filtre stat — pills avec icônes (multi-sélect) */}
+            <div className="flex flex-col gap-1.5">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
+                  Stats minimum {statKeys.length > 0 && <span className="text-[#9cce38]">({statKeys.length})</span>}
+                </span>
+                {statKeys.length > 0 && (
                   <button
                     type="button"
-                    disabled={!selectedSlot}
-                    onClick={() => void onEquip(it)}
-                    className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition ${
-                      ok
-                        ? "border-[#5c4a32] bg-[#231c15] hover:border-[#c9a227]/60 hover:bg-[#2e261c]"
-                        : "border-[#3d3428] bg-[#1a1510]/80 opacity-80 hover:bg-[#231c15]"
-                    } ${!selectedSlot ? "cursor-not-allowed opacity-60" : ""}`}
+                    onClick={() => { setStatKeys([]); setPage(1); }}
+                    className="text-[9px] text-[#555555] hover:text-[#cc4444] transition"
                   >
-                    {it.image_url_icon ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={it.image_url_icon}
-                        alt=""
-                        width={36}
-                        height={36}
-                        className="h-9 w-9 shrink-0 rounded border border-[#3d3428] object-contain"
-                      />
-                    ) : (
-                      <div className="h-9 w-9 shrink-0 rounded border border-dashed border-[#3d3428]" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[12px] font-medium text-[#f0e4c4]">
-                        {it.name}
-                      </p>
-                      <p className="text-[10px] text-[#8a7a62]">
-                        Niv. {it.level}
-                        {selectedSlot && !ok ? (
-                          <span className="text-amber-600/90"> · incompatible</span>
-                        ) : null}
-                      </p>
-                    </div>
+                    ✕ tout effacer
                   </button>
+                )}
+              </div>
+              <div className="flex flex-wrap gap-1">
+                {STAT_FILTER_OPTIONS.map((o) => {
+                  const active = statKeys.includes(o.value);
+                  return (
+                    <button
+                      key={o.value}
+                      type="button"
+                      onClick={() => {
+                        setStatKeys((prev) =>
+                          prev.includes(o.value)
+                            ? prev.filter((k) => k !== o.value)
+                            : [...prev, o.value],
+                        );
+                        setPage(1);
+                      }}
+                      className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
+                        active
+                          ? "border-[#4a8000]/70 bg-[#1a2c0a] text-[#9cce38]"
+                          : "border-[#252525] bg-[#111111] text-[#777777] hover:border-[#383838] hover:text-[#bbbbbb]"
+                      }`}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={`/assets/elements/${o.icon}.png`}
+                        alt=""
+                        width={11}
+                        height={11}
+                        className="h-[11px] w-[11px] shrink-0 object-contain"
+                      />
+                      {o.label}
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Valeur min — affiché uniquement quand au moins une stat est sélectionnée */}
+              {statKeys.length > 0 && (
+                <div className="flex items-center gap-2">
+                  <span className="text-[11px] text-[#888888]">Valeur ≥</span>
+                  <div className="flex items-center gap-1 rounded-lg border border-[#252525] bg-[#111111] px-2 py-1">
+                    <button
+                      type="button"
+                      onClick={() => setMinStat((v) => Math.max(0, v - 1))}
+                      className="flex h-4 w-4 items-center justify-center rounded text-[13px] font-bold text-[#888888] hover:text-[#cccccc]"
+                    >
+                      −
+                    </button>
+                    <input
+                      type="number"
+                      min={0}
+                      value={minStat}
+                      onChange={(e) => setMinStat(Math.max(0, Number(e.target.value)))}
+                      className="w-10 bg-transparent text-center text-[13px] font-semibold tabular-nums text-[#e0e0e0] outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setMinStat((v) => v + 1)}
+                      className="flex h-4 w-4 items-center justify-center rounded text-[13px] font-bold text-[#888888] hover:text-[#cccccc]"
+                    >
+                      +
+                    </button>
                   </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </div>
-
-      {hover && (
-        <ItemHoverCard item={hover.item} anchor={{ x: hover.x, y: hover.y }} />
-      )}
-
-      {total > pageSize && (
-        <div className="mt-2 flex items-center justify-between border-t border-[#3d3428] pt-2 text-[12px] text-[#b8a88c]">
-          <span>
-            {total} résultat{total > 1 ? "s" : ""} · page {page} / {pages}
-          </span>
-          <div className="flex gap-1">
-            <button
-              type="button"
-              disabled={page <= 1}
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              className="rounded border border-[#5c4a32] px-2 py-0.5 disabled:opacity-40"
-            >
-              Préc.
-            </button>
-            <button
-              type="button"
-              disabled={page >= pages}
-              onClick={() => setPage((p) => Math.min(pages, p + 1))}
-              className="rounded border border-[#5c4a32] px-2 py-0.5 disabled:opacity-40"
-            >
-              Suiv.
-            </button>
+                </div>
+              )}
+            </div>
           </div>
-        </div>
-      )}
-      </>
+
+          {/* ── Indicateur emplacement actif ── */}
+          {selectedSlot && (
+            <p className="mt-2 rounded-lg bg-[#1a2c0a] px-2 py-1.5 text-[12px] text-[#9cce38]">
+              Emplacement : <strong>{slotLabelFr(selectedSlot)}</strong> — clique sur un objet pour équiper.
+            </p>
+          )}
+
+          {err && (
+            <p className="mt-2 rounded border border-red-900/50 bg-red-950/40 px-2 py-1.5 text-[12px] text-red-200">
+              {err}
+            </p>
+          )}
+
+          {/* ── Liste d'objets ── */}
+          <div className="mt-2 flex-1 overflow-y-auto">
+            {loading ? (
+              <p className="py-8 text-center text-sm text-[#666666]">Chargement…</p>
+            ) : items.length === 0 ? (
+              <p className="py-8 text-center text-sm text-[#666666]">Aucun objet trouvé.</p>
+            ) : (
+              <ul className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+                {items.map((it) => {
+                  const ok = selectedSlot && itemFitsSlot(selectedSlot, it);
+                  return (
+                    <li key={it.ankama_id}>
+                      <div
+                        onMouseEnter={(e) => show(it, e)}
+                        onMouseMove={move}
+                        onMouseLeave={scheduleHide}
+                      >
+                        <button
+                          type="button"
+                          disabled={!selectedSlot}
+                          onClick={() => void onEquip(it)}
+                          className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition ${
+                            ok
+                              ? "border-[#383838] bg-[#1e1e1e] hover:border-[#4a8000]/60 hover:bg-[#1a2c0a]"
+                              : "border-[#282828] bg-[#181818]/80 opacity-80 hover:bg-[#1e1e1e]"
+                          } ${!selectedSlot ? "cursor-not-allowed opacity-60" : ""}`}
+                        >
+                          {it.image_url_icon ? (
+                            // eslint-disable-next-line @next/next/no-img-element
+                            <img
+                              src={it.image_url_icon}
+                              alt=""
+                              width={36}
+                              height={36}
+                              className="h-9 w-9 shrink-0 rounded border border-[#383838] object-contain"
+                            />
+                          ) : (
+                            <div className="h-9 w-9 shrink-0 rounded border border-dashed border-[#383838]" />
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-[12px] font-medium text-[#e0d0a0]">
+                              {it.name}
+                            </p>
+                            <p className="text-[10px] text-[#666666]">
+                              Niv. {it.level}
+                              {selectedSlot && !ok && (
+                                <span className="text-amber-600/90"> · incompatible</span>
+                              )}
+                            </p>
+                          </div>
+                        </button>
+                      </div>
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </div>
+
+          {hover && (() => {
+            const equippedId = selectedSlot != null ? currentBuild[selectedSlot] : undefined;
+            const equippedItem = equippedId != null ? itemById[equippedId] : undefined;
+            return (
+              <ItemHoverCard
+                item={hover.item}
+                anchor={{ x: hover.x, y: hover.y }}
+                compareItem={equippedItem}
+              />
+            );
+          })()}
+
+          {/* ── Pagination ── */}
+          {total > pageSize && (
+            <div className="mt-2 flex items-center justify-between border-t border-[#222222] pt-2 text-[12px] text-[#888888]">
+              <span>{total} résultat{total > 1 ? "s" : ""} · page {page} / {pages}</span>
+              <div className="flex gap-1">
+                <button
+                  type="button"
+                  disabled={page <= 1}
+                  onClick={() => setPage((p) => Math.max(1, p - 1))}
+                  className="btn-dofus-gray rounded px-2 py-0.5 text-[11px] disabled:opacity-40"
+                >
+                  Préc.
+                </button>
+                <button
+                  type="button"
+                  disabled={page >= pages}
+                  onClick={() => setPage((p) => Math.min(pages, p + 1))}
+                  className="btn-dofus-gray rounded px-2 py-0.5 text-[11px] disabled:opacity-40"
+                >
+                  Suiv.
+                </button>
+              </div>
+            </div>
+          )}
+        </>
       )}
     </section>
   );
@@ -493,21 +516,12 @@ export function ItemCatalogPanel() {
 
 function slotLabelFr(id: SlotId): string {
   const labels: Partial<Record<SlotId, string>> = {
-    hat: "Chapeau",
-    cloak: "Cape",
-    amulet: "Amulette",
-    ring1: "Anneau 1",
-    ring2: "Anneau 2",
-    belt: "Ceinture",
-    boots: "Bottes",
-    weapon: "Arme",
-    shield: "Bouclier",
-    dofus1: "Dofus/Trophée 1",
-    dofus2: "Dofus/Trophée 2",
-    dofus3: "Dofus/Trophée 3",
-    dofus4: "Dofus/Trophée 4",
-    dofus5: "Dofus/Trophée 5",
-    dofus6: "Dofus/Trophée 6",
+    hat: "Chapeau", cloak: "Cape", amulet: "Amulette",
+    ring1: "Anneau 1", ring2: "Anneau 2", belt: "Ceinture",
+    boots: "Bottes", weapon: "Arme", shield: "Bouclier",
+    dofus1: "Dofus/Trophée 1", dofus2: "Dofus/Trophée 2",
+    dofus3: "Dofus/Trophée 3", dofus4: "Dofus/Trophée 4",
+    dofus5: "Dofus/Trophée 5", dofus6: "Dofus/Trophée 6",
     pet: "Familier",
   };
   return labels[id] ?? id;

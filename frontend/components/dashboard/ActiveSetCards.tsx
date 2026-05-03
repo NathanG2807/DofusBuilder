@@ -8,7 +8,6 @@ export function ActiveSetCards() {
   const itemById = useBuildStore((s) => s.itemById);
   const activeSetDetails = useBuildStore((s) => s.activeSetDetails);
 
-  // Regroupe les items équipés par parent_set_id.
   const equippedBySet = useMemo(() => {
     const map: Record<number, { ankama_id: number; name: string; image_url_icon: string | null }[]> = {};
     for (const itemId of Object.values(currentBuild)) {
@@ -26,7 +25,6 @@ export function ActiveSetCards() {
     return map;
   }, [currentBuild, itemById]);
 
-  // Seules les panoplies avec ≥ 2 pièces équipées et reconnues par activeSetDetails.
   const activeSets = useMemo(
     () => activeSetDetails.filter((s) => (equippedBySet[s.set_id]?.length ?? 0) >= 2),
     [activeSetDetails, equippedBySet],
@@ -36,7 +34,7 @@ export function ActiveSetCards() {
 
   return (
     <div className="mt-4 space-y-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#c9a227]">
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
         Panoplies actives
       </p>
       {activeSets.map((set) => {
@@ -44,14 +42,14 @@ export function ActiveSetCards() {
         return (
           <div
             key={set.set_id}
-            className="dofus-panel rounded-xl border border-[#c9a227]/40 bg-[#1a1510]/95 p-3 shadow-inner"
+            className="dofus-panel rounded-xl border border-[#3a3a3a] bg-[#181818]/95 p-3"
           >
             {/* En-tête */}
             <div className="mb-2 flex items-center justify-between">
-              <span className="text-[13px] font-semibold text-[#f0d78c]">
+              <span className="text-[13px] font-semibold text-[#e8c96e]">
                 {set.name}
               </span>
-              <span className="rounded-full border border-[#c9a227]/30 bg-[#c9a227]/10 px-2 py-0.5 text-[10px] font-medium text-[#c9a227]">
+              <span className="rounded-full border border-[#4a8000]/30 bg-[#1a2c0a] px-2 py-0.5 text-[10px] font-medium text-[#9cce38]">
                 {set.piece_count}{set.total_pieces > 0 ? `/${set.total_pieces}` : ""} pièces
               </span>
             </div>
@@ -61,7 +59,7 @@ export function ActiveSetCards() {
               {items.map((it) => (
                 <div
                   key={it.ankama_id}
-                  className="flex items-center gap-1.5 rounded-md border border-[#3d3428] bg-[#231e18] px-2 py-1"
+                  className="flex items-center gap-1.5 rounded-md border border-[#282828] bg-[#1e1e1e] px-2 py-1"
                   title={it.name}
                 >
                   {it.image_url_icon ? (
@@ -74,7 +72,7 @@ export function ActiveSetCards() {
                       className="h-5 w-5 object-contain"
                     />
                   ) : null}
-                  <span className="max-w-[120px] truncate text-[11px] text-[#d4c4a8]">
+                  <span className="max-w-[120px] truncate text-[11px] text-[#c0c0c0]">
                     {it.name}
                   </span>
                 </div>
@@ -83,19 +81,19 @@ export function ActiveSetCards() {
 
             {/* Bonus */}
             {set.effects.length > 0 ? (
-              <ul className="space-y-0.5 border-t border-[#3d3428] pt-2">
+              <ul className="space-y-0.5 border-t border-[#252525] pt-2">
                 {set.effects.map((eff, i) => (
                   <li
                     key={i}
-                    className="flex items-start gap-1 text-[11px] leading-snug text-[#c4b888]"
+                    className="flex items-start gap-1 text-[11px] leading-snug text-[#c0c0c0]"
                   >
-                    <span className="mt-0.5 shrink-0 text-[#c9a227]">•</span>
+                    <span className="mt-0.5 shrink-0 text-[#9cce38]">•</span>
                     {eff}
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-[11px] italic text-[#5a5248] border-t border-[#3d3428] pt-2">
+              <p className="text-[11px] italic text-[#444444] border-t border-[#252525] pt-2">
                 Aucun bonus pour ce palier.
               </p>
             )}

@@ -26,7 +26,7 @@ export function CatalogDrawer() {
     <>
       {/* Fond semi-transparent */}
       <div
-        className={`fixed inset-0 z-[150] bg-black/60 backdrop-blur-sm transition-opacity duration-200 ${
+        className={`fixed inset-0 z-[150] bg-black/70 backdrop-blur-sm transition-opacity duration-200 ${
           isOpen ? "opacity-100" : "pointer-events-none opacity-0"
         }`}
         onClick={() => setSelectedSlot(null)}
@@ -34,19 +34,19 @@ export function CatalogDrawer() {
 
       {/* Panneau latéral (slide depuis la droite) */}
       <div
-        className={`fixed right-0 top-0 z-[151] flex h-full w-full flex-col bg-[#120e0a] shadow-2xl transition-transform duration-300 ease-out sm:max-w-2xl ${
+        className={`fixed right-0 top-0 z-[151] flex h-full w-full flex-col bg-[#111111] shadow-2xl transition-transform duration-300 ease-out sm:max-w-2xl ${
           isOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         {/* En-tête du tiroir */}
-        <div className="flex shrink-0 items-center justify-between border-b border-[#3d3428] bg-[#1a1510] px-5 py-3">
-          <p className="text-[13px] font-medium text-[#c9a227]">
+        <div className="flex shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#181818] px-5 py-3">
+          <p className="text-[13px] font-medium text-[#9cce38]">
             Choisir un objet pour l&apos;emplacement sélectionné
           </p>
           <button
             type="button"
             onClick={() => setSelectedSlot(null)}
-            className="rounded-lg p-1.5 text-[#8a7a62] transition hover:bg-[#2a2218] hover:text-[#f0d78c]"
+            className="rounded-lg p-1.5 text-[#666666] transition hover:bg-[#222222] hover:text-[#e0e0e0]"
             aria-label="Fermer"
           >
             ✕

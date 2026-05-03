@@ -23,6 +23,8 @@ class FullBuild(BaseModel):
     slots: dict[str, Optional[int]]
     total_stats: dict[str, int]
     active_set_bonuses: list[str]
+    exo_pa: bool = False
+    exo_pm: bool = False
 
 
 class AggregateStatsRequest(BaseModel):
@@ -65,6 +67,14 @@ class OptimizationRequest(BaseModel):
     focus_stats: list[str] = Field(
         default_factory=list,
         description="Stats annexes à maximiser (ex: ['damage_earth', 'critical_hit'])",
+    )
+    allow_exo_pa: bool = Field(
+        default=False,
+        description="Autoriser un exo +1 PA (Forgemagie) — max 1 par build",
+    )
+    allow_exo_pm: bool = Field(
+        default=False,
+        description="Autoriser un exo +1 PM (Forgemagie) — max 1 par build",
     )
     mode: str = Field(
         default="solver",

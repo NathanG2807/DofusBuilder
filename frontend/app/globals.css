@@ -1,11 +1,24 @@
 @import "tailwindcss";
 
 :root {
-  --dofus-bg: #120e0a;
-  --dofus-panel: #1a1510;
-  --dofus-gold: #e8b84a;
-  --dofus-cream: #f5e6c8;
-  --dofus-muted: #a89878;
+  /* ── Backgrounds ── */
+  --dofus-bg: #0e0e0e;
+  --dofus-panel: #181818;
+
+  /* ── Accents ── */
+  --dofus-gold: #e8b84a;          /* noms d'objets, logo, sets */
+  --dofus-cream: #e0e0e0;         /* texte principal */
+  --dofus-muted: #888888;         /* texte secondaire */
+
+  /* ── Vert primaire (boutons d'action, sélections) ── */
+  --dofus-green-top: #7cc51e;
+  --dofus-green-bot: #3f7a00;
+  --dofus-green-border: #1e3f00;
+  --dofus-green-active: #9cce38;  /* texte état actif */
+
+  /* ── Bordures ── */
+  --dofus-border: #2a2a2a;
+  --dofus-border-mid: #383838;
 }
 
 @theme inline {
@@ -15,18 +28,56 @@
 
 body.dofus-app {
   min-height: 100vh;
-  background: radial-gradient(
-      ellipse 120% 80% at 50% -20%,
-      rgba(232, 184, 74, 0.12),
-      transparent 50%
-    ),
-    linear-gradient(180deg, #1e1814 0%, #120e0a 40%, #0a0806 100%);
+  background: linear-gradient(180deg, #131a0b 0%, #0e0e0e 35%, #080808 100%);
   color: var(--dofus-cream);
   font-family: var(--font-geist-sans), system-ui, sans-serif;
+  /* Préserve l'espace sous la barre de navigation mobile iOS/Android */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* Safe-area pour la barre de nav mobile fixée en bas */
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
 }
 
 .dofus-panel {
   box-shadow:
-    inset 0 1px 0 rgba(255, 230, 180, 0.06),
-    0 4px 24px rgba(0, 0, 0, 0.35);
+    inset 0 1px 0 rgba(255, 255, 255, 0.04),
+    0 4px 24px rgba(0, 0, 0, 0.55);
+}
+
+/* ── Bouton primaire vert lime (style "RÉPARTIR MES POINTS") ── */
+.btn-dofus-green {
+  background: linear-gradient(180deg, var(--dofus-green-top) 0%, var(--dofus-green-bot) 100%);
+  border: 1px solid var(--dofus-green-border);
+  color: #0a1800;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.18);
+  transition: filter 0.15s;
+}
+.btn-dofus-green:hover:not(:disabled) {
+  filter: brightness(1.12);
+}
+.btn-dofus-green:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Bouton secondaire gris (style "MES ENSEMBLES") ── */
+.btn-dofus-gray {
+  background: linear-gradient(180deg, #383838 0%, #242424 100%);
+  border: 1px solid #4a4a4a;
+  color: #c0c0c0;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
+  transition: filter 0.15s;
+}
+.btn-dofus-gray:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+.btn-dofus-gray:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
 }

@@ -4,6 +4,8 @@ import { aggregateBuildStats, fetchItem, fetchItemsBySet, fetchItemSet } from "@
 import { SLOT_DEFS, emptyBuild, mergeFullBuildSlots, type SlotId } from "@/lib/slots";
 import type { ActiveSetDetail, BuildOut, FullBuild, ItemOut } from "@/types/api";
 
+export type ExoType = "pa" | "pm";
+
 export type BuildState = {
   currentBuild: Record<SlotId, number | null>;
   stats: Record<string, number>;
@@ -22,6 +24,10 @@ export type BuildState = {
   level: number;
   /** Points de caractéristiques investis manuellement (hors équipement). */
   charStats: Record<string, number>;
+  /** Parchotage (parchemins) : bonus permanents indépendants du stuff et des points. Max 100/stat. */
+  parchoStats: Record<string, number>;
+  /** Forgemagie exo : emplacement → type d'exo (pa ou pm). */
+  exoFm: Partial<Record<SlotId, ExoType>>;
 
   setSelectedSlot: (slot: SlotId | null) => void;
   setClassId: (id: number) => void;
@@ -29,6 +35,10 @@ export type BuildState = {
   setBuildName: (name: string) => void;
   setLevel: (level: number) => void;
   setCharStat: (key: string, value: number) => void;
+  setParchoStat: (key: string, value: number) => void;
+  /** Toggle un exo FM sur un slot (re-clic sur le même type = suppression). */
+  setExoFm: (slot: SlotId, type: ExoType) => void;
+  removeExoFm: (slot: SlotId) => void;
   equipItemOnSlot: (slot: SlotId, ankamaId: number) => Promise<void>;
   updateSlot: (slot: string, itemId: number | null) => void;
   syncWithAI: (newBuild: Record<string, number>) => void;
@@ -73,6 +83,8 @@ export const useBuildStore = create<BuildState>((set, get) => {
   buildName: "Mon build",
   level: 200,
   charStats: {},
+  parchoStats: {},
+  exoFm: {},
 
   setSelectedSlot: (slot) => set({ selectedSlot: slot }),
   setClassId: (id) => set({ classId: id }),
@@ -86,6 +98,25 @@ export const useBuildStore = create<BuildState>((set, get) => {
   setCharStat: (key, value) => set((s) => ({
     charStats: { ...s.charStats, [key]: Math.max(0, value) },
   })),
+
+  setParchoStat: (key, value) => set((s) => ({
+    parchoStats: { ...s.parchoStats, [key]: Math.min(100, Math.max(0, value)) },
+  })),
+
+  setExoFm: (slot, type) =>
+    set((s) => ({
+      exoFm: {
+        ...s.exoFm,
+        [slot]: s.exoFm[slot] === type ? undefined : type,
+      },
+    })),
+
+  removeExoFm: (slot) =>
+    set((s) => {
+      const next = { ...s.exoFm };
+      delete next[slot];
+      return { exoFm: next };
+    }),
 
   equipItemOnSlot: async (slot, ankamaId) => {
     const item = await fetchItem(ankamaId);
@@ -101,12 +132,17 @@ export const useBuildStore = create<BuildState>((set, get) => {
   },
 
   updateSlot: (slot, itemId) => {
-    set((s) => ({
-      currentBuild: {
-        ...s.currentBuild,
-        [slot]: itemId,
-      } as Record<SlotId, number | null>,
-    }));
+    set((s) => {
+      const next = { ...s.exoFm };
+      if (itemId === null) delete next[slot as SlotId];
+      return {
+        currentBuild: {
+          ...s.currentBuild,
+          [slot]: itemId,
+        } as Record<SlotId, number | null>,
+        exoFm: next,
+      };
+    });
     void refreshStatsFromSlots();
   },
 
@@ -131,6 +167,8 @@ export const useBuildStore = create<BuildState>((set, get) => {
         pods: 1000 + s.level * 5,
       },
       charStats: {},
+      parchoStats: {},
+      exoFm: {},
       activeSetBonuses: [],
       activeSetDetails: [],
       itemById: {},
@@ -142,11 +180,29 @@ export const useBuildStore = create<BuildState>((set, get) => {
     })),
 
   applyFullBuild: (fb) => {
+    const newBuild = mergeFullBuildSlots(fb);
+
+    // Placement automatique de l'exo FM sur les anneaux (ring1 → ring2)
+    const newExoFm: Partial<Record<SlotId, ExoType>> = {};
+    if (fb.exo_pa) {
+      const slot: SlotId = newBuild["ring1"] != null ? "ring1" : "ring2";
+      newExoFm[slot] = "pa";
+    }
+    if (fb.exo_pm) {
+      // Évite de mettre les deux exo sur le même anneau
+      const slot: SlotId =
+        newBuild["ring1"] != null && !newExoFm["ring1"] ? "ring1"
+        : newBuild["ring2"] != null ? "ring2"
+        : "ring1";
+      newExoFm[slot] = "pm";
+    }
+
     set({
-      currentBuild: mergeFullBuildSlots(fb),
+      currentBuild: newBuild,
       stats: { ...fb.total_stats },
       activeSetBonuses: [...fb.active_set_bonuses],
       selectedSlot: null,
+      exoFm: newExoFm,
     });
     // Rafraîchit les détails de panoplies et stats complets via le backend.
     void refreshStatsFromSlots();
@@ -162,6 +218,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
       stats: { ...(b.total_stats ?? {}) },
       activeSetBonuses: [...(b.active_set_bonuses ?? [])],
       selectedSlot: null,
+      exoFm: {},
     }),
 
   cacheItems: (items) =>
