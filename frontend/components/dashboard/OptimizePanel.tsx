@@ -6,6 +6,7 @@ import { DOFUS_CLASS_OPTIONS } from "@/lib/dofusClasses";
 import { runOptimize } from "@/lib/api";
 import { useBuildStore } from "@/store/build-store";
 
+
 /* ── Éléments avec icône ─────────────────────────────────────────────────── */
 const ELEMENT_OPTIONS = [
   { id: "strength",     label: "Force",   icon: "ter" },
@@ -92,8 +93,8 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
   const resetBuild = useBuildStore((s) => s.resetBuild);
   const classId = useBuildStore((s) => s.classId);
   const setClassId = useBuildStore((s) => s.setClassId);
-
-  const [level, setLevel] = useState(200);
+  const level = useBuildStore((s) => s.level);
+  const setLevel = useBuildStore((s) => s.setLevel);
   const [elements, setElements] = useState<string[]>(["strength", "intelligence"]);
   const [minPa, setMinPa] = useState(11);
   const [minPm, setMinPm] = useState(6);

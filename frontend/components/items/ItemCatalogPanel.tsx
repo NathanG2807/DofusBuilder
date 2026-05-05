@@ -47,6 +47,29 @@ const STAT_FILTER_OPTIONS = [
   { value: "initiative",  label: "Init.",   icon: "ii"  },
 ] as const;
 
+/* ── Options type spécifiques par mode de slot ──────────────────────────── */
+const WEAPON_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "Toutes les armes" },
+  ...EQUIPMENT_TYPE_OPTIONS.filter((o) =>
+    ["sword", "wand", "staff", "dagger", "bow", "hammer", "shovel", "axe", "lance", "scythe", "pickaxe"].includes(o.value),
+  ),
+];
+
+const DOFUS_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "Dofus & Trophées" },
+  { value: "dofus", label: "Dofus" },
+  { value: "trophy", label: "Trophée" },
+];
+
+/** Détermine si le dropdown de type doit être affiché et quelles options proposer. */
+function typeDropdownOptions(slot: SlotId | null): { visible: boolean; options: { value: string; label: string }[] } {
+  if (!slot) return { visible: true, options: EQUIPMENT_TYPE_OPTIONS };
+  if (slot === "weapon") return { visible: true, options: WEAPON_TYPE_OPTIONS };
+  if (slot.startsWith("dofus")) return { visible: true, options: DOFUS_TYPE_OPTIONS };
+  // Slot régulier (chapeau, cape, etc.) : type imposé, pas de choix
+  return { visible: false, options: [] };
+}
+
 /* ── Onglet Panoplies ────────────────────────────────────────────────────── */
 function SetsCatalog() {
   const [q, setQ] = useState("");
@@ -164,7 +187,8 @@ function SetsCatalog() {
 export function ItemCatalogPanel() {
   const selectedSlot = useBuildStore((s) => s.selectedSlot);
   const equipItemOnSlot = useBuildStore((s) => s.equipItemOnSlot);
-  const { hover, show, move, scheduleHide } = useItemHoverCard();
+  const level = useBuildStore((s) => s.level);
+  const { hover, show, move, scheduleHide, cancelHide } = useItemHoverCard();
 
   const currentBuild = useBuildStore((s) => s.currentBuild);
   const itemById     = useBuildStore((s) => s.itemById);
@@ -174,7 +198,7 @@ export function ItemCatalogPanel() {
   const [q, setQ] = useState("");
   const [debouncedQ, setDebouncedQ] = useState("");
   const [minLv, setMinLv] = useState(1);
-  const [maxLv, setMaxLv] = useState(200);
+  const [maxLv, setMaxLv] = useState(level);
   const [typeId, setTypeId] = useState("");
 
   // Filtre stat : multi-sélection + valeur min commune
@@ -188,10 +212,24 @@ export function ItemCatalogPanel() {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  // Sync maxLv avec le niveau du personnage
+  useEffect(() => {
+    setMaxLv(level);
+    setPage(1);
+  }, [level]);
+
+  // Reset du filtre type quand le slot change
+  useEffect(() => {
+    setTypeId("");
+    setPage(1);
+  }, [selectedSlot]);
+
   useEffect(() => {
     const t = setTimeout(() => setDebouncedQ(q), 320);
     return () => clearTimeout(t);
   }, [q]);
+
+  const { visible: typeVisible, options: typeOptions } = typeDropdownOptions(selectedSlot);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -286,7 +324,7 @@ export function ItemCatalogPanel() {
             />
 
             {/* Niveau + Type */}
-            <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <div className={`grid gap-2 ${typeVisible ? "grid-cols-2 sm:grid-cols-4" : "grid-cols-2"}`}>
               <label className="flex flex-col text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
                 Niv. min
                 <input
@@ -303,18 +341,20 @@ export function ItemCatalogPanel() {
                   className="mt-0.5 rounded border border-[#383838] bg-[#111111] px-2 py-1 text-[12px] text-[#e0e0e0] focus:outline-none"
                 />
               </label>
-              <label className="col-span-2 flex flex-col text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
-                Type
-                <select
-                  value={typeId}
-                  onChange={(e) => { setTypeId(e.target.value); setPage(1); }}
-                  className="mt-0.5 rounded border border-[#383838] bg-[#111111] px-2 py-1 text-[12px] text-[#e0e0e0] focus:outline-none"
-                >
-                  {EQUIPMENT_TYPE_OPTIONS.map((o) => (
-                    <option key={o.value || "all"} value={o.value}>{o.label}</option>
-                  ))}
-                </select>
-              </label>
+              {typeVisible && (
+                <label className="col-span-2 flex flex-col text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
+                  Type
+                  <select
+                    value={typeId}
+                    onChange={(e) => { setTypeId(e.target.value); setPage(1); }}
+                    className="mt-0.5 rounded border border-[#383838] bg-[#111111] px-2 py-1 text-[12px] text-[#e0e0e0] focus:outline-none"
+                  >
+                    {typeOptions.map((o) => (
+                      <option key={o.value || "all"} value={o.value}>{o.label}</option>
+                    ))}
+                  </select>
+                </label>
+              )}
             </div>
 
             {/* Filtre stat — pills avec icônes (multi-sélect) */}
@@ -480,6 +520,8 @@ export function ItemCatalogPanel() {
                 item={hover.item}
                 anchor={{ x: hover.x, y: hover.y }}
                 compareItem={equippedItem}
+                onMouseEnter={cancelHide}
+                onMouseLeave={scheduleHide}
               />
             );
           })()}

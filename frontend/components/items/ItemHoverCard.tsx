@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { fetchItemSet } from "@/lib/api";
@@ -17,6 +17,10 @@ type Props = {
   anchor: { x: number; y: number };
   /** Item actuellement équipé dans le slot — affiché à gauche pour comparaison. */
   compareItem?: ItemOut;
+  /** Appelé quand la souris entre sur la carte (pour annuler le timer de fermeture). */
+  onMouseEnter?: () => void;
+  /** Appelé quand la souris quitte la carte (pour déclencher le timer de fermeture). */
+  onMouseLeave?: () => void;
 };
 
 /* ── Carte d'un item (corps réutilisable) ─────────────────────────────────── */
@@ -55,7 +59,7 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
           {label}
         </p>
       )}
-      <div className="pointer-events-auto flex gap-2">
+      <div className="flex gap-2">
         {item.image_url_icon ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={item.image_url_icon} alt="" width={56} height={56}
@@ -71,22 +75,22 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
       </div>
 
       {item.description ? (
-        <p className="pointer-events-auto mt-1.5 text-[11px] leading-snug text-[#c0c0c0] italic">
+        <p className="mt-1.5 text-[11px] leading-snug text-[#c0c0c0] italic">
           {item.description}
         </p>
       ) : null}
 
       {rawEffects.length > 0 && (
         <>
-          <p className="pointer-events-auto mt-1.5 text-[9px] font-semibold uppercase tracking-widest text-[#666666]">Effets</p>
-          <ul className="pointer-events-auto mt-0.5 space-y-0.5 text-[11px] text-[#e0e0e0]">
+          <p className="mt-1.5 text-[9px] font-semibold uppercase tracking-widest text-[#666666]">Effets</p>
+          <ul className="mt-0.5 space-y-0.5 text-[11px] text-[#e0e0e0]">
             {rawEffects.map((eff, i) => <EffectLine key={i} eff={eff} />)}
           </ul>
         </>
       )}
 
       {conditionText && (
-        <div className={`pointer-events-auto mt-1.5 rounded-lg border px-2 pt-1.5 pb-1 ${
+        <div className={`mt-1.5 rounded-lg border px-2 pt-1.5 pb-1 ${
           conditionMet ? "border-[#2a2a2a]" : "border-red-700/60 bg-red-950/30"
         }`}>
           <p className={`mb-0.5 text-[9px] font-medium uppercase tracking-wide ${conditionMet ? "text-[#e07a30]" : "text-red-400"}`}>
@@ -99,7 +103,7 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
       )}
 
       {pid != null && (
-        <div className="pointer-events-auto mt-1.5 border-t border-[#282828] pt-1.5">
+        <div className="mt-1.5 border-t border-[#282828] pt-1.5">
           <p className="text-[9px] font-medium uppercase tracking-wide text-[#888888]">Panoplie</p>
           {setErr ? (
             <p className="text-[11px] text-red-400/90">{setErr}</p>
@@ -120,8 +124,13 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
   );
 }
 
-export function ItemHoverCard({ item, anchor, compareItem }: Props) {
-  if (typeof document === "undefined") return null;
+export function ItemHoverCard({ item, anchor, compareItem, onMouseEnter, onMouseLeave }: Props) {
+  const cardRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState<{ top: number; left: number; visible: boolean }>({
+    top: -9999,
+    left: -9999,
+    visible: false,
+  });
 
   const hasCompare = compareItem != null && compareItem.ankama_id !== item.ankama_id;
   const SINGLE_W = 320;
@@ -130,26 +139,59 @@ export function ItemHoverCard({ item, anchor, compareItem }: Props) {
   const MARGIN = 8;
   const OFFSET = 16;
 
-  // Horizontal : à droite du curseur, repli à gauche si débordement
-  let left = anchor.x + OFFSET;
-  if (left + CARD_W + MARGIN > window.innerWidth) {
-    left = anchor.x - CARD_W - OFFSET;
-  }
-  left = Math.max(MARGIN, left);
+  const cardW = typeof window !== "undefined"
+    ? Math.min(CARD_W, window.innerWidth - MARGIN * 2)
+    : CARD_W;
 
-  // Vertical : en dessous par défaut, au-dessus si trop proche du bas
-  const spaceBelow = window.innerHeight - anchor.y - OFFSET;
-  const spaceAbove = anchor.y - OFFSET;
-  const showAbove = spaceBelow < 280 && spaceAbove > spaceBelow;
-  const posStyle: React.CSSProperties = showAbove
-    ? { left, bottom: window.innerHeight - anchor.y + OFFSET, maxHeight: Math.min(spaceAbove - MARGIN, window.innerHeight - 32) }
-    : { left, top: anchor.y + OFFSET, maxHeight: Math.min(spaceBelow - MARGIN, window.innerHeight - 32) };
+  useLayoutEffect(() => {
+    const el = cardRef.current;
+    if (!el) return;
+
+    const cardH = el.scrollHeight;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+
+    // Horizontal : à droite du curseur, repli à gauche si débordement
+    let left = anchor.x + OFFSET;
+    const w = Math.min(CARD_W, vw - MARGIN * 2);
+    if (left + w + MARGIN > vw) {
+      left = anchor.x - w - OFFSET;
+    }
+    left = Math.max(MARGIN, left);
+
+    // Vertical : en dessous par défaut, au-dessus si pas assez de place,
+    // sinon décalage pour tenir dans la fenêtre
+    let top = anchor.y + OFFSET;
+    if (top + cardH + MARGIN > vh) {
+      const topAbove = anchor.y - cardH - OFFSET;
+      if (topAbove >= MARGIN) {
+        top = topAbove;
+      } else {
+        top = Math.max(MARGIN, vh - cardH - MARGIN);
+      }
+    }
+
+    setPos((prev) => {
+      if (prev.visible && prev.top === top && prev.left === left) return prev;
+      return { top, left, visible: true };
+    });
+  }, [anchor.x, anchor.y, item.ankama_id, hasCompare, CARD_W, MARGIN, OFFSET]);
+
+  if (typeof document === "undefined") return null;
 
   return createPortal(
     <div
-      className="pointer-events-none fixed z-[300] overflow-y-auto rounded-xl border border-[#3a3a3a] bg-[#1a1a1a] p-3 text-[13px] shadow-[0_8px_32px_rgba(0,0,0,0.7)]"
-      style={{ ...posStyle, width: Math.min(CARD_W, window.innerWidth - MARGIN * 2) }}
+      ref={cardRef}
+      className="fixed z-[300] rounded-xl border border-[#3a3a3a] bg-[#1a1a1a] p-3 text-[13px] shadow-[0_8px_32px_rgba(0,0,0,0.7)]"
+      style={{
+        top: pos.top,
+        left: pos.left,
+        width: cardW,
+        visibility: pos.visible ? "visible" : "hidden",
+      }}
       role="tooltip"
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
     >
       {hasCompare ? (
         <div className="flex gap-2">
@@ -213,5 +255,5 @@ export function useItemHoverCard() {
     closeTimer.current = setTimeout(() => setHover(null), 180);
   }, [clearClose]);
 
-  return { hover, show, move, scheduleHide };
+  return { hover, show, move, scheduleHide, cancelHide: clearClose };
 }

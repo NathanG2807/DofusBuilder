@@ -111,13 +111,17 @@ def solve_optimization(
 
     if use_exo_pa is not None:
         model.Add(pa_base + use_exo_pa >= request.min_pa)
+        model.Add(pa_base + use_exo_pa <= STAT_BUILD_CAPS["pa"])
     else:
         model.Add(pa_base >= request.min_pa)
+        model.Add(pa_base <= STAT_BUILD_CAPS["pa"])
 
     if use_exo_pm is not None:
         model.Add(pm_base + use_exo_pm >= request.min_pm)
+        model.Add(pm_base + use_exo_pm <= STAT_BUILD_CAPS["pm"])
     else:
         model.Add(pm_base >= request.min_pm)
+        model.Add(pm_base <= STAT_BUILD_CAPS["pm"])
 
     # ── Bonus de panoplie dans l'objectif ─────────────────────────────────────
     set_indices: dict[int, list[tuple[str, int]]] = defaultdict(list)

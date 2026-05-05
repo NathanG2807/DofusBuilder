@@ -30,13 +30,19 @@ export function ActiveSetCards() {
     [activeSetDetails, equippedBySet],
   );
 
-  if (activeSets.length === 0) return null;
+  if (activeSets.length === 0) {
+    return (
+      <div className="flex flex-1 items-center justify-center px-4 py-8">
+        <p className="text-center text-[12px] text-[#3a3a3a]">
+          Aucune panoplie active.<br />
+          <span className="text-[11px]">Équipe 2 pièces d&apos;un même set.</span>
+        </p>
+      </div>
+    );
+  }
 
   return (
-    <div className="mt-4 space-y-3">
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
-        Panoplies actives
-      </p>
+    <div className="space-y-3 p-3">
       {activeSets.map((set) => {
         const items = equippedBySet[set.set_id] ?? [];
         return (

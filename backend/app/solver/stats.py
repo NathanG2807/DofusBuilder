@@ -39,7 +39,7 @@ _STAT_MULT: dict[str, int] = {
     "agility":            125,
     # Coups critiques — valeur très faible (1-7/slot), multiplicateur élevé
     "critical_percent":  1500,
-    "critical_damage":    200,
+    "critical_damage":    800,
     # Dommages élémentaires passifs
     "damage_earth":       650,
     "damage_fire":        650,
@@ -47,7 +47,7 @@ _STAT_MULT: dict[str, int] = {
     "damage_air":         650,
     "damage_neutral":     650,
     "damage":             650,
-    "power":              500,
+    "power":             1200,
     # Vitalité (valeurs grandes, mult faible)
     "vitality":            65,
     # PA / PM — extrêmement précieux
@@ -80,6 +80,8 @@ _DEFAULT_MULT = 50
 
 # Les stats élément principaux ont un bonus de priorité (×3) pour rester primaires.
 _ELEMENT_PRIORITY = 3
+# Les stats focus sélectionnées ont un bonus ×2 pour avoir un impact réel sur le build.
+_FOCUS_PRIORITY = 2
 
 
 def objective_score(
@@ -93,7 +95,8 @@ def objective_score(
     (niveau 200) afin que les stats focus soient réellement discriminantes —
     notamment % CC, dommages élémentaires, etc.
     Les stats d'éléments principaux bénéficient d'un bonus ×3 pour rester
-    la priorité absolue tout en laissant les focus stats peser ~25-33%.
+    la priorité absolue. Les stats focus bénéficient d'un bonus ×2 pour peser
+    significativement dans le scoring (~40-50% du total).
     """
     if not stats:
         stats = {}
@@ -102,7 +105,7 @@ def objective_score(
         mult = _STAT_MULT.get(e, _DEFAULT_MULT) * _ELEMENT_PRIORITY
         total += mult * stat_int(stats, e)
     for f in focus_stats:
-        mult = _STAT_MULT.get(f, _DEFAULT_MULT)
+        mult = _STAT_MULT.get(f, _DEFAULT_MULT) * _FOCUS_PRIORITY
         total += mult * stat_int(stats, f)
     return total
 

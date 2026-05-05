@@ -52,7 +52,7 @@ export function ChatPanel({ bare = false }: { bare?: boolean }) {
       <div
         ref={scrollRef}
         className={`flex flex-col gap-3 overflow-y-auto px-3 py-3 sm:px-4 ${
-          bare ? "min-h-[200px] flex-1" : "max-h-[min(68vh,560px)]"
+          bare ? "min-h-0 flex-1" : "max-h-[min(68vh,560px)]"
         }`}
       >
         {messages.length === 0 && (
@@ -133,7 +133,7 @@ export function ChatPanel({ bare = false }: { bare?: boolean }) {
 
   if (bare) {
     return (
-      <div className="flex min-h-0 flex-col rounded-lg border border-[#252525] bg-[#111111]/40">
+      <div className="flex min-h-0 flex-1 flex-col">
         {innerContent}
       </div>
     );

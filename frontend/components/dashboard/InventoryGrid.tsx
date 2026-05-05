@@ -70,9 +70,9 @@ function SlotCell({
 }) {
   const label = SLOT_SHORT_LABEL[slotId];
   const boxSize = compact
-    ? "h-[40px] w-[40px] sm:h-[48px] sm:w-[48px]"
-    : "h-[46px] w-[46px] sm:h-[54px] sm:w-[54px]";
-  const imgPx = compact ? 28 : 34;
+    ? "h-[50px] w-[50px] sm:h-[58px] sm:w-[58px]"
+    : "h-[58px] w-[58px] sm:h-[68px] sm:w-[68px]";
+  const imgPx = compact ? 36 : 48;
 
   const borderClass = exoType === "pa"
     ? "border-[#4a90d9] bg-[#06111f] shadow-[0_0_0_2px_rgba(74,144,217,0.35)]"
@@ -302,7 +302,7 @@ function StuffLevelBadge() {
 }
 
 /* ─── Grille principale ─── */
-export function InventoryGrid() {
+export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}) {
   const currentBuild = useBuildStore((s) => s.currentBuild);
   const itemById = useBuildStore((s) => s.itemById);
   const selectedSlot = useBuildStore((s) => s.selectedSlot);
@@ -324,7 +324,7 @@ export function InventoryGrid() {
   const exoFm = useBuildStore((s) => s.exoFm);
   const setExoFm = useBuildStore((s) => s.setExoFm);
 
-  const { hover, show, move, scheduleHide } = useItemHoverCard();
+  const { hover, show, move, scheduleHide, cancelHide } = useItemHoverCard();
   function slotProps(id: SlotId) {
     const itemId = currentBuild[id];
     const item = itemId != null ? itemById[itemId] : undefined;
@@ -392,6 +392,18 @@ export function InventoryGrid() {
           />
         </div>
 
+        {/* Bouton Optimisation */}
+        {onOpenTools && (
+          <button
+            type="button"
+            onClick={onOpenTools}
+            title="Optimisation & Conseiller IA"
+            className="flex items-center gap-1 rounded border border-[#2e2e2e] bg-[#141414] px-2 py-1 text-[11px] font-medium text-[#888888] transition hover:border-[#4a8000]/60 hover:bg-[#1a2c0a] hover:text-[#9cce38]"
+          >
+            ⚡ Optim.
+          </button>
+        )}
+
         <StuffLevelBadge />
       </div>
 
@@ -426,7 +438,7 @@ export function InventoryGrid() {
         </div>
       </div>
 
-      {hover && <ItemHoverCard item={hover.item} anchor={{ x: hover.x, y: hover.y }} />}
+      {hover && <ItemHoverCard item={hover.item} anchor={{ x: hover.x, y: hover.y }} onMouseEnter={cancelHide} onMouseLeave={scheduleHide} />}
     </section>
   );
 }
