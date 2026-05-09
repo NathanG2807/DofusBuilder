@@ -60,8 +60,8 @@ function Stepper({
   return (
     <div className="flex items-center gap-1.5 rounded-lg border border-[#252525] bg-[#111111] px-2.5 py-1.5">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/assets/elements/${icon}.png`} alt={label} width={13} height={13}
-        className="h-[13px] w-[13px] shrink-0 object-contain" />
+      <img src={`/assets/elements/${icon}.png`} alt={label} width={14} height={14}
+        className="h-[14px] w-[14px] shrink-0 object-contain" />
       <span className="text-[11px] text-[#888888]">{label}</span>
       <button
         type="button"
@@ -188,8 +188,8 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/assets/elements/${o.icon}.png`} alt="" width={13} height={13}
-                  className="h-[13px] w-[13px] shrink-0 object-contain" />
+                <img src={`/assets/elements/${o.icon}.png`} alt="" width={14} height={14}
+                  className="h-[14px] w-[14px] shrink-0 object-contain" />
                 {o.label}
               </button>
             );
@@ -267,8 +267,8 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
                 }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={`/assets/elements/${o.icon}.png`} alt="" width={11} height={11}
-                  className="h-[11px] w-[11px] shrink-0 object-contain" />
+                <img src={`/assets/elements/${o.icon}.png`} alt="" width={12} height={12}
+                  className="h-[12px] w-[12px] shrink-0 object-contain" />
                 {o.label}
               </button>
             );

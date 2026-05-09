@@ -5,6 +5,17 @@ export type ItemEffectLine = {
   type?: { name?: string; id?: number };
 };
 
+export type WeaponDetailOut = {
+  ap_cost?: number;
+  range?: { min?: number; max?: number };
+  critical_hit_probability?: number;
+  critical_hit_bonus?: number;
+  max_cast_per_turn?: number;
+  cast_in_line?: boolean;
+  cast_in_diagonal?: boolean;
+  cast_test_los?: boolean;
+};
+
 export type ItemOut = {
   ankama_id: number;
   name: string;
@@ -18,6 +29,8 @@ export type ItemOut = {
   pods?: number | null;
   base_stats: Record<string, number> | null;
   description?: string | null;
+  /** Métadonnées de combat arme (coup en PA, portée, CC, coups/tour…) — après migration + ETL. */
+  weapon_detail?: WeaponDetailOut | null;
 };
 
 export type ItemSetOut = {

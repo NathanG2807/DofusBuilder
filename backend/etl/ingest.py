@@ -38,7 +38,11 @@ def _locale() -> str:
     code = get_settings().dofusdu_locale.strip().lower()[:2]
     return code if code in ("en", "fr", "de", "es", "pt") else "fr"
 # Detail fields merged into list responses (see OpenAPI fields[item]).
-ITEM_EXTRA_FIELDS = "effects,is_weapon,pods,conditions,parent_set,description"
+ITEM_EXTRA_FIELDS = (
+    "effects,is_weapon,pods,conditions,parent_set,description,"
+    "ap_cost,range,max_cast_per_turn,"
+    "critical_hit_probability,critical_hit_bonus"
+)
 
 
 def _db_dsn() -> str:
@@ -80,6 +84,25 @@ async def fetch_all_sets(client: httpx.AsyncClient) -> list[dict[str, Any]]:
     return data.get("sets") or []
 
 
+def _weapon_detail_from_api(raw: dict[str, Any]) -> Optional[dict[str, Any]]:
+    if not raw.get("is_weapon"):
+        return None
+    out: dict[str, Any] = {}
+    for k in (
+        "ap_cost",
+        "range",
+        "critical_hit_probability",
+        "critical_hit_bonus",
+        "max_cast_per_turn",
+        "cast_in_line",
+        "cast_in_diagonal",
+        "cast_test_los",
+    ):
+        if raw.get(k) is not None:
+            out[k] = raw[k]
+    return out or None
+
+
 def item_row_from_api(raw: dict[str, Any]) -> tuple[Any, ...]:
     effects = raw.get("effects") or []
     conditions = raw.get("conditions")
@@ -93,6 +116,7 @@ def item_row_from_api(raw: dict[str, Any]) -> tuple[Any, ...]:
     if isinstance(desc, str) and len(desc) > 12000:
         desc = desc[:12000]
 
+    wd = _weapon_detail_from_api(raw)
     return (
         int(raw["ankama_id"]),
         raw["name"],
@@ -106,6 +130,7 @@ def item_row_from_api(raw: dict[str, Any]) -> tuple[Any, ...]:
         raw.get("pods"),
         _json(base_stats),
         desc if isinstance(desc, str) else None,
+        _json(wd) if wd is not None else None,
     )
 
 
@@ -116,9 +141,9 @@ async def upsert_items(conn: asyncpg.Connection, rows: list[tuple[Any, ...]]) ->
         """
         INSERT INTO items (
             ankama_id, name, level, type_name_id, is_weapon, image_url_icon,
-            effects, conditions, parent_set_id, pods, base_stats, description
+            effects, conditions, parent_set_id, pods, base_stats, description, weapon_detail
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11::jsonb, $12
+            $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11::jsonb, $12, $13::jsonb
         )
         ON CONFLICT (ankama_id) DO UPDATE SET
             name = EXCLUDED.name,
@@ -131,7 +156,8 @@ async def upsert_items(conn: asyncpg.Connection, rows: list[tuple[Any, ...]]) ->
             parent_set_id = EXCLUDED.parent_set_id,
             pods = EXCLUDED.pods,
             base_stats = EXCLUDED.base_stats,
-            description = EXCLUDED.description
+            description = EXCLUDED.description,
+            weapon_detail = EXCLUDED.weapon_detail
         """,
         rows,
     )

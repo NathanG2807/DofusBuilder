@@ -25,4 +25,5 @@ class Item(Base):
     pods: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     base_stats: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    weapon_detail: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)

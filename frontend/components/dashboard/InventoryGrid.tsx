@@ -12,6 +12,7 @@ import {
   BOOK_RIGHT_SLOTS,
   SLOT_SHORT_LABEL,
 } from "@/components/dashboard/inventoryLayout";
+import { useDisplayStats } from "@/hooks/useDisplayStats";
 import { SLOT_DEFS } from "@/lib/slots";
 import type { SlotId } from "@/lib/slots";
 import type { ItemOut } from "@/types/api";
@@ -19,24 +20,6 @@ import { useBuildStore, type ExoType } from "@/store/build-store";
 import { DOFUS_CLASS_OPTIONS } from "@/lib/dofusClasses";
 import { classImageFallback, classImageUrl } from "@/lib/classImage";
 import { isConditionMet } from "@/lib/conditionCheck";
-
-function applyCharacterInvestments(baseStats: Record<string, number>, charStats: Record<string, number>) {
-  const result = { ...baseStats };
-  for (const [key, value] of Object.entries(charStats)) {
-    if (value > 0) {
-      result[key] = (result[key] ?? 0) + value;
-    }
-  }
-
-  const totalElementalStats = (result.strength ?? 0)
-    + (result.chance ?? 0)
-    + (result.agility ?? 0)
-    + (result.intelligence ?? 0);
-  const stuffInitiativeBonus = baseStats.initiative ?? 0;
-  result.initiative = stuffInitiativeBonus + totalElementalStats;
-
-  return result;
-}
 
 /* ─── Cellule d'emplacement ─── */
 function SlotCell({
@@ -253,20 +236,11 @@ function StatGem({
 }
 
 function BuildStatsSummary() {
-  const stats       = useBuildStore((s) => s.stats);
-  const charStats   = useBuildStore((s) => s.charStats);
-  const parchoStats = useBuildStore((s) => s.parchoStats);
-  const exoFm       = useBuildStore((s) => s.exoFm);
-  const effectiveStats = useMemo(
-    () => applyCharacterInvestments(stats, charStats),
-    [stats, charStats],
-  );
-  const exoPa = useMemo(() => Object.values(exoFm).filter((v) => v === "pa").length, [exoFm]);
-  const exoPm = useMemo(() => Object.values(exoFm).filter((v) => v === "pm").length, [exoFm]);
-  const pa    = (effectiveStats.pa      ?? 0) + exoPa;
-  const pm    = (effectiveStats.pm      ?? 0) + exoPm;
-  const invoc = effectiveStats.summons  ?? 0;
-  const pv    = (effectiveStats.vitality ?? 0) + (parchoStats.vitality ?? 0);
+  const displayStats = useDisplayStats();
+  const pa = displayStats.pa ?? 0;
+  const pm = displayStats.pm ?? 0;
+  const invoc = displayStats.summons ?? 0;
+  const pv = displayStats.vitality ?? 0;
 
   return (
     <div className="mt-1 flex flex-col items-center gap-1 sm:mt-2">
@@ -295,7 +269,7 @@ function StuffLevelBadge() {
   return (
     <div className="flex items-center gap-0.5 rounded border border-[#383838] bg-[#141414] px-1.5 py-1">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/assets/elements/lvl.png" alt="lvl" width={13} height={13} className="h-[13px] w-[13px] object-contain" />
+      <img src="/assets/elements/lvl.png" alt="lvl" width={14} height={14} className="h-[14px] w-[14px] object-contain" />
       <span className="text-[12px] font-semibold text-[#9cce38]">{stuffLevel}</span>
     </div>
   );
@@ -314,12 +288,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
   const setSex = useBuildStore((s) => s.setSex);
   const level = useBuildStore((s) => s.level);
   const setLevel = useBuildStore((s) => s.setLevel);
-  const stats = useBuildStore((s) => s.stats);
-  const charStats = useBuildStore((s) => s.charStats);
-  const effectiveStats = useMemo(
-    () => applyCharacterInvestments(stats, charStats),
-    [stats, charStats],
-  );
+  const displayStats = useDisplayStats();
 
   const exoFm = useBuildStore((s) => s.exoFm);
   const setExoFm = useBuildStore((s) => s.setExoFm);
@@ -329,7 +298,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
     const itemId = currentBuild[id];
     const item = itemId != null ? itemById[itemId] : undefined;
     const selected = selectedSlot === id;
-    const conditionOk = item ? isConditionMet(item.conditions, effectiveStats) : true;
+    const conditionOk = item ? isConditionMet(item.conditions, displayStats) : true;
     return {
       slotId: id,
       selected,

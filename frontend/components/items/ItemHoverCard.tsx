@@ -1,16 +1,27 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  startTransition,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 
 import { fetchItemSet } from "@/lib/api";
+import { computeWeaponEffectDamage } from "@/lib/combatDamageCalc";
 import { typeLabel } from "@/lib/equipmentTypes";
 import { EffectLine } from "@/components/items/EffectLine";
+import { isWeaponDamagesBucketEffect } from "@/lib/effectFormat";
 import { formatConditionString } from "@/lib/conditionFormat";
 import { isConditionMet } from "@/lib/conditionCheck";
+import { WeaponCombatProvider } from "@/components/items/weaponCombatContext";
 import { SetDetailModal } from "@/components/items/SetDetailModal";
-import { useBuildStore } from "@/store/build-store";
-import type { ItemOut, ItemSetOut } from "@/types/api";
+import { useDisplayStats } from "@/hooks/useDisplayStats";
+import type { ItemOut, ItemSetOut, WeaponDetailOut } from "@/types/api";
 
 type Props = {
   item: ItemOut;
@@ -23,23 +34,103 @@ type Props = {
   onMouseLeave?: () => void;
 };
 
+function fmtWeaponTotalRange(lo: number, hi: number): string {
+  return lo === hi ? String(lo) : `${lo}–${hi}`;
+}
+
+/** Texte d’une ligne pour PA, zone / portée, CC, coups / tour, flags. */
+function weaponCombatMetaSegments(wd: WeaponDetailOut): string[] {
+  const segs: string[] = [];
+  if (typeof wd.ap_cost === "number") segs.push(`${wd.ap_cost} PA par coup`);
+
+  if (
+    wd.range &&
+    typeof wd.range.min === "number" &&
+    typeof wd.range.max === "number"
+  ) {
+    const rmin = wd.range.min;
+    const rmax = wd.range.max;
+    if (rmin === rmax && rmin === 1) {
+      segs.push("Zone : 1 à 1 (mêlée uniquement)");
+    } else if (rmin === rmax) {
+      segs.push(`Zone : ${rmin} cases`);
+    } else {
+      segs.push(`Zone : ${rmin} à ${rmax}`);
+    }
+  }
+
+  if (typeof wd.critical_hit_probability === "number") {
+    segs.push(`${wd.critical_hit_probability}% de CC`);
+  }
+  if (typeof wd.critical_hit_bonus === "number") {
+    segs.push(`+${wd.critical_hit_bonus} dommages en CC`);
+  }
+  if (typeof wd.max_cast_per_turn === "number") {
+    const n = wd.max_cast_per_turn;
+    segs.push(`${n} coup${n > 1 ? "s" : ""} par tour`);
+  }
+
+  const flags: string[] = [];
+  if (wd.cast_in_line === true) flags.push("Ligne");
+  if (wd.cast_in_diagonal === true) flags.push("Diagonale");
+  if (wd.cast_test_los === true) flags.push("Ligne de vue");
+  if (flags.length) segs.push(flags.join(", "));
+
+  return segs;
+}
+
 /* ── Carte d'un item (corps réutilisable) ─────────────────────────────────── */
 function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
   const [setInfo, setSetInfo] = useState<ItemSetOut | null>(null);
   const [setErr, setSetErr] = useState<string | null>(null);
   const [showSetModal, setShowSetModal] = useState(false);
   const pid = item.parent_set_id;
-  const stats = useBuildStore((s) => s.stats);
+  const stats = useDisplayStats();
   const conditionMet = isConditionMet(item.conditions, stats);
 
+  const wd = item.weapon_detail ?? null;
+  const critBonusFlat =
+    typeof wd?.critical_hit_bonus === "number" ? wd.critical_hit_bonus : 0;
+
+  const maxCast =
+    typeof wd?.max_cast_per_turn === "number" && Number.isFinite(wd.max_cast_per_turn)
+      ? Math.max(1, Math.min(50, Math.floor(wd.max_cast_per_turn)))
+      : 1;
+
+  const [weaponHits, setWeaponHits] = useState(1);
+
   useEffect(() => {
-    if (pid == null) { setSetInfo(null); setSetErr(null); return; }
+    setWeaponHits(1);
+  }, [item.ankama_id]);
+
+  useEffect(() => {
+    setWeaponHits((h) => Math.min(Math.max(1, h), maxCast));
+  }, [maxCast]);
+
+  useEffect(() => {
+    if (pid == null) {
+      startTransition(() => {
+        setSetInfo(null);
+        setSetErr(null);
+      });
+      return;
+    }
     let cancel = false;
+    startTransition(() => {
+      setSetInfo(null);
+      setSetErr(null);
+    });
     (async () => {
-      try { const s = await fetchItemSet(pid); if (!cancel) setSetInfo(s); }
-      catch (e) { if (!cancel) setSetErr(e instanceof Error ? e.message : "Panoplie introuvable"); }
+      try {
+        const s = await fetchItemSet(pid);
+        if (!cancel) setSetInfo(s);
+      } catch (e) {
+        if (!cancel) setSetErr(e instanceof Error ? e.message : "Panoplie introuvable");
+      }
     })();
-    return () => { cancel = true; };
+    return () => {
+      cancel = true;
+    };
   }, [pid]);
 
   const rawEffects = (
@@ -50,6 +141,55 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
     if (aActive === bActive) return 0;
     return aActive ? -1 : 1;
   });
+
+  const weaponDmg: Record<string, unknown>[] = [];
+  const weaponOther: Record<string, unknown>[] = [];
+  if (item.is_weapon) {
+    for (const eff of rawEffects) {
+      if (isWeaponDamagesBucketEffect(eff)) weaponDmg.push(eff);
+      else weaponOther.push(eff);
+    }
+  }
+
+  const weaponDamageTotals = useMemo(() => {
+    if (!item.is_weapon) return null;
+    const dmg = (item.effects?.filter((e) => e != null) as Record<string, unknown>[] ?? []).filter(
+      isWeaponDamagesBucketEffect,
+    );
+    if (dmg.length === 0) return null;
+    let nMin = 0;
+    let nMax = 0;
+    let cMin = 0;
+    let cMax = 0;
+    let lines = 0;
+    for (const eff of dmg) {
+      const n = computeWeaponEffectDamage(eff, stats, {
+        isCrit: false,
+        weaponCritBonusFlat: 0,
+      });
+      const c = computeWeaponEffectDamage(eff, stats, {
+        isCrit: true,
+        weaponCritBonusFlat: critBonusFlat,
+      });
+      if (!n || !c) continue;
+      nMin += n.min;
+      nMax += n.max;
+      cMin += c.min;
+      cMax += c.max;
+      lines += 1;
+    }
+    if (lines === 0) return null;
+    return { normal: { min: nMin, max: nMax }, crit: { min: cMin, max: cMax } };
+  }, [item.is_weapon, item.effects, stats, critBonusFlat]);
+
+  const weaponCombatMetaText = (() => {
+    if (!wd) return null;
+    const s = weaponCombatMetaSegments(wd);
+    return s.length > 0 ? s.join(" · ") : null;
+  })();
+
+  const showWeaponHitPicker = maxCast > 2 && weaponDamageTotals != null;
+
   const conditionText = formatConditionString(item.conditions);
 
   return (
@@ -80,14 +220,97 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
         </p>
       ) : null}
 
-      {rawEffects.length > 0 && (
+      {item.is_weapon ? (
+        <WeaponCombatProvider weaponCritBonusFlat={critBonusFlat}>
+          {weaponCombatMetaText ? (
+            <p className="mt-1.5 text-[10px] leading-relaxed text-[#a8a8a8]">
+              {weaponCombatMetaText}
+            </p>
+          ) : null}
+
+          {rawEffects.length > 0 ? (
+            <>
+              {weaponDmg.length > 0 && (
+                <div className="mt-1.5">
+                  <p className="text-[9px] font-semibold uppercase tracking-widest text-[#666666]">
+                    Dégâts
+                  </p>
+                  <ul className="mt-0.5 space-y-0.5 text-[11px] text-[#e0e0e0]">
+                    {weaponDmg.map((eff, i) => (
+                      <EffectLine key={`d-${i}`} eff={eff} />
+                    ))}
+                  </ul>
+
+                  {showWeaponHitPicker ? (
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                      <span className="text-[9px] text-[#666666]">Coups affichés :</span>
+                      <div className="flex flex-wrap gap-0.5">
+                        {Array.from({ length: maxCast }, (_, i) => i + 1).map((n) => (
+                          <button
+                            key={n}
+                            type="button"
+                            onClick={() => setWeaponHits(n)}
+                            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition ${
+                              weaponHits === n
+                                ? "bg-[#2a4810] text-[#c8f070] ring-1 ring-[#5a9820]"
+                                : "bg-[#1e1e1e] text-[#909090] hover:bg-[#2a2a2a]"
+                            }`}
+                          >
+                            {n}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+
+                  {weaponDamageTotals ? (
+                    <div className="mt-1.5 flex flex-wrap items-baseline justify-end gap-x-2 gap-y-0.5 border-t border-[#2a2a2a] pt-1.5 text-[10px]">
+                      <span className="mr-auto shrink-0 text-[#707070]">
+                        Total{weaponHits > 1 ? ` (${weaponHits} coups)` : ""}
+                      </span>
+                      <span className="font-semibold tabular-nums text-[#e0e0e0]" title="Hors CC">
+                        (
+                        {fmtWeaponTotalRange(
+                          weaponDamageTotals.normal.min * weaponHits,
+                          weaponDamageTotals.normal.max * weaponHits,
+                        )}
+                        )
+                      </span>
+                      <span className="font-semibold tabular-nums text-[#f0c060]" title="Critique">
+                        CC (
+                        {fmtWeaponTotalRange(
+                          weaponDamageTotals.crit.min * weaponHits,
+                          weaponDamageTotals.crit.max * weaponHits,
+                        )}
+                        )
+                      </span>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+              {weaponOther.length > 0 && (
+                <div className={weaponDmg.length > 0 ? "mt-2" : "mt-1.5"}>
+                  <p className="text-[9px] font-semibold uppercase tracking-widest text-[#666666]">
+                    Effets
+                  </p>
+                  <ul className="mt-0.5 space-y-0.5 text-[11px] text-[#e0e0e0]">
+                    {weaponOther.map((eff, i) => (
+                      <EffectLine key={`r-${i}`} eff={eff} />
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </>
+          ) : null}
+        </WeaponCombatProvider>
+      ) : rawEffects.length > 0 ? (
         <>
           <p className="mt-1.5 text-[9px] font-semibold uppercase tracking-widest text-[#666666]">Effets</p>
           <ul className="mt-0.5 space-y-0.5 text-[11px] text-[#e0e0e0]">
             {rawEffects.map((eff, i) => <EffectLine key={i} eff={eff} />)}
           </ul>
         </>
-      )}
+      ) : null}
 
       {conditionText && (
         <div className={`mt-1.5 rounded-lg border px-2 pt-1.5 pb-1 ${

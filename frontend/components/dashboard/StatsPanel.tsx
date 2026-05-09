@@ -3,11 +3,8 @@
 import { useMemo, useState } from "react";
 
 import { STAT_GROUPS } from "@/lib/statLabels";
+import { useDisplayStats } from "@/hooks/useDisplayStats";
 import { useBuildStore } from "@/store/build-store";
-
-const BASE_PA          = 6;
-const BASE_PM          = 3;
-const BASE_PROSPECTING = 100;
 
 const INVESTABLE_KEYS = new Set([
   "vitality", "wisdom", "strength", "chance", "agility", "intelligence",
@@ -45,24 +42,6 @@ function getMaxAffordableInvest(statKey: string, current: number, availablePoint
   return target;
 }
 
-function applyCharacterInvestments(baseStats: Record<string, number>, charStats: Record<string, number>) {
-  const result = { ...baseStats };
-  for (const [key, value] of Object.entries(charStats)) {
-    if (value > 0) {
-      result[key] = (result[key] ?? 0) + value;
-    }
-  }
-
-  const totalElementalStats = (result.strength ?? 0)
-    + (result.chance ?? 0)
-    + (result.agility ?? 0)
-    + (result.intelligence ?? 0);
-  const stuffInitiativeBonus = baseStats.initiative ?? 0;
-  result.initiative = stuffInitiativeBonus + totalElementalStats;
-
-  return result;
-}
-
 /* ── Ligne stat standard (2 colonnes) ─────────────────────────────────────── */
 function StatRow({ statKey, label, icon, value }: {
   statKey: string;
@@ -77,8 +56,8 @@ function StatRow({ statKey, label, icon, value }: {
       title={statKey}
     >
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/assets/elements/${icon}.png`} alt="" width={14} height={14}
-        className="h-[14px] w-[14px] shrink-0 object-contain" />
+      <img src={`/assets/elements/${icon}.png`} alt="" width={15} height={15}
+        className="h-[15px] w-[15px] shrink-0 object-contain" />
       <span className="min-w-0 flex-1 truncate text-[11px] text-[#888888]">{label}</span>
       <span className={`shrink-0 text-[11px] font-semibold tabular-nums ${
         value > 0 ? "text-[#f0d78c]" : value < 0 ? "text-red-400" : "text-[#444444]"
@@ -104,8 +83,8 @@ function InvestableRow({ statKey, label, icon, equipValue, invested, availablePo
   return (
     <div className="grid grid-cols-[14px_1fr_48px_44px_36px] items-center gap-1 rounded bg-[#1e1e1e] px-1.5 py-0.5" title={statKey}>
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={`/assets/elements/${icon}.png`} alt="" width={14} height={14}
-        className="h-[14px] w-[14px] shrink-0 object-contain" />
+      <img src={`/assets/elements/${icon}.png`} alt="" width={15} height={15}
+        className="h-[15px] w-[15px] shrink-0 object-contain" />
       <span className="min-w-0 truncate text-[11px] text-[#888888]">{label}</span>
 
       {/* Points investis */}
@@ -301,15 +280,15 @@ function ForgemagieCard() {
 
 /* ── Panel principal ──────────────────────────────────────────────────────── */
 export function StatsPanel() {
-  const rawStats       = useBuildStore((s) => s.stats);
-  const level          = useBuildStore((s) => s.level);
-  const charStats      = useBuildStore((s) => s.charStats);
-  const setCharStat    = useBuildStore((s) => s.setCharStat);
-  const parchoStats    = useBuildStore((s) => s.parchoStats);
-  const setParchoStat  = useBuildStore((s) => s.setParchoStat);
-  const currentBuild   = useBuildStore((s) => s.currentBuild);
-  const itemById       = useBuildStore((s) => s.itemById);
-  const exoFm          = useBuildStore((s) => s.exoFm);
+  const stats            = useDisplayStats();
+  const level            = useBuildStore((s) => s.level);
+  const charStats        = useBuildStore((s) => s.charStats);
+  const setCharStat      = useBuildStore((s) => s.setCharStat);
+  const parchoStats      = useBuildStore((s) => s.parchoStats);
+  const setParchoStat    = useBuildStore((s) => s.setParchoStat);
+  const currentBuild     = useBuildStore((s) => s.currentBuild);
+  const itemById         = useBuildStore((s) => s.itemById);
+  const exoFm            = useBuildStore((s) => s.exoFm);
 
   const stuffLevel = useMemo(() => {
     const levels = Object.values(currentBuild)
@@ -317,44 +296,6 @@ export function StatsPanel() {
       .map((id) => itemById[id]?.level ?? 0);
     return levels.length ? Math.max(...levels) : 0;
   }, [currentBuild, itemById]);
-
-  const baseStats = useMemo(() => {
-    const basePA   = BASE_PA + (level >= 100 ? 1 : 0);
-    const basePV   = 50 + level * 5;
-    const basePods = 1000 + level * 5;
-    const result   = { ...rawStats };
-    if (!result.pa)          result.pa          = basePA;
-    if (!result.pm)          result.pm          = BASE_PM;
-    if (!result.vitality)    result.vitality    = basePV;
-    if (!result.prospecting) result.prospecting = BASE_PROSPECTING;
-    if (!result.pods)        result.pods        = basePods;
-    return result;
-  }, [rawStats, level]);
-
-  // Exo FM contributions
-  const exoPa = useMemo(() => Object.values(exoFm).filter((v) => v === "pa").length, [exoFm]);
-  const exoPm = useMemo(() => Object.values(exoFm).filter((v) => v === "pm").length, [exoFm]);
-
-  const stats = useMemo(() => {
-    const base = applyCharacterInvestments(baseStats, charStats);
-    const result: Record<string, number> = {
-      ...base,
-      pa: (base.pa ?? 0) + exoPa,
-      pm: (base.pm ?? 0) + exoPm,
-    };
-    // Parcho adds to primaries independently (does not affect investment cost)
-    for (const [key, v] of Object.entries(parchoStats)) {
-      if (v > 0) result[key] = (result[key] ?? 0) + v;
-    }
-    // Recalculate initiative after parcho elemental additions
-    const stuffInitiativeBonus = baseStats.initiative ?? 0;
-    result.initiative = stuffInitiativeBonus
-      + (result.strength ?? 0)
-      + (result.chance ?? 0)
-      + (result.agility ?? 0)
-      + (result.intelligence ?? 0);
-    return result;
-  }, [baseStats, charStats, exoPa, exoPm, parchoStats]);
 
   const totalPoints = Math.max(0, (level - 1) * 5);
   const usedPoints  = useMemo(
@@ -374,8 +315,8 @@ export function StatsPanel() {
           {stuffLevel > 0 && (
             <span className="flex items-center gap-1 text-[11px] text-[#888888]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src="/assets/elements/lvl.png" alt="" width={13} height={13}
-                className="h-[13px] w-[13px] object-contain" />
+              <img src="/assets/elements/lvl.png" alt="" width={14} height={14}
+                className="h-[14px] w-[14px] object-contain" />
               {stuffLevel}
             </span>
           )}

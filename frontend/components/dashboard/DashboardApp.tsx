@@ -64,21 +64,14 @@ export function DashboardApp() {
 
         {/* ── Colonne gauche : Panoplies actives ── */}
         <div className="flex w-[300px] shrink-0 flex-col gap-3 xl:w-[330px]">
-          <section className="flex flex-col overflow-hidden rounded-xl border border-[#2e2e2e] bg-[#181818]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_4px_24px_rgba(0,0,0,0.55)]">
-            <div className="border-b border-[#222222] px-4 py-2.5">
-              <p className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
-                Panoplies actives
-              </p>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <ActiveSetCards />
-            </div>
-          </section>
+          <div className="flex-1 overflow-y-auto">
+            <ActiveSetCards />
+          </div>
         </div>
 
         {/* ── Centre : Inventaire + Sorts ── */}
         <div className="flex min-w-0 flex-1 items-start justify-center gap-4">
-          <div className="w-full max-w-[600px] shrink-0">
+          <div className="w-full max-w-[660px] shrink-0">
             <InventoryGrid onOpenTools={openTools} />
             <SpellsPanel />
           </div>
@@ -109,14 +102,7 @@ export function DashboardApp() {
 
           {mobileView === "sets" && (
             <div className="flex flex-col p-3">
-              <section className="flex flex-col overflow-hidden rounded-xl border border-[#2e2e2e] bg-[#181818]/95">
-                <div className="border-b border-[#222222] px-4 py-2.5">
-                  <p className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
-                    Panoplies actives
-                  </p>
-                </div>
-                <ActiveSetCards />
-              </section>
+              <ActiveSetCards />
             </div>
           )}
         </div>

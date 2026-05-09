@@ -9,18 +9,27 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 
+import { useDisplayStats } from "@/hooks/useDisplayStats";
 import { useBuildStore } from "@/store/build-store";
-import { CLASS_TO_SPELL_TYPE_ID } from "@/lib/dofusClasses";
+import { CLASS_TO_BREED_ID, CLASS_TO_SPELL_TYPE_ID } from "@/lib/dofusClasses";
 
 /* ══════════════════════════════════════════════════════════════════════════════
    Types
 ══════════════════════════════════════════════════════════════════════════════ */
-interface SpellData {
+interface SpellFullData {
   id: number;
   order: number;
   img: string;
   name: { fr: string };
   description: { fr: string };
+  typeId: number; // 8 = sort de base, 598 = variante
+}
+
+interface SpellVariantGroup {
+  id: number;
+  breedId: number;
+  spellIds: number[];
+  spells: SpellFullData[];
 }
 
 interface SpellEffect {
@@ -53,6 +62,20 @@ interface SpellLevelData {
 /* ══════════════════════════════════════════════════════════════════════════════
    Helpers
 ══════════════════════════════════════════════════════════════════════════════ */
+/**
+ * Mapping effectElement (spell-levels API) → icône visuelle.
+ *
+ * Convention DofusDB (vérifiée via /effects?id=…) :
+ *   0 = Neutre (pas d'icône dédiée)
+ *   1 = Terre
+ *   2 = Feu
+ *   3 = Eau
+ *   4 = Air
+ *   5 = "non-élément" (caractéristiques boostées : Puissance, etc.)
+ *  -1 = aucun élément
+ *
+ * effectElement (spell-levels) === elementId (effects). Aucun "swap" Dofus 2 / Dofus 3.
+ */
 const ELEMENT_ICONS: Record<number, { icon: string; label: string }> = {
   1: { icon: "ter", label: "Terre" },
   2: { icon: "feu", label: "Feu"   },
@@ -60,84 +83,368 @@ const ELEMENT_ICONS: Record<number, { icon: string; label: string }> = {
   4: { icon: "air", label: "Air"   },
 };
 
-/** Mapping partiel effectId → libellé affiché. */
-const EFFECT_LABELS: Record<number, string> = {
-  4:   "Soins",
-  5:   "Repousse",
-  78:  "Attire",
-  81:  "Renvoie les dommages",
-  91:  "Vol de vie Neutre",
-  92:  "Vol de vie Terre",
-  93:  "Vol de vie Feu",
-  94:  "Vol de vie Eau",
-  95:  "Vol de vie Air",
-  96:  "Dommages Neutre",
-  97:  "Dommages Terre",
-  98:  "Dommages Feu",
-  99:  "Dommages",
-  100: "Vol de vie",
-  101: "Soins",
-  105: "Malus de PV",
-  108: "Soins",
-  110: "PA octroyés",
-  111: "PA retirés (non esquivables)",
-  112: "PA retirés",
-  116: "PM octroyés",
-  117: "PM retirés (non esquivables)",
-  118: "PM retirés",
-  120: "Portée ajoutée",
-  121: "Portée retirée",
-  123: "Téléportation",
-  125: "Invocation",
-  126: "Force ajoutée",
-  127: "Force retirée",
-  131: "Vitalité ajoutée",
-  132: "Vitalité retirée",
-  136: "Agilité ajoutée",
-  137: "Agilité retirée",
-  138: "Intelligence ajoutée",
-  139: "Intelligence retirée",
-  141: "Chance ajoutée",
-  142: "Chance retirée",
-  143: "Sagesse ajoutée",
-  144: "Sagesse retirée",
-  145: "Érosion",
-  147: "Dommages ajoutés",
-  150: "Initiative ajoutée",
-  152: "Puissance ajoutée",
-  153: "Puissance retirée",
-  154: "Critique ajouté",
-  158: "Invocation",
-  163: "Invisibilité",
-  168: "Esquive PA ajoutée",
-  169: "Esquive PA retirée",
-  171: "Tacle ajouté",
-  184: "% CC ajouté",
-  186: "Do. Poussée ajoutés",
-  188: "Do. Critiques ajoutés",
-  215: "Glyphe",
-  281: "Bouclier",
-  293: "Soins (% PV cible)",
-  406: "État appliqué",
-  951: "État spécial",
-  1160: "État",
-};
+/**
+ * Effets dont la ligne doit être entièrement masquée (même si visibleInTooltip=true
+ * dans l'API spell-levels), car ce sont des mécanismes internes sans valeur affichable.
+ *
+ * 293 = "Soins (% PV cible)" : utilisé en mécanique interne (diceNum = spellId), jamais montré in-game.
+ */
+const ALWAYS_HIDDEN_EFFECT_IDS = new Set<number>([293]);
+
+/** Max sane display value — au-dessus, c'est un ID interne (spellId/stateId), pas un nombre de gameplay. */
+const MAX_DISPLAY_VALUE = 9000;
+
+/* ── Cache d'effets dynamique ───────────────────────────────────────────────
+   Labels chargés depuis https://api.dofusdb.fr/effects/{id}?lang=fr
+   Cache module-level : persiste entre les montages React.
+────────────────────────────────────────────────────────────────────────────── */
+interface EffectInfo {
+  /** Libellé court à afficher (sans suffixe d'élément, sans "X" placeholder). */
+  label: string;
+  /** Affiche un "%" après la valeur. */
+  isPercent: boolean;
+  /** L'effet est élémentaire : afficher l'icône via effectElement (1-4). */
+  isElemental: boolean;
+  /** Ne jamais afficher de valeur numérique (état pur, ID interne, mécanique cachée). */
+  hideValue: boolean;
+}
+
+/** Cache module-level : effectId → informations */
+const gEffectCache   = new Map<number, EffectInfo>();
+/** Requêtes en cours pour éviter les doublons */
+const gEffectPending = new Map<number, Promise<void>>();
+
+/**
+ * Parse le template de description de l'API Dofus DB.
+ * Exemple : "#1{{~1~2 à }}#2% Érosion" → "Érosion"
+ * Exemple : "#1{{~1~2 à }}#2 dommages Feu" → "dommages Feu"
+ * Exemple : "#1{{~1~2 à }}#2% <sprite name=\"PV\"> PV du lanceur" → "PV du lanceur"
+ */
+function parseApiEffectLabel(raw: string): string {
+  return raw
+    .replace(/<[^>]*>/g, "")        // supprime les balises Unity <sprite name="…">
+    .replace(/#\d+/g, "")           // supprime #1 #2 …
+    .replace(/\{\{[^}]*\}\}/g, "")  // supprime {{…}} (séparateurs conditionnels)
+    .replace(/^[\s%:+\-]+/, "")     // supprime les "% : + -" éventuels en tête
+    .replace(/[\s%:]+$/, "")        // supprime les "% :" éventuels en queue
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+/**
+ * Pré-remplit le cache pour les effets les plus courants — évite N requêtes réseau au premier hover.
+ *
+ * Toutes les entrées sont vérifiées contre https://api.dofusdb.fr/effects/{id}?lang=fr
+ * Les labels sont volontairement courts : l'élément est exprimé via l'icône, pas dupliqué dans le texte.
+ */
+(function seedCache() {
+  // [id, label court, isPercent, isElemental, hideValue]
+  const SEED: Array<[number, string, boolean, boolean, boolean]> = [
+    // ── Déplacements / positionnement ─────────────────────────────────────
+    [  4, "Téléportation",                  false, false, true  ], // Téléporte sur case ciblée
+    [  5, "Repousse",                       false, false, false ], // Repousse de N cases
+    [  6, "Attire",                         false, false, false ], // Attire de N cases
+    [  8, "Échange de positions",           false, false, true  ],
+    [ 50, "Porte la cible",                 false, false, true  ],
+    [ 51, "Lance une entité",               false, false, true  ],
+    // ── PA / PM (vols/rembours) ──────────────────────────────────────────
+    [ 77, "Vol de PM",                      false, false, false ], // Vole #1 à #2 PM
+    [ 78, "Rembourse PM",                   false, false, false ],
+    [ 84, "Vol de PA",                      false, false, false ], // Vole #1 à #2 PA
+    // ── Soins / Vol de vie / Dommages "% PV lanceur" ─────────────────────
+    // 81 = "Soins" (Eniripsa & co)  /  82 = Vol de vie Neutre (fixe)
+    [ 81, "Soins",                          false, false, false ],
+    [ 82, "Vol de vie Neutre",              false, false, false ],
+    // 85/86/87 = Dommages élément % PV lanceur — élément via effectElement
+    [ 85, "Dommages (% PV lanceur)",        true,  true,  false ], // elementId=3 (Eau)
+    [ 86, "Dommages (% PV lanceur)",        true,  true,  false ], // elementId=1 (Terre)
+    [ 87, "Dommages (% PV lanceur)",        true,  true,  false ], // elementId=4 (Air)
+    // ── Vol de vie élémentaire (élément via effectElement = elementId) ──
+    [ 91, "Vol de vie",                     false, true,  false ], // Eau   (elementId=3)
+    [ 92, "Vol de vie",                     false, true,  false ], // Terre (elementId=1)
+    [ 93, "Vol de vie",                     false, true,  false ], // Air   (elementId=4)
+    [ 94, "Vol de vie",                     false, true,  false ], // Feu   (elementId=2)
+    [ 95, "Vol de vie Neutre",              false, false, false ], // Neutre (elementId=0, pas d'icône)
+    // ── Dommages élémentaires ────────────────────────────────────────────
+    [ 96, "Dommages",                       false, true,  false ], // Eau   (elementId=3)
+    [ 97, "Dommages",                       false, true,  false ], // Terre (elementId=1)
+    [ 98, "Dommages",                       false, true,  false ], // Air   (elementId=4)
+    [ 99, "Dommages",                       false, true,  false ], // Feu   (elementId=2)
+    [100, "Dommages Neutre",                false, false, false ], // Neutre (elementId=0)
+    // ── Soins additionnels ───────────────────────────────────────────────
+    [101, "Soins",                          false, false, false ],
+    [105, "Malus de PV",                    false, false, false ],
+    [108, "Soins",                          false, false, false ],
+    // ── PA / PM (octrois & retraits) ─────────────────────────────────────
+    [110, "PA octroyés",                    false, false, false ],
+    [111, "PA retirés (non esquivables)",   false, false, false ],
+    [112, "PA retirés",                     false, false, false ],
+    [116, "PM octroyés",                    false, false, false ],
+    [117, "PM retirés (non esquivables)",   false, false, false ],
+    [118, "PM retirés",                     false, false, false ],
+    // ── Portée ────────────────────────────────────────────────────────────
+    [120, "Portée ajoutée",                 false, false, false ],
+    [121, "Portée retirée",                 false, false, false ],
+    // ── Téléportations / invocations / états visuels ─────────────────────
+    [123, "Téléportation",                  false, false, true  ],
+    [125, "Invocation",                     false, false, true  ],
+    // ── Caractéristiques (ajoutées / retirées) ───────────────────────────
+    [126, "Force ajoutée",                  false, false, false ],
+    [127, "Force retirée",                  false, false, false ],
+    [131, "Vitalité ajoutée",               false, false, false ],
+    [132, "Vitalité retirée",               false, false, false ],
+    [136, "Agilité ajoutée",                false, false, false ],
+    [137, "Agilité retirée",                false, false, false ],
+    [138, "Intelligence ajoutée",           false, false, false ],
+    [139, "Intelligence retirée",           false, false, false ],
+    [141, "Chance ajoutée",                 false, false, false ],
+    [142, "Chance retirée",                 false, false, false ],
+    [143, "Sagesse ajoutée",                false, false, false ],
+    [144, "Sagesse retirée",                false, false, false ],
+    [145, "Érosion",                        true,  false, false ],
+    [147, "Dommages ajoutés",               false, false, false ],
+    [150, "Initiative ajoutée",             false, false, false ],
+    [152, "Puissance ajoutée",              false, false, false ],
+    [153, "Puissance retirée",              false, false, false ],
+    [154, "Critique ajouté",                false, false, false ],
+    [158, "Invocation",                     false, false, true  ],
+    [163, "Invisibilité",                   false, false, true  ],
+    [168, "Esquive PA ajoutée",             false, false, false ],
+    [169, "Esquive PA retirée",             false, false, false ],
+    [171, "Tacle ajouté",                   false, false, false ],
+    [172, "Tacle retiré",                   false, false, false ],
+    // 186 = -X Puissance (API description "-#1{{~1~2 à -}}#2 Puissance")
+    [186, "Puissance retirée",              false, false, false ],
+    [187, "Do. Poussée retirés",            false, false, false ],
+    [188, "Do. Critiques ajoutés",          false, false, false ],
+    [189, "Do. Critiques retirés",          false, false, false ],
+    [215, "Glyphe",                         false, false, true  ],
+    [281, "Bouclier",                       false, false, false ],
+    // 293 explicitement caché (voir ALWAYS_HIDDEN_EFFECT_IDS) — laissé en cache pour cohérence
+    [293, "Soins (% PV cible)",             false, false, true  ],
+    [406, "État appliqué",                  false, false, true  ],
+    [951, "État spécial",                   false, false, true  ],
+    [1160,"État",                           false, false, true  ],
+  ];
+  for (const [id, label, isPercent, isElemental, hideValue] of SEED) {
+    gEffectCache.set(id, { label, isPercent, isElemental, hideValue });
+  }
+})();
+
+/**
+ * Charge les informations d'un effect depuis l'API et les met en cache.
+ * Retourne immédiatement si l'effect est déjà en cache.
+ *
+ * Convention élément API : elementId ∈ {1,2,3,4} → élément réel ; 0 (Neutre) ou 5 (non-élément)
+ * → pas d'icône d'élément (le label gère l'info Neutre).
+ */
+function loadEffectInfo(effectId: number): Promise<void> {
+  if (gEffectCache.has(effectId)) return Promise.resolve();
+  if (gEffectPending.has(effectId)) return gEffectPending.get(effectId)!;
+
+  const promise = fetch(`https://api.dofusdb.fr/effects/${effectId}?lang=fr`)
+    .then((r) => {
+      if (!r.ok) throw new Error(`HTTP ${r.status}`);
+      return r.json();
+    })
+    .then((d) => {
+      const isPercent: boolean  = d.isInPercent ?? false;
+      const hideValue: boolean  = d.hideValueInTooltip ?? false;
+      const elementId: number   = d.elementId ?? -1;
+      const isElemental: boolean = elementId >= 1 && elementId <= 4;
+      const raw: string         = d.description?.fr ?? "";
+      const label = parseApiEffectLabel(raw) || `Effet #${effectId}`;
+      gEffectCache.set(effectId, { label, isPercent, isElemental, hideValue });
+    })
+    .catch(() => {
+      gEffectCache.set(effectId, {
+        label: `Effet #${effectId}`,
+        isPercent: false,
+        isElemental: false,
+        hideValue: false,
+      });
+    })
+    .finally(() => {
+      gEffectPending.delete(effectId);
+    });
+
+  gEffectPending.set(effectId, promise);
+  return promise;
+}
+
+/**
+ * Résout l'icône d'élément pour un effet donné.
+ *
+ * Règle unique : afficher l'icône via `effectElement` (1=Terre, 2=Feu, 3=Eau, 4=Air)
+ * UNIQUEMENT si l'effet est marqué `isElemental` (i.e. son `elementId` API est dans {1,2,3,4}).
+ *
+ * Cela exclut :
+ *  - Neutre (elementId=0) : pas d'icône, info dans le label
+ *  - Boost de caractéristique (elementId=5, ex: Puissance)
+ *  - Effets sans élément (elementId=-1)
+ */
+function resolveEffectElement(eff: SpellEffect): { icon: string; label: string } | undefined {
+  const info = gEffectCache.get(eff.effectId);
+  if (!info?.isElemental) return undefined;
+  if (eff.effectElement < 1 || eff.effectElement > 4) return undefined;
+  return ELEMENT_ICONS[eff.effectElement];
+}
 
 function getEffectLabel(eff: SpellEffect): string {
-  const base = EFFECT_LABELS[eff.effectId] ?? `Effet #${eff.effectId}`;
-  if ((eff.effectId === 99 || eff.effectId === 100) && ELEMENT_ICONS[eff.effectElement]) {
-    return `${base} ${ELEMENT_ICONS[eff.effectElement].label}`;
+  return gEffectCache.get(eff.effectId)?.label ?? `Effet #${eff.effectId}`;
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   Calcul de dégâts réels (Dofus 3)
+   ─────────────────────────────────
+   Formule : Dégâts = base + base × ((Puissance + Caractéristique) / 100) + Dommages_fixes
+   En cas de Coup Critique : on ajoute en plus la stat « Dommages Critiques » (flat).
+
+   Mapping élément (effectElement / elementId) :
+     0 = Neutre (carac = Force,        dmg fixes = damage_neutral + damage)
+     1 = Terre  (carac = Force,        dmg fixes = damage_earth   + damage)
+     2 = Feu    (carac = Intelligence, dmg fixes = damage_fire    + damage)
+     3 = Eau    (carac = Chance,       dmg fixes = damage_water   + damage)
+     4 = Air    (carac = Agilité,      dmg fixes = damage_air     + damage)
+══════════════════════════════════════════════════════════════════════════════ */
+
+interface ElementInfo {
+  /** Clé de la caractéristique principale dans `stats`. */
+  caracKey: "strength" | "intelligence" | "chance" | "agility";
+  /** Clé des dommages fixes spécifiques à l'élément dans `stats`. */
+  damageKey:
+    | "damage_earth" | "damage_fire" | "damage_water"
+    | "damage_air"   | "damage_neutral";
+  /** Classe Tailwind pour la couleur du texte des dégâts. */
+  colorClass: string;
+}
+
+const ELEMENT_INFO: Record<number, ElementInfo> = {
+  0: { caracKey: "strength",     damageKey: "damage_neutral", colorClass: "text-[#a8a8a8]" }, // Neutre
+  1: { caracKey: "strength",     damageKey: "damage_earth",   colorClass: "text-[#7faf3a]" }, // Terre
+  2: { caracKey: "intelligence", damageKey: "damage_fire",    colorClass: "text-[#e26e3c]" }, // Feu
+  3: { caracKey: "chance",       damageKey: "damage_water",   colorClass: "text-[#4ba4dd]" }, // Eau
+  4: { caracKey: "agility",      damageKey: "damage_air",     colorClass: "text-[#b8d040]" }, // Air
+};
+
+/** Effets dont les dégâts (ou le vol de vie) suivent la formule standard. */
+const SCALABLE_DAMAGE_EFFECT_IDS = new Set<number>([
+  // Vol de vie élémentaires
+  91, 92, 93, 94,
+  // Vol Neutre élémentaire
+  95,
+  // Dommages élémentaires
+  96, 97, 98, 99,
+  // Dommages Neutre
+  100,
+]);
+
+/**
+ * Détermine l'élément à utiliser pour le calcul d'un effet.
+ *
+ * - Si le sort est marqué « meilleur élément » (`useBestElement`),
+ *   retourne l'élément {1..4} avec la plus haute caractéristique.
+ * - Sinon retourne `effectElement` brut.
+ */
+function pickElementForCalc(
+  eff: SpellEffect,
+  stats: Record<string, number>,
+  useBestElement: boolean,
+): number {
+  if (useBestElement) {
+    const candidates: Array<[number, number]> = [
+      [1, stats.strength     ?? 0],
+      [2, stats.intelligence ?? 0],
+      [3, stats.chance       ?? 0],
+      [4, stats.agility      ?? 0],
+    ];
+    candidates.sort((a, b) => b[1] - a[1]);
+    return candidates[0][0];
   }
-  return base;
+  return eff.effectElement;
+}
+
+/**
+ * Calcule la plage de dégâts réels (min-max) pour un effet, étant donné les stats du build.
+ *
+ * Retourne `null` si l'effet n'est pas un effet de dégâts/vol de vie scalable
+ * ou si la dice est invalide (effet plate/état).
+ */
+function computeEffectDamage(
+  eff: SpellEffect,
+  stats: Record<string, number>,
+  opts: { isCrit: boolean; useBestElement: boolean },
+): { min: number; max: number; element: number } | null {
+  if (!SCALABLE_DAMAGE_EFFECT_IDS.has(eff.effectId)) return null;
+
+  const { diceNum, diceSide } = eff;
+  if (diceNum <= 0 || diceNum >= MAX_DISPLAY_VALUE) return null;
+  // diceSide peut valoir 0 (dégâts fixes) ou être > diceNum (range)
+
+  const element = pickElementForCalc(eff, stats, opts.useBestElement);
+  const info    = ELEMENT_INFO[element];
+  if (!info) return null;
+
+  const power     = stats.power ?? 0;
+  const carac     = stats[info.caracKey] ?? 0;
+  const dmgFixes  = (stats[info.damageKey] ?? 0) + (stats.damage ?? 0);
+  const critFlat  = opts.isCrit ? (stats.critical_damage ?? 0) : 0;
+  const factor    = 1 + (power + carac) / 100;
+
+  const minBase = diceNum;
+  const maxBase = diceSide > diceNum ? diceSide : diceNum;
+
+  const min = Math.floor(minBase * factor + dmgFixes + critFlat);
+  const max = Math.floor(maxBase * factor + dmgFixes + critFlat);
+
+  return { min, max, element };
+}
+
+/** Détecte si un sort utilise la mécanique « meilleur élément » (depuis sa description). */
+function spellUsesBestElement(desc: string): boolean {
+  return desc.includes("meilleur élément");
+}
+
+/**
+ * Identifie le sort de base d'un groupe de variants en fonction du classId.
+ *
+ * L'API DofusDB retourne pour chaque groupe `[base, variante]` (base toujours en premier)
+ * mais la donnée formelle est le `typeId` :
+ *  - Iop  (classId=8)  : base typeId=8,    variant typeId=598
+ *  - Féca (classId=1)  : base typeId=1,    variant typeId=592
+ *  - Sram (classId=4)  : base typeId=4,    variant typeId=589
+ *  - Cra  (classId=9)  : base typeId=9,    variant typeId=594
+ *  - …
+ *  - Forgelance (classId=20) : base typeId=2374, variant typeId=2376
+ *
+ * `CLASS_TO_SPELL_TYPE_ID[classId]` donne le typeId de base attendu.
+ */
+function pickBase(spells: SpellFullData[], classId: number): SpellFullData {
+  const baseTypeId = CLASS_TO_SPELL_TYPE_ID[classId];
+  return spells.find((s) => s.typeId === baseTypeId) ?? spells[0];
+}
+
+function pickVariant(spells: SpellFullData[], classId: number): SpellFullData {
+  const baseTypeId = CLASS_TO_SPELL_TYPE_ID[classId];
+  return spells.find((s) => s.typeId !== baseTypeId) ?? spells[1] ?? spells[0];
 }
 
 function formatEffectValue(eff: SpellEffect): string {
+  const info = gEffectCache.get(eff.effectId);
+  if (info?.hideValue) return "";
+
   const { diceNum, diceSide, value } = eff;
-  if (diceNum > 0 && diceSide > 0 && diceNum !== diceSide) return `${diceNum} à ${diceSide}`;
-  if (diceNum > 0) return `${diceNum}`;
-  if (diceSide > 0) return `${diceSide}`;
-  if (value > 0 && value < 9000) return `${value}`;
-  return "";
+  const MAX = MAX_DISPLAY_VALUE;
+
+  let raw = "";
+  if (diceNum > 0 && diceSide > 0 && diceNum !== diceSide && diceNum < MAX && diceSide < MAX)
+    raw = `${diceNum} à ${diceSide}`;
+  else if (diceNum > 0 && diceNum < MAX) raw = `${diceNum}`;
+  else if (diceSide > 0 && diceSide < MAX) raw = `${diceSide}`;
+  else if (value > 0 && value < MAX) raw = `${value}`;
+
+  if (!raw) return "";
+  return info?.isPercent ? `${raw}%` : raw;
 }
 
 const DESC_ELEMENT_PATTERNS = [
@@ -153,7 +460,7 @@ function detectDescElements(desc: string) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   Sous-composants de la tooltip
+   Sous-composants partagés
 ══════════════════════════════════════════════════════════════════════════════ */
 function StatChip({ children }: { children: React.ReactNode }) {
   return (
@@ -163,10 +470,31 @@ function StatChip({ children }: { children: React.ReactNode }) {
   );
 }
 
-function SpellEffectRow({ eff }: { eff: SpellEffect }) {
+function SpellEffectRow({
+  eff,
+  stats,
+  isCrit,
+  useBestElement,
+}: {
+  eff: SpellEffect;
+  stats: Record<string, number>;
+  /** True si l'effet provient de la liste critique (ajoute Dommages Critiques flat). */
+  isCrit: boolean;
+  /** True si le sort utilise la mécanique « meilleur élément » → carac dynamique. */
+  useBestElement: boolean;
+}) {
   const label = getEffectLabel(eff);
   const val   = formatEffectValue(eff);
-  const el    = ELEMENT_ICONS[eff.effectElement];
+  // Dégâts calculés avec le build courant (null pour les effets non-scalables).
+  const calc  = computeEffectDamage(eff, stats, { isCrit, useBestElement });
+  // L'élément affiché en icône suit le calcul (utile pour « meilleur élément »).
+  const elIdx = calc?.element ?? eff.effectElement;
+  const cacheInfo = gEffectCache.get(eff.effectId);
+  const el =
+    cacheInfo?.isElemental && elIdx >= 1 && elIdx <= 4
+      ? ELEMENT_ICONS[elIdx]
+      : undefined;
+  const colorClass = calc ? ELEMENT_INFO[calc.element]?.colorClass ?? "" : "";
 
   return (
     <li className="flex items-center gap-1.5 text-[11px]">
@@ -176,15 +504,27 @@ function SpellEffectRow({ eff }: { eff: SpellEffect }) {
         <img
           src={`/assets/elements/${el.icon}.png`}
           alt={el.label}
-          width={12}
-          height={12}
-          className="h-[12px] w-[12px] shrink-0 object-contain"
+          width={13}
+          height={13}
+          className="h-[13px] w-[13px] shrink-0 object-contain"
         />
       )}
       <span className="flex-1 text-[#c0c0c0]">{label}</span>
       {val && (
         <span className="shrink-0 font-semibold tabular-nums text-[#f0e0a0]">
           {val}
+        </span>
+      )}
+      {calc && (
+        <span
+          className={`shrink-0 font-semibold tabular-nums ${colorClass}`}
+          title={
+            isCrit
+              ? "Dégâts réels en CC (build courant)"
+              : "Dégâts réels (build courant)"
+          }
+        >
+          ({calc.min === calc.max ? calc.min : `${calc.min}-${calc.max}`})
         </span>
       )}
       {eff.duration > 0 && (
@@ -197,25 +537,26 @@ function SpellEffectRow({ eff }: { eff: SpellEffect }) {
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   Tooltip de sort avec spell-levels
+   SpellCardBody — corps réutilisable d'une carte de sort (avec fetch levels)
 ══════════════════════════════════════════════════════════════════════════════ */
-function SpellTooltip({
+function SpellCardBody({
   spell,
-  anchor,
-  onMouseEnter,
-  onMouseLeave,
+  label,
+  isVariant,
 }: {
-  spell: SpellData;
-  anchor: { x: number; y: number };
-  onMouseEnter?: () => void;
-  onMouseLeave?: () => void;
+  spell: SpellFullData;
+  label?: string;
+  isVariant?: boolean;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: -9999, left: -9999, visible: false });
+  /* Stats du build courant — l'affichage des dégâts calculés se met à jour
+   * automatiquement quand on équipe / déséquipe un item ou modifie le niveau. */
+  const stats = useDisplayStats();
 
-  const [levels, setLevels]           = useState<SpellLevelData[]>([]);
-  const [loadingLvl, setLoadingLvl]   = useState(false);
+  const [levels, setLevels]               = useState<SpellLevelData[]>([]);
+  const [loadingLvl, setLoadingLvl]       = useState(false);
   const [selectedGrade, setSelectedGrade] = useState(1);
+  /** Incrémenté après que les labels d'effets inconnus ont été chargés → force un re-render. */
+  const [effectVer, setEffectVer]         = useState(0);
 
   /* Fetch des niveaux du sort */
   useEffect(() => {
@@ -223,60 +564,54 @@ function SpellTooltip({
     setLevels([]);
     setSelectedGrade(1);
     fetch(
-      `https://api.dofusdb.fr/spell-levels?$skip=0&spellId=${spell.id}&$sort=grade&lang=fr`,
+      `https://api.dofusdb.fr/spell-levels?$skip=0&spellId=${spell.id}&$sort[grade]=1&lang=fr`,
     )
       .then((r) => r.json())
-      .then((data) => setLevels(data.data ?? []))
+      .then((d) => setLevels(d.data ?? []))
       .catch(() => {})
       .finally(() => setLoadingLvl(false));
   }, [spell.id]);
 
-  /* Repositionnement après chargement ou changement de grade */
-  useLayoutEffect(() => {
-    const el = ref.current;
-    if (!el) return;
-    const W      = 340;
-    const MARGIN = 8;
-    const OFFSET = 14;
-    const cardH  = el.scrollHeight;
-    const vw     = window.innerWidth;
-    const vh     = window.innerHeight;
+  /* Charge lazily les labels d'effets inconnus depuis l'API */
+  useEffect(() => {
+    if (levels.length === 0) return;
 
-    let left = anchor.x + OFFSET;
-    if (left + W + MARGIN > vw) left = anchor.x - W - OFFSET;
-    left = Math.max(MARGIN, left);
-
-    let top = anchor.y + OFFSET;
-    if (top + cardH + MARGIN > vh) {
-      const above = anchor.y - cardH - OFFSET;
-      top = above >= MARGIN ? above : Math.max(MARGIN, vh - cardH - MARGIN);
+    const unknownIds = new Set<number>();
+    for (const lvl of levels) {
+      for (const eff of [...lvl.effects, ...lvl.criticalEffect]) {
+        if (!gEffectCache.has(eff.effectId)) unknownIds.add(eff.effectId);
+      }
     }
-    setPos({ top, left, visible: true });
-  }, [anchor.x, anchor.y, spell.id, levels, selectedGrade]);
+    if (unknownIds.size === 0) return;
 
-  if (typeof document === "undefined") return null;
+    let cancelled = false;
+    Promise.all([...unknownIds].map(loadEffectInfo)).then(() => {
+      if (!cancelled) setEffectVer((v) => v + 1);
+    });
+    return () => { cancelled = true; };
+  }, [levels]);
 
-  const currentLevel =
-    levels.find((l) => l.grade === selectedGrade) ?? levels[0] ?? null;
-  const visibleEffects =
-    currentLevel?.effects.filter((e) => e.visibleInTooltip) ?? [];
-  const visibleCritEffects =
-    currentLevel?.criticalEffect.filter((e) => e.visibleInTooltip) ?? [];
-  const elements = detectDescElements(spell.description.fr);
+  const currentLevel       = levels.find((l) => l.grade === selectedGrade) ?? levels[0] ?? null;
+  const isDisplayable = (e: SpellEffect) =>
+    e.visibleInTooltip && !ALWAYS_HIDDEN_EFFECT_IDS.has(e.effectId);
 
-  return createPortal(
-    <div
-      ref={ref}
-      role="tooltip"
-      className="fixed z-[300] w-[340px] rounded-xl border border-[#3a3a3a] bg-[#1a1a1a] p-3 shadow-[0_8px_32px_rgba(0,0,0,0.75)]"
-      style={{
-        top: pos.top,
-        left: pos.left,
-        visibility: pos.visible ? "visible" : "hidden",
-      }}
-      onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
-    >
+  const visibleEffects     = currentLevel?.effects.filter(isDisplayable) ?? [];
+  const visibleCritEffects = currentLevel?.criticalEffect.filter(isDisplayable) ?? [];
+  const elements           = detectDescElements(spell.description.fr);
+  const useBestElement     = spellUsesBestElement(spell.description.fr);
+
+  return (
+    <>
+      {label && (
+        <p
+          className={`mb-1.5 text-[9px] font-semibold uppercase tracking-widest ${
+            isVariant ? "text-[#7060a0]" : "text-[#555555]"
+          }`}
+        >
+          {label}
+        </p>
+      )}
+
       {/* ── En-tête : icône + nom + sélecteur de grade ─────────────────── */}
       <div className="flex items-start gap-2.5">
         {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -285,7 +620,9 @@ function SpellTooltip({
           alt=""
           width={44}
           height={44}
-          className="h-11 w-11 shrink-0 rounded-lg border border-[#383838] bg-black/40 object-contain"
+          className={`h-11 w-11 shrink-0 rounded-lg border bg-black/40 object-contain ${
+            isVariant ? "border-[#5a4080]" : "border-[#383838]"
+          }`}
         />
         <div className="min-w-0 flex-1">
           <div className="flex items-center justify-between gap-2">
@@ -293,7 +630,6 @@ function SpellTooltip({
               {spell.name.fr}
             </p>
 
-            {/* Sélecteur de grade */}
             {levels.length > 1 && (
               <div className="flex shrink-0 gap-0.5">
                 {levels.map((l) => (
@@ -303,7 +639,9 @@ function SpellTooltip({
                     onClick={() => setSelectedGrade(l.grade)}
                     className={`flex h-5 w-5 items-center justify-center rounded text-[10px] font-bold transition ${
                       selectedGrade === l.grade
-                        ? "border border-[#4a8000]/60 bg-[#1a2c0a] text-[#9cce38]"
+                        ? isVariant
+                          ? "border border-[#5a4080]/60 bg-[#1a0e2a] text-[#b090e0]"
+                          : "border border-[#4a8000]/60 bg-[#1a2c0a] text-[#9cce38]"
                         : "border border-[#282828] bg-[#222222] text-[#555555] hover:text-[#aaaaaa]"
                     }`}
                   >
@@ -314,7 +652,6 @@ function SpellTooltip({
             )}
           </div>
 
-          {/* Icônes élémentaires détectées */}
           {elements.length > 0 && (
             <div className="mt-1 flex gap-1.5">
               {elements.map((el) => (
@@ -324,9 +661,9 @@ function SpellTooltip({
                   src={`/assets/elements/${el.icon}.png`}
                   alt={el.label}
                   title={el.label}
-                  width={13}
-                  height={13}
-                  className="h-[13px] w-[13px] object-contain"
+                  width={14}
+                  height={14}
+                  className="h-[14px] w-[14px] object-contain"
                 />
               ))}
             </div>
@@ -352,9 +689,9 @@ function SpellTooltip({
               <img
                 src="/assets/elements/pa.png"
                 alt="PA"
-                width={11}
-                height={11}
-                className="h-[11px] w-[11px] object-contain"
+                width={12}
+                height={12}
+                className="h-[12px] w-[12px] object-contain"
               />
               {currentLevel.apCost} PA
             </StatChip>
@@ -390,9 +727,16 @@ function SpellTooltip({
               <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-[#555555]">
                 Effets
               </p>
-              <ul className="space-y-0.5">
+              {/* effectVer utilisé comme key pour forcer le re-render après chargement des labels */}
+              <ul key={effectVer} className="space-y-0.5">
                 {visibleEffects.map((eff, i) => (
-                  <SpellEffectRow key={i} eff={eff} />
+                  <SpellEffectRow
+                    key={i}
+                    eff={eff}
+                    stats={stats}
+                    isCrit={false}
+                    useBestElement={useBestElement}
+                  />
                 ))}
               </ul>
             </div>
@@ -404,15 +748,109 @@ function SpellTooltip({
               <p className="mb-1 text-[9px] font-semibold uppercase tracking-widest text-[#c09040]/80">
                 ⚡ Coup Critique
               </p>
-              <ul className="space-y-0.5">
+              <ul key={effectVer} className="space-y-0.5">
                 {visibleCritEffects.map((eff, i) => (
-                  <SpellEffectRow key={i} eff={eff} />
+                  <SpellEffectRow
+                    key={i}
+                    eff={eff}
+                    stats={stats}
+                    isCrit
+                    useBestElement={useBestElement}
+                  />
                 ))}
               </ul>
             </div>
           )}
         </>
       )}
+    </>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════════════════
+   SpellCompareTooltip — sort de base + variante côte à côte
+══════════════════════════════════════════════════════════════════════════════ */
+function SpellCompareTooltip({
+  group,
+  classId,
+  anchor,
+  onMouseEnter,
+  onMouseLeave,
+}: {
+  group: SpellVariantGroup;
+  classId: number;
+  anchor: { x: number; y: number };
+  onMouseEnter?: () => void;
+  onMouseLeave?: () => void;
+}) {
+  const ref = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: -9999, left: -9999, visible: false });
+
+  const baseSpell    = pickBase(group.spells, classId);
+  const variantSpell = pickVariant(group.spells, classId);
+
+  const CARD_W = 680;
+  const MARGIN = 8;
+  const OFFSET = 14;
+
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const cardH = el.scrollHeight;
+    const vw    = window.innerWidth;
+    const vh    = window.innerHeight;
+    const w     = Math.min(CARD_W, vw - MARGIN * 2);
+
+    let left = anchor.x + OFFSET;
+    if (left + w + MARGIN > vw) left = anchor.x - w - OFFSET;
+    left = Math.max(MARGIN, left);
+
+    let top = anchor.y + OFFSET;
+    if (top + cardH + MARGIN > vh) {
+      const above = anchor.y - cardH - OFFSET;
+      top = above >= MARGIN ? above : Math.max(MARGIN, vh - cardH - MARGIN);
+    }
+    setPos({ top, left, visible: true });
+  }, [anchor.x, anchor.y, group.id, CARD_W, MARGIN, OFFSET]);
+
+  if (typeof document === "undefined") return null;
+
+  const cardW = typeof window !== "undefined"
+    ? Math.min(CARD_W, window.innerWidth - MARGIN * 2)
+    : CARD_W;
+
+  return createPortal(
+    <div
+      ref={ref}
+      role="tooltip"
+      className="fixed z-[300] rounded-xl border border-[#3a3a3a] bg-[#1a1a1a] p-3 shadow-[0_8px_32px_rgba(0,0,0,0.75)]"
+      style={{
+        top: pos.top,
+        left: pos.left,
+        width: cardW,
+        visibility: pos.visible ? "visible" : "hidden",
+      }}
+      onMouseEnter={onMouseEnter}
+      onMouseLeave={onMouseLeave}
+    >
+      <div className="flex gap-2">
+        {/* ── Sort de base — gauche ──────────────────────────────────── */}
+        <div className="min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-[#141414] p-2">
+          <SpellCardBody spell={baseSpell} label="Sort de base" />
+        </div>
+
+        {/* ── Séparateur ────────────────────────────────────────────── */}
+        <div className="flex shrink-0 flex-col items-center justify-center gap-1">
+          <div className="w-px flex-1 bg-[#2a2a2a]" />
+          <span className="shrink-0 text-[10px] font-bold text-[#444444]">vs</span>
+          <div className="w-px flex-1 bg-[#2a2a2a]" />
+        </div>
+
+        {/* ── Variante — droite ──────────────────────────────────────── */}
+        <div className="min-w-0 flex-1 rounded-lg border border-[#5a4080]/40 bg-[#120e1a] p-2">
+          <SpellCardBody spell={variantSpell} label="Variante" isVariant />
+        </div>
+      </div>
     </div>,
     document.body,
   );
@@ -421,63 +859,49 @@ function SpellTooltip({
 /* ══════════════════════════════════════════════════════════════════════════════
    Panel principal
 ══════════════════════════════════════════════════════════════════════════════ */
+
+/** Taille des icônes affichées dans la grille (px). */
+const ICON_SIZE = 48;
+
 export function SpellsPanel() {
   const classId = useBuildStore((s) => s.classId);
 
-  const [spells, setSpells]   = useState<SpellData[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError]     = useState<string | null>(null);
-  const [hover, setHover]     = useState<{
-    spell: SpellData;
+  const [groups, setGroups]             = useState<SpellVariantGroup[]>([]);
+  const [loading, setLoading]           = useState(false);
+  const [error, setError]               = useState<string | null>(null);
+  const [hover, setHover]               = useState<{
+    group: SpellVariantGroup;
     x: number;
     y: number;
   } | null>(null);
+  const [selectedGroupId, setSelectedGroupId] = useState<number | null>(null);
+
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  /* Fetch des sorts (avec pagination complète) à chaque changement de classe */
+  /* Fetch des variants à chaque changement de classe */
   useEffect(() => {
-    const typeId = CLASS_TO_SPELL_TYPE_ID[classId] ?? classId;
+    const breedId = CLASS_TO_BREED_ID[classId] ?? classId;
     let cancelled = false;
+
     setLoading(true);
     setError(null);
-    setSpells([]);
+    setGroups([]);
+    setSelectedGroupId(null);
 
-    const PAGE = 50;
-
-    async function fetchAll() {
-      // Première page
-      const first = await fetch(
-        `https://api.dofusdb.fr/spells?lang=fr&typeId=${typeId}&$limit=${PAGE}&$skip=0`,
-      );
-      if (!first.ok) throw new Error(`Erreur HTTP ${first.status}`);
-      const firstData = await first.json();
-      const total: number = firstData.total ?? 0;
-      const collected: SpellData[] = [...(firstData.data ?? [])];
-
-      // Pages supplémentaires si nécessaire
-      if (total > PAGE) {
-        const extraFetches: Promise<SpellData[]>[] = [];
-        for (let skip = PAGE; skip < total; skip += PAGE) {
-          extraFetches.push(
-            fetch(
-              `https://api.dofusdb.fr/spells?lang=fr&typeId=${typeId}&$limit=${PAGE}&$skip=${skip}`,
-            )
-              .then((r) => r.json())
-              .then((d) => (d.data ?? []) as SpellData[]),
-          );
-        }
-        const batches = await Promise.all(extraFetches);
-        for (const batch of batches) collected.push(...batch);
-      }
-
-      return collected;
-    }
-
-    fetchAll()
-      .then((all) => {
+    fetch(`https://api.dofusdb.fr/spell-variants?$limit=50&breedId=${breedId}`)
+      .then((r) => {
+        if (!r.ok) throw new Error(`Erreur HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((d) => {
         if (cancelled) return;
-        const sorted = all.sort((a, b) => a.order - b.order);
-        setSpells(sorted);
+        const data: SpellVariantGroup[] = d.data ?? [];
+        data.sort((a, b) => {
+          const aBase = pickBase(a.spells, classId);
+          const bBase = pickBase(b.spells, classId);
+          return (aBase?.order ?? 0) - (bBase?.order ?? 0);
+        });
+        setGroups(data);
       })
       .catch((e: unknown) => {
         if (cancelled) return;
@@ -502,6 +926,14 @@ export function SpellsPanel() {
     closeTimer.current = setTimeout(() => setHover(null), 200);
   }, [clearClose]);
 
+  const handleGroupClick = useCallback((groupId: number) => {
+    setSelectedGroupId((prev) => (prev === groupId ? null : groupId));
+  }, []);
+
+  const hasSelection = selectedGroupId !== null;
+
+  /* Le tooltip suit toujours le curseur ; le "lock" est purement visuel */
+
   return (
     <section className="mt-4 overflow-hidden rounded-xl border border-[#2e2e2e] bg-[#181818]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_4px_24px_rgba(0,0,0,0.55)]">
       <div className="flex items-center justify-between border-b border-[#222222] px-4 py-2.5">
@@ -511,50 +943,124 @@ export function SpellsPanel() {
         {loading && (
           <span className="text-[10px] text-[#555555]">Chargement…</span>
         )}
+        {hasSelection && (
+          <button
+            type="button"
+            onClick={() => setSelectedGroupId(null)}
+            className="text-[10px] text-[#555555] hover:text-[#888888] transition"
+          >
+            ✕ Déverrouiller
+          </button>
+        )}
       </div>
 
       {error ? (
         <p className="p-4 text-[12px] text-red-400/90">{error}</p>
-      ) : spells.length === 0 && !loading ? (
+      ) : groups.length === 0 && !loading ? (
         <p className="p-4 text-[12px] text-[#444444]">Aucun sort trouvé.</p>
       ) : (
-        <div className="flex flex-wrap gap-1.5 p-3">
-          {spells.map((spell) => (
-            <button
-              key={spell.id}
-              type="button"
-              title={spell.name.fr}
-              className="relative h-11 w-11 overflow-hidden rounded-lg border border-[#2a2a2a] bg-[#141414] transition hover:border-[#4a8000]/70 hover:brightness-110 focus:outline-none focus:ring-1 focus:ring-[#4a8000]/50"
-              onMouseEnter={(e) => {
-                clearClose();
-                setHover({ spell, x: e.clientX, y: e.clientY });
-              }}
-              onMouseMove={(e) => {
-                if (hover?.spell.id === spell.id) {
-                  setHover((h) =>
-                    h ? { ...h, x: e.clientX, y: e.clientY } : null,
-                  );
-                }
-              }}
-              onMouseLeave={scheduleHide}
-            >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={spell.img}
-                alt={spell.name.fr}
-                width={44}
-                height={44}
-                className="h-11 w-11 object-contain"
-                loading="lazy"
-              />
-            </button>
-          ))}
+        <div
+          className="grid p-3"
+          style={{
+            gridTemplateColumns: `repeat(11, ${ICON_SIZE}px)`,
+            gap: "4px",
+          }}
+        >
+          {groups.map((group) => {
+            const baseSpell    = pickBase(group.spells, classId);
+            const variantSpell = pickVariant(group.spells, classId);
+            const isHovered    = hover?.group.id === group.id;
+            const isSelected   = selectedGroupId === group.id;
+            const isDimmed     = hasSelection && !isSelected;
+
+            return (
+              <div
+                key={group.id}
+                role="button"
+                tabIndex={0}
+                className={`flex flex-col gap-[3px] cursor-pointer rounded transition-opacity duration-150 ${
+                  isDimmed ? "opacity-25" : "opacity-100"
+                }`}
+                onMouseEnter={(e) => {
+                  clearClose();
+                  setHover({ group, x: e.clientX, y: e.clientY });
+                }}
+                onMouseMove={(e) => {
+                  if (hover?.group.id === group.id) {
+                    setHover((h) =>
+                      h ? { ...h, x: e.clientX, y: e.clientY } : null,
+                    );
+                  }
+                }}
+                onMouseLeave={scheduleHide}
+                onClick={() => handleGroupClick(group.id)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") handleGroupClick(group.id);
+                }}
+              >
+                {/* ── Sort de base ──────────────────────────────────── */}
+                <div
+                  title={baseSpell?.name.fr}
+                  className={`overflow-hidden rounded-lg border bg-[#141414] transition-[border-color,box-shadow] ${
+                    isSelected
+                      ? "border-[#72bc1e] shadow-[0_0_0_2px_rgba(114,188,30,0.35)]"
+                      : isHovered
+                        ? "border-[#4a8000]/70"
+                        : "border-[#2a2a2a]"
+                  }`}
+                  style={{ width: ICON_SIZE, height: ICON_SIZE }}
+                >
+                  {baseSpell && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={baseSpell.img}
+                      alt={baseSpell.name.fr}
+                      width={ICON_SIZE}
+                      height={ICON_SIZE}
+                      className="h-full w-full object-contain"
+                      loading="lazy"
+                    />
+                  )}
+                </div>
+
+                {/* ── Variante ──────────────────────────────────────── */}
+                <div
+                  title={variantSpell?.name.fr}
+                  className={`relative overflow-hidden rounded-lg border bg-[#141414] transition-[border-color,box-shadow] ${
+                    isSelected
+                      ? "border-[#9070d0] shadow-[0_0_0_2px_rgba(144,112,208,0.35)]"
+                      : isHovered
+                        ? "border-[#5a4080]/70"
+                        : "border-[#2a2a2a]"
+                  }`}
+                  style={{ width: ICON_SIZE, height: ICON_SIZE }}
+                >
+                  {variantSpell && (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={variantSpell.img}
+                      alt={variantSpell.name.fr}
+                      width={ICON_SIZE}
+                      height={ICON_SIZE}
+                      className="h-full w-full object-contain"
+                      loading="lazy"
+                    />
+                  )}
+                  {/* Badge V — variante */}
+                  <span className="absolute bottom-0 right-0 rounded-tl bg-[#2a1a40]/80 px-[3px] py-[1px] text-[7px] font-bold leading-none text-[#b090e0]">
+                    V
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {hover && (
-        <SpellTooltip
-          spell={hover.spell}
+        <SpellCompareTooltip
+          group={hover.group}
+          classId={classId}
           anchor={{ x: hover.x, y: hover.y }}
           onMouseEnter={clearClose}
           onMouseLeave={scheduleHide}

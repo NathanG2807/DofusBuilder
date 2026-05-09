@@ -57,3 +57,16 @@ export const CLASS_TO_SPELL_TYPE_ID: Record<number, number> = {
   16: 16, 17: 17, 18: 18,
   19: 2374, 20: 2374,
 };
+
+/**
+ * Correspondance entre le classId interne et le breedId utilisé par
+ * l'API dofusdb pour les spell-variants.
+ * Pour les classes standard, breedId = classId.
+ * Forgelance utilise 20 comme breedId (id 19 est un alias legacy).
+ */
+export const CLASS_TO_BREED_ID: Record<number, number> = {
+  1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8,
+  9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15,
+  16: 16, 17: 17, 18: 18,
+  19: 20, 20: 20,
+};

@@ -398,9 +398,9 @@ export function ItemCatalogPanel() {
                       <img
                         src={`/assets/elements/${o.icon}.png`}
                         alt=""
-                        width={11}
-                        height={11}
-                        className="h-[11px] w-[11px] shrink-0 object-contain"
+                        width={12}
+                        height={12}
+                        className="h-[12px] w-[12px] shrink-0 object-contain"
                       />
                       {o.label}
                     </button>

@@ -125,6 +125,7 @@ class ItemOut(BaseModel):
     pods: Optional[int] = None
     base_stats: Optional[dict[str, Any]] = None
     description: Optional[str] = None
+    weapon_detail: Optional[dict[str, Any]] = None
     created_at: datetime
 
 

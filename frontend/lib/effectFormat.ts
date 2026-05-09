@@ -63,6 +63,8 @@ const EFFECT_ID_TO_KEY: Record<number, string> = {
   195: "damage_neutral",
   198: "damage_fire",
   214: "damage_water",
+  193: "damage_fire",
+  203: "damage_water",
   // Résistances fixes
   14:  "resistance_fire",
   15:  "resistance_earth",
@@ -85,6 +87,7 @@ const EFFECT_ID_TO_KEY: Record<number, string> = {
   83:  "damage_air",
   84:  "damage_earth",
   86:  "damage_neutral",
+  224: "damage_air",
 };
 
 // ── Mapping nom d'effet → statKey ─────────────────────────────────────────────
@@ -232,7 +235,7 @@ const ELEMENT_TO_DAMAGE_KEY: Record<string, string> = {
   neutre: "damage_neutral", neutral: "damage_neutral",
 };
 
-function effectTypeToStatKey(type: { name?: string; id?: number } | null): string | null {
+export function effectTypeToStatKey(type: { name?: string; id?: number } | null): string | null {
   if (!type) return null;
   if (type.id != null && EFFECT_ID_TO_KEY[type.id]) return EFFECT_ID_TO_KEY[type.id];
   const name = type.name?.trim().toLowerCase() ?? "";
@@ -269,6 +272,15 @@ function effectTypeToStatKey(type: { name?: string; id?: number } | null): strin
     if (["earth", "fire", "water", "air", "neutral"].includes(el)) return `damage_${el}`;
   }
   return null;
+}
+
+/**
+ * Pour une arme : aligné sur l’API Dofus : seules les lignes avec `type.is_active === true`
+ * (jets au hit — dommages, vol, malus ponctuel marqués actifs, etc.) vont sous « Dégâts ».
+ */
+export function isWeaponDamagesBucketEffect(eff: RawEffect): boolean {
+  const type = eff.type as { is_active?: boolean } | null;
+  return type?.is_active === true;
 }
 
 /** Icône (chemin fichier sans .png) pour un effet brut, ou null si inconnue. */
