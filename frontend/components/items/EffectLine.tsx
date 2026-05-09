@@ -29,10 +29,15 @@ function formatCalcRange(c: { min: number; max: number }): string {
   return c.min === c.max ? String(c.min) : `${c.min}–${c.max}`;
 }
 
+function scale(c: { min: number; max: number; element: number; colorClass: string }, hits: number) {
+  if (hits <= 1) return c;
+  return { ...c, min: c.min * hits, max: c.max * hits };
+}
+
 /**
  * Affiche une ligne d'effet d'item : icône élémentaire (si connue) + valeur max + nom.
  * Les effets actifs (is_active: true = dégâts réels de l'arme) sont affichés
- * en gras avec la couleur de leur élément.
+ * en gras avec la couleur de leur élément, et scalés par weaponHits du contexte.
  */
 export function EffectLine({ eff, className = "" }: Props) {
   const isActive = (eff.type as { is_active?: boolean } | null)?.is_active === true;
@@ -42,19 +47,24 @@ export function EffectLine({ eff, className = "" }: Props) {
   const stats = useDisplayStats();
   const weaponCombat = useWeaponCombat();
   const innateCrit = weaponCombat?.weaponCritBonusFlat ?? 0;
-  const calc = isActive
+  const hits = weaponCombat?.weaponHits ?? 1;
+
+  const calcRaw = isActive
     ? computeWeaponEffectDamage(eff as Record<string, unknown>, stats, {
         isCrit: false,
         weaponCritBonusFlat: 0,
       })
     : null;
-  const calcCrit =
-    isActive && calc
+  const calcCritRaw =
+    isActive && calcRaw
       ? computeWeaponEffectDamage(eff as Record<string, unknown>, stats, {
           isCrit: true,
           weaponCritBonusFlat: innateCrit,
         })
       : null;
+
+  const calc = calcRaw ? scale(calcRaw, hits) : null;
+  const calcCrit = calcCritRaw ? scale(calcCritRaw, hits) : null;
 
   if (!label) return null;
 

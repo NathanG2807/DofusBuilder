@@ -17,7 +17,7 @@ import { SLOT_DEFS } from "@/lib/slots";
 import type { SlotId } from "@/lib/slots";
 import type { ItemOut } from "@/types/api";
 import { useBuildStore, type ExoType } from "@/store/build-store";
-import { DOFUS_CLASS_OPTIONS } from "@/lib/dofusClasses";
+import { DOFUS_CLASS_BY_ID, DOFUS_CLASS_OPTIONS } from "@/lib/dofusClasses";
 import { classImageFallback, classImageUrl } from "@/lib/classImage";
 import { isConditionMet } from "@/lib/conditionCheck";
 
@@ -58,14 +58,14 @@ function SlotCell({
   const imgPx = compact ? 36 : 48;
 
   const borderClass = exoType === "pa"
-    ? "border-[#4a90d9] bg-[#06111f] shadow-[0_0_0_2px_rgba(74,144,217,0.35)]"
+    ? "border-[#4a90d9] bg-[#060e1a]/90 shadow-[0_0_0_2px_rgba(74,144,217,0.45)]"
     : exoType === "pm"
-    ? "border-[#72bc1e] bg-[#091800] shadow-[0_0_0_2px_rgba(114,188,30,0.35)]"
+    ? "border-[#72bc1e] bg-[#071200]/90 shadow-[0_0_0_2px_rgba(114,188,30,0.45)]"
     : selected
-    ? "border-[#72bc1e]/80 bg-[#1a2c0a] shadow-[0_0_0_2px_rgba(114,188,30,0.25)]"
+    ? "border-[#72bc1e]/90 bg-[#182808]/90 shadow-[0_0_0_2px_rgba(114,188,30,0.35)]"
     : !conditionOk
-    ? "border-red-600/80 bg-[#2a1010] shadow-[0_0_0_2px_rgba(220,50,50,0.25)] hover:border-red-500"
-    : "border-[#2a2a2a] bg-[#181818] hover:border-[#3a3a3a] hover:bg-[#202020]";
+    ? "border-red-600/90 bg-[#250e0e]/90 shadow-[0_0_0_2px_rgba(220,50,50,0.35)] hover:border-red-500"
+    : "border-[#383838] bg-[#111111]/90 shadow-[0_2px_8px_rgba(0,0,0,0.6)] hover:border-[#505050] hover:bg-[#1c1c1c]/90";
 
   return (
     <button
@@ -80,7 +80,7 @@ function SlotCell({
 
       {/* Image ou placeholder */}
       <div
-        className={`relative flex ${boxSize} items-center justify-center overflow-hidden rounded border border-[#252525] bg-[#141414]`}
+        className={`relative flex ${boxSize} items-center justify-center overflow-hidden rounded border border-[#303030] bg-[#0e0e0e]/90`}
         onMouseEnter={(e) => item && onHoverEnter(e)}
         onMouseMove={onHoverMove}
         onMouseLeave={onHoverLeave}
@@ -167,6 +167,36 @@ function SlotCell({
         </p>
       )}
     </button>
+  );
+}
+
+/* ─── Fond de classe (logo gravé) ─── */
+function ClassBackground({ classId }: { classId: number }) {
+  const nameId = DOFUS_CLASS_BY_ID[classId]?.nameId;
+  if (!nameId) return null;
+  return (
+    <div className="pointer-events-none absolute inset-0 z-0 flex items-center justify-center">
+      {/* Logo grand format — plein builder, effet relief enfoncé */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={`/assets/bgclass/${nameId}.png`}
+        alt=""
+        className="h-[80%] w-[80%] select-none object-contain"
+        style={{
+          opacity: 0.25,
+        }}
+      />
+      {/* Vignette bords + effet gravé */}
+      <div
+        className="absolute inset-0"
+        style={{
+          background:
+            "radial-gradient(ellipse at 50% 48%, transparent 25%, rgba(24,24,24,0.5) 60%, rgba(24,24,24,0.96) 100%)",
+          boxShadow:
+            "inset 0 0 60px rgba(0,0,0,0.8), inset 0 0 20px rgba(0,0,0,0.6)",
+        }}
+      />
+    </div>
   );
 }
 
@@ -290,6 +320,8 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
   const setLevel = useBuildStore((s) => s.setLevel);
   const displayStats = useDisplayStats();
 
+  const buildName = useBuildStore((s) => s.buildName);
+  const setBuildName = useBuildStore((s) => s.setBuildName);
   const exoFm = useBuildStore((s) => s.exoFm);
   const setExoFm = useBuildStore((s) => s.setExoFm);
 
@@ -316,9 +348,18 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
   }
 
   return (
-    <section className="rounded-xl border border-[#282828] bg-[#181818] p-3">
-      {/* ─── Sélecteurs classe / sexe / niveau ─── */}
-      <div className="mb-3 flex items-center gap-1.5">
+    <section className="relative rounded-xl border border-[#282828] bg-[#181818] p-3 overflow-hidden">
+      {/* ─── Sélecteurs : nom du build / classe / sexe / niveau ─── */}
+      <div className="relative z-10 mb-3 flex items-center gap-1.5">
+        {/* Nom du build */}
+        <input
+          value={buildName}
+          onChange={(e) => setBuildName(e.target.value)}
+          className="min-w-0 w-[130px] shrink rounded border border-transparent bg-transparent px-1.5 py-1 text-[12px] font-semibold text-[#f0d78c] placeholder:text-[#383838] hover:border-[#2a2a2a] focus:border-[#3a3a3a] focus:bg-[#141414] focus:outline-none"
+          placeholder="Nom du build…"
+          aria-label="Nom du build"
+        />
+
         {/* Classe */}
         <select
           value={classId}
@@ -377,7 +418,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
       </div>
 
       {/* ─── Zone principale : gauche | portrait | droite ─── */}
-      <div className="flex items-start justify-center gap-2">
+      <div className="relative z-10 flex items-start justify-center gap-2">
         {/* Colonne gauche */}
         <div className="flex flex-col gap-1.5">
           {BOOK_LEFT_SLOTS.map((id) => <SlotCell key={id} {...slotProps(id)} />)}
@@ -385,10 +426,14 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
 
         {/* Portrait de classe + résumé stats */}
         <div className="relative flex flex-1 flex-col items-center justify-start pt-4 sm:pt-6">
-          <div className="relative h-[240px] w-full max-w-[180px] overflow-hidden sm:h-[360px] sm:max-w-[260px]">
+          {/* ─── Logo de classe centré sur le portrait ─── */}
+          <ClassBackground classId={classId} />
+          <div className="relative z-10 h-[240px] w-full max-w-[180px] overflow-hidden sm:h-[360px] sm:max-w-[260px]">
             <ClassPortrait classId={classId} sex={sex} />
           </div>
-          <BuildStatsSummary />
+          <div className="relative z-10">
+            <BuildStatsSummary />
+          </div>
         </div>
 
         {/* Colonne droite */}
@@ -398,7 +443,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
       </div>
 
       {/* ─── Rangée Dofus / Trophées ─── */}
-      <div className="mt-3 border-t border-[#222222] pt-3">
+      <div className="relative z-10 mt-3 border-t border-[#222222] pt-3">
         <p className="mb-2 text-center text-[9px] font-semibold uppercase tracking-widest text-[#484848]">
           Dofus &amp; Trophées
         </p>

@@ -1,40 +1,44 @@
 "use client";
 
 import { AccountButton } from "@/components/layout/AccountButton";
-import { useBuildStore } from "@/store/build-store";
 
 export function Navbar() {
-  const buildName = useBuildStore((s) => s.buildName);
-  const setBuildName = useBuildStore((s) => s.setBuildName);
-
   return (
     <header
-      className="sticky top-0 z-40 border-b border-[#2a3a18] bg-[#141414]/96 backdrop-blur-sm"
-      style={{ boxShadow: "0 2px 12px rgba(0,0,0,0.6), inset 0 -1px 0 rgba(90,160,20,0.18)" }}
+      className="sticky top-8 z-40 mx-4 mt-6 rounded-2xl border border-white/[0.06] bg-[#0a0a0a]/70 backdrop-blur-xl md:mx-8"
+      style={{ boxShadow: "0 8px 32px rgba(0,0,0,0.6), 0 1px 0 rgba(255,255,255,0.04) inset" }}
     >
-      {/* Liseré vert en haut */}
-      <div className="h-[2px] w-full bg-gradient-to-r from-transparent via-[#5a9818]/60 to-transparent" />
-
-      <div className="mx-auto flex h-12 max-w-[1600px] items-center gap-3 px-3 md:gap-4 md:px-6">
+      <div className="mx-auto flex h-14 max-w-[1600px] items-center gap-4 px-4 md:px-6">
         {/* Logo */}
-        <div className="flex shrink-0 items-center gap-1.5">
-          <span className="text-lg leading-none sm:text-xl">⚔️</span>
-          <span className="font-serif text-base font-semibold tracking-wide text-[#f0d78c] sm:text-lg">
-            <span className="hidden xs:inline">Dofus </span>Builder
-          </span>
-        </div>
-
-        {/* Séparateur + Nom du build — masqué sur très petit écran */}
-        <div className="hidden items-center gap-3 sm:flex">
-          <div className="h-5 w-px shrink-0 bg-[#2a2a2a]" />
-          <input
-            value={buildName}
-            onChange={(e) => setBuildName(e.target.value)}
-            className="min-w-0 w-[160px] rounded-lg border border-transparent bg-transparent px-2 py-1 text-sm font-medium text-[#d0d0d0] placeholder:text-[#484848] hover:border-[#2a2a2a] focus:border-[#3a3a3a] focus:bg-[#1a1a1a] focus:outline-none md:w-[220px]"
-            placeholder="Nom du build…"
-            aria-label="Nom du build"
+        <div className="flex shrink-0 items-center">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src="/assets/global/ZaapLogo4.png"
+            alt="Zaap"
+            width={100}
+            height={100}
+            className="h-[100px] w-[100px] object-contain drop-shadow-[0_0_8px_rgba(90,200,20,0.35)]"
           />
         </div>
+
+        {/* Séparateur vertical */}
+        <div className="h-5 w-px shrink-0 bg-white/10" />
+
+        {/* Navigation */}
+        <nav className="hidden items-center gap-0.5 sm:flex">
+          <button
+            type="button"
+            className="rounded-lg bg-white/[0.07] px-4 py-1.5 text-[13px] font-medium text-white/80 transition hover:bg-white/[0.10]"
+          >
+            Buildroom
+          </button>
+          <button
+            type="button"
+            className="rounded-lg px-4 py-1.5 text-[13px] font-medium text-white/30 transition hover:bg-white/[0.05] hover:text-white/60"
+          >
+            Encyclopédie
+          </button>
+        </nav>
 
         <div className="flex-1" />
 

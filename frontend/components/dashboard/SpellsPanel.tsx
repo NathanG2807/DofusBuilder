@@ -801,8 +801,9 @@ function SpellCompareTooltip({
     const vh    = window.innerHeight;
     const w     = Math.min(CARD_W, vw - MARGIN * 2);
 
+    // Toujours à droite du curseur, jamais vers la gauche (ne recouvre pas la grille de sorts)
     let left = anchor.x + OFFSET;
-    if (left + w + MARGIN > vw) left = anchor.x - w - OFFSET;
+    if (left + w + MARGIN > vw) left = vw - w - MARGIN;
     left = Math.max(MARGIN, left);
 
     let top = anchor.y + OFFSET;

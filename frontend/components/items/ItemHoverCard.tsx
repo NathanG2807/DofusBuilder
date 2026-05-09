@@ -21,62 +21,33 @@ import { isConditionMet } from "@/lib/conditionCheck";
 import { WeaponCombatProvider } from "@/components/items/weaponCombatContext";
 import { SetDetailModal } from "@/components/items/SetDetailModal";
 import { useDisplayStats } from "@/hooks/useDisplayStats";
-import type { ItemOut, ItemSetOut, WeaponDetailOut } from "@/types/api";
+import type { ItemOut, ItemSetOut } from "@/types/api";
 
 type Props = {
   item: ItemOut;
   anchor: { x: number; y: number };
   /** Item actuellement équipé dans le slot — affiché à gauche pour comparaison. */
   compareItem?: ItemOut;
+  /** Force l'affichage d'un côté. "left" = toujours à gauche du curseur (ex: catalogue côté droit). */
+  preferSide?: "left" | "right";
   /** Appelé quand la souris entre sur la carte (pour annuler le timer de fermeture). */
   onMouseEnter?: () => void;
   /** Appelé quand la souris quitte la carte (pour déclencher le timer de fermeture). */
   onMouseLeave?: () => void;
 };
 
-function fmtWeaponTotalRange(lo: number, hi: number): string {
+function fmtRange(lo: number, hi: number): string {
   return lo === hi ? String(lo) : `${lo}–${hi}`;
 }
 
-/** Texte d’une ligne pour PA, zone / portée, CC, coups / tour, flags. */
-function weaponCombatMetaSegments(wd: WeaponDetailOut): string[] {
-  const segs: string[] = [];
-  if (typeof wd.ap_cost === "number") segs.push(`${wd.ap_cost} PA par coup`);
-
-  if (
-    wd.range &&
-    typeof wd.range.min === "number" &&
-    typeof wd.range.max === "number"
-  ) {
-    const rmin = wd.range.min;
-    const rmax = wd.range.max;
-    if (rmin === rmax && rmin === 1) {
-      segs.push("Zone : 1 à 1 (mêlée uniquement)");
-    } else if (rmin === rmax) {
-      segs.push(`Zone : ${rmin} cases`);
-    } else {
-      segs.push(`Zone : ${rmin} à ${rmax}`);
-    }
-  }
-
-  if (typeof wd.critical_hit_probability === "number") {
-    segs.push(`${wd.critical_hit_probability}% de CC`);
-  }
-  if (typeof wd.critical_hit_bonus === "number") {
-    segs.push(`+${wd.critical_hit_bonus} dommages en CC`);
-  }
-  if (typeof wd.max_cast_per_turn === "number") {
-    const n = wd.max_cast_per_turn;
-    segs.push(`${n} coup${n > 1 ? "s" : ""} par tour`);
-  }
-
-  const flags: string[] = [];
-  if (wd.cast_in_line === true) flags.push("Ligne");
-  if (wd.cast_in_diagonal === true) flags.push("Diagonale");
-  if (wd.cast_test_los === true) flags.push("Ligne de vue");
-  if (flags.length) segs.push(flags.join(", "));
-
-  return segs;
+/** Petite puce ● + contenu pour le bloc Caractéristiques. */
+function StatRow({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-center gap-1.5 text-[#c0c0c0]">
+      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-[#555]" />
+      <span>{children}</span>
+    </li>
+  );
 }
 
 /* ── Carte d'un item (corps réutilisable) ─────────────────────────────────── */
@@ -151,44 +122,30 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
     }
   }
 
+  /** Totaux par coup (avant multiplication par weaponHits). */
   const weaponDamageTotals = useMemo(() => {
     if (!item.is_weapon) return null;
     const dmg = (item.effects?.filter((e) => e != null) as Record<string, unknown>[] ?? []).filter(
       isWeaponDamagesBucketEffect,
     );
     if (dmg.length === 0) return null;
-    let nMin = 0;
-    let nMax = 0;
-    let cMin = 0;
-    let cMax = 0;
-    let lines = 0;
+    let nMin = 0, nMax = 0, cMin = 0, cMax = 0, lines = 0;
     for (const eff of dmg) {
-      const n = computeWeaponEffectDamage(eff, stats, {
-        isCrit: false,
-        weaponCritBonusFlat: 0,
-      });
-      const c = computeWeaponEffectDamage(eff, stats, {
-        isCrit: true,
-        weaponCritBonusFlat: critBonusFlat,
-      });
+      const n = computeWeaponEffectDamage(eff, stats, { isCrit: false, weaponCritBonusFlat: 0 });
+      const c = computeWeaponEffectDamage(eff, stats, { isCrit: true, weaponCritBonusFlat: critBonusFlat });
       if (!n || !c) continue;
-      nMin += n.min;
-      nMax += n.max;
-      cMin += c.min;
-      cMax += c.max;
+      nMin += n.min; nMax += n.max;
+      cMin += c.min; cMax += c.max;
       lines += 1;
     }
     if (lines === 0) return null;
     return { normal: { min: nMin, max: nMax }, crit: { min: cMin, max: cMax } };
   }, [item.is_weapon, item.effects, stats, critBonusFlat]);
 
-  const weaponCombatMetaText = (() => {
-    if (!wd) return null;
-    const s = weaponCombatMetaSegments(wd);
-    return s.length > 0 ? s.join(" · ") : null;
-  })();
-
-  const showWeaponHitPicker = maxCast > 2 && weaponDamageTotals != null;
+  const buildCC = stats.critical_percent ?? 0;
+  const finalCC = wd?.critical_hit_probability != null
+    ? Math.min(100, buildCC + wd.critical_hit_probability)
+    : null;
 
   const conditionText = formatConditionString(item.conditions);
 
@@ -221,19 +178,37 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
       ) : null}
 
       {item.is_weapon ? (
-        <WeaponCombatProvider weaponCritBonusFlat={critBonusFlat}>
-          {weaponCombatMetaText ? (
-            <p className="mt-1.5 text-[10px] leading-relaxed text-[#a8a8a8]">
-              {weaponCombatMetaText}
-            </p>
-          ) : null}
+        <WeaponCombatProvider weaponCritBonusFlat={critBonusFlat} weaponHits={weaponHits}>
+          {/* ── Sélecteur de coups (sous le titre, haut de carte) ── */}
+          {maxCast > 1 && (
+            <div className="mt-1.5 flex flex-wrap items-center gap-1">
+              {Array.from({ length: maxCast }, (_, i) => i + 1).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setWeaponHits(n)}
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition ${
+                    weaponHits === n
+                      ? "bg-[#2a4810] text-[#c8f070] ring-1 ring-[#5a9820]"
+                      : "bg-[#1e1e1e] text-[#909090] hover:bg-[#2a2a2a]"
+                  }`}
+                >
+                  {n}
+                </button>
+              ))}
+              <span className="text-[10px] text-[#606060]">
+                coup{maxCast > 1 ? "s" : ""} par tour
+              </span>
+            </div>
+          )}
 
+          {/* ── Dégâts ── */}
           {rawEffects.length > 0 ? (
             <>
               {weaponDmg.length > 0 && (
                 <div className="mt-1.5">
                   <p className="text-[9px] font-semibold uppercase tracking-widest text-[#666666]">
-                    Dégâts
+                    Dégâts{weaponHits > 1 ? ` (×${weaponHits})` : ""}
                   </p>
                   <ul className="mt-0.5 space-y-0.5 text-[11px] text-[#e0e0e0]">
                     {weaponDmg.map((eff, i) => (
@@ -241,53 +216,26 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
                     ))}
                   </ul>
 
-                  {showWeaponHitPicker ? (
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5">
-                      <span className="text-[9px] text-[#666666]">Coups affichés :</span>
-                      <div className="flex flex-wrap gap-0.5">
-                        {Array.from({ length: maxCast }, (_, i) => i + 1).map((n) => (
-                          <button
-                            key={n}
-                            type="button"
-                            onClick={() => setWeaponHits(n)}
-                            className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition ${
-                              weaponHits === n
-                                ? "bg-[#2a4810] text-[#c8f070] ring-1 ring-[#5a9820]"
-                                : "bg-[#1e1e1e] text-[#909090] hover:bg-[#2a2a2a]"
-                            }`}
-                          >
-                            {n}
-                          </button>
-                        ))}
-                      </div>
-                    </div>
-                  ) : null}
-
                   {weaponDamageTotals ? (
                     <div className="mt-1.5 flex flex-wrap items-baseline justify-end gap-x-2 gap-y-0.5 border-t border-[#2a2a2a] pt-1.5 text-[10px]">
-                      <span className="mr-auto shrink-0 text-[#707070]">
-                        Total{weaponHits > 1 ? ` (${weaponHits} coups)` : ""}
-                      </span>
+                      <span className="mr-auto shrink-0 text-[#707070]">Total</span>
                       <span className="font-semibold tabular-nums text-[#e0e0e0]" title="Hors CC">
-                        (
-                        {fmtWeaponTotalRange(
+                        ({fmtRange(
                           weaponDamageTotals.normal.min * weaponHits,
                           weaponDamageTotals.normal.max * weaponHits,
-                        )}
-                        )
+                        )})
                       </span>
                       <span className="font-semibold tabular-nums text-[#f0c060]" title="Critique">
-                        CC (
-                        {fmtWeaponTotalRange(
+                        CC ({fmtRange(
                           weaponDamageTotals.crit.min * weaponHits,
                           weaponDamageTotals.crit.max * weaponHits,
-                        )}
-                        )
+                        )})
                       </span>
                     </div>
                   ) : null}
                 </div>
               )}
+
               {weaponOther.length > 0 && (
                 <div className={weaponDmg.length > 0 ? "mt-2" : "mt-1.5"}>
                   <p className="text-[9px] font-semibold uppercase tracking-widest text-[#666666]">
@@ -301,6 +249,34 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
                 </div>
               )}
             </>
+          ) : null}
+
+          {/* ── Infos combat (bas, sous divider) ── */}
+          {wd ? (
+            <div className="mt-2 border-t border-[#252525] pt-1.5">
+              <ul className="space-y-0.5 text-[11px]">
+                {typeof wd.ap_cost === "number" && (
+                  <StatRow>{wd.ap_cost} PA</StatRow>
+                )}
+                {wd.range?.min != null && wd.range?.max != null && (
+                  <StatRow>{wd.range.min} - {wd.range.max} PO</StatRow>
+                )}
+                {typeof wd.critical_hit_probability === "number" && (
+                  <StatRow>
+                    {wd.critical_hit_probability}% CC
+                    {typeof wd.critical_hit_bonus === "number"
+                      ? ` (+${wd.critical_hit_bonus})`
+                      : ""}
+                  </StatRow>
+                )}
+                {finalCC != null && (
+                  <StatRow>{finalCC}% CC finaux</StatRow>
+                )}
+                {maxCast === 1 && (
+                  <StatRow>1 coup par tour</StatRow>
+                )}
+              </ul>
+            </div>
           ) : null}
         </WeaponCombatProvider>
       ) : rawEffects.length > 0 ? (
@@ -347,7 +323,7 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
   );
 }
 
-export function ItemHoverCard({ item, anchor, compareItem, onMouseEnter, onMouseLeave }: Props) {
+export function ItemHoverCard({ item, anchor, compareItem, preferSide, onMouseEnter, onMouseLeave }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; visible: boolean }>({
     top: -9999,
@@ -373,32 +349,36 @@ export function ItemHoverCard({ item, anchor, compareItem, onMouseEnter, onMouse
     const cardH = el.scrollHeight;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-
-    // Horizontal : à droite du curseur, repli à gauche si débordement
-    let left = anchor.x + OFFSET;
     const w = Math.min(CARD_W, vw - MARGIN * 2);
-    if (left + w + MARGIN > vw) {
-      left = anchor.x - w - OFFSET;
-    }
-    left = Math.max(MARGIN, left);
 
-    // Vertical : en dessous par défaut, au-dessus si pas assez de place,
-    // sinon décalage pour tenir dans la fenêtre
-    let top = anchor.y + OFFSET;
+    let left: number;
+    let top: number;
+
+    if (preferSide === "left") {
+      // Catalogue (droite de l'écran) : toujours à gauche du curseur — prioritaire sur compare
+      left = anchor.x - w - OFFSET;
+      if (left < MARGIN) left = MARGIN;
+    } else if (hasCompare) {
+      // Compare hors catalogue : épingler à droite du viewport
+      left = Math.max(MARGIN, vw - w - MARGIN);
+    } else {
+      // Mode simple : à droite du curseur, repli à gauche si débordement
+      left = anchor.x + OFFSET;
+      if (left + w + MARGIN > vw) left = anchor.x - w - OFFSET;
+      left = Math.max(MARGIN, left);
+    }
+
+    top = anchor.y + OFFSET;
     if (top + cardH + MARGIN > vh) {
       const topAbove = anchor.y - cardH - OFFSET;
-      if (topAbove >= MARGIN) {
-        top = topAbove;
-      } else {
-        top = Math.max(MARGIN, vh - cardH - MARGIN);
-      }
+      top = topAbove >= MARGIN ? topAbove : Math.max(MARGIN, vh - cardH - MARGIN);
     }
 
     setPos((prev) => {
       if (prev.visible && prev.top === top && prev.left === left) return prev;
       return { top, left, visible: true };
     });
-  }, [anchor.x, anchor.y, item.ankama_id, hasCompare, CARD_W, MARGIN, OFFSET]);
+  }, [anchor.x, anchor.y, item.ankama_id, hasCompare, preferSide, CARD_W, MARGIN, OFFSET]);
 
   if (typeof document === "undefined") return null;
 

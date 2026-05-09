@@ -520,6 +520,7 @@ export function ItemCatalogPanel() {
                 item={hover.item}
                 anchor={{ x: hover.x, y: hover.y }}
                 compareItem={equippedItem}
+                preferSide="left"
                 onMouseEnter={cancelHide}
                 onMouseLeave={scheduleHide}
               />
