@@ -208,7 +208,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
     void refreshStatsFromSlots();
   },
 
-  hydrateFromPersistedBuild: (b) =>
+  hydrateFromPersistedBuild: (b) => {
     set({
       currentBuild: mergeFullBuildSlots({
         slots: (b.slots ?? {}) as FullBuild["slots"],
@@ -218,8 +218,14 @@ export const useBuildStore = create<BuildState>((set, get) => {
       stats: { ...(b.total_stats ?? {}) },
       activeSetBonuses: [...(b.active_set_bonuses ?? [])],
       selectedSlot: null,
-      exoFm: {},
-    }),
+      charStats: { ...(b.char_stats ?? {}) },
+      parchoStats: { ...(b.parcho_stats ?? {}) },
+      exoFm: { ...(b.exo_fm ?? {}) } as Partial<Record<import("@/lib/slots").SlotId, ExoType>>,
+      ...(b.level != null ? { level: b.level } : {}),
+      ...(b.class_id != null ? { classId: b.class_id } : {}),
+      ...(b.name ? { buildName: b.name } : {}),
+    });
+  },
 
   cacheItems: (items) =>
     set((s) => {

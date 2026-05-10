@@ -44,6 +44,9 @@ async def create_build(
         slots=body.slots or {},
         total_stats=body.total_stats,
         active_set_bonuses=body.active_set_bonuses,
+        char_stats=body.char_stats,
+        parcho_stats=body.parcho_stats,
+        exo_fm=body.exo_fm,
         is_public=body.is_public,
     )
     db.add(b)

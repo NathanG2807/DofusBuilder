@@ -160,6 +160,9 @@ class BuildCreate(BaseModel):
     slots: Optional[dict[str, Optional[int]]] = None
     total_stats: Optional[dict[str, int]] = None
     active_set_bonuses: Optional[list[str]] = None
+    char_stats: Optional[dict[str, int]] = None
+    parcho_stats: Optional[dict[str, int]] = None
+    exo_fm: Optional[dict[str, str]] = None
     is_public: bool = True
 
 
@@ -171,6 +174,9 @@ class BuildUpdate(BaseModel):
     slots: Optional[dict[str, Optional[int]]] = None
     total_stats: Optional[dict[str, int]] = None
     active_set_bonuses: Optional[list[str]] = None
+    char_stats: Optional[dict[str, int]] = None
+    parcho_stats: Optional[dict[str, int]] = None
+    exo_fm: Optional[dict[str, str]] = None
     is_public: Optional[bool] = None
 
 
@@ -186,6 +192,9 @@ class BuildOut(BaseModel):
     slots: Optional[dict[str, Any]] = None
     total_stats: Optional[dict[str, int]] = None
     active_set_bonuses: Optional[list[str]] = None
+    char_stats: Optional[dict[str, int]] = None
+    parcho_stats: Optional[dict[str, int]] = None
+    exo_fm: Optional[dict[str, str]] = None
     is_public: bool = True
     created_at: datetime
     updated_at: datetime

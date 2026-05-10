@@ -41,6 +41,11 @@ export function AccountButton() {
   const currentBuild = useBuildStore((s) => s.currentBuild);
   const stats = useBuildStore((s) => s.stats);
   const activeSetBonuses = useBuildStore((s) => s.activeSetBonuses);
+  const charStats = useBuildStore((s) => s.charStats);
+  const parchoStats = useBuildStore((s) => s.parchoStats);
+  const exoFm = useBuildStore((s) => s.exoFm);
+  const level = useBuildStore((s) => s.level);
+  const classId = useBuildStore((s) => s.classId);
 
   useEffect(() => {
     setSaveName(buildName);
@@ -117,6 +122,11 @@ export function AccountButton() {
         slots: { ...currentBuild },
         total_stats: { ...stats },
         active_set_bonuses: [...activeSetBonuses],
+        char_stats: Object.keys(charStats).length > 0 ? { ...charStats } : null,
+        parcho_stats: Object.keys(parchoStats).length > 0 ? { ...parchoStats } : null,
+        exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
+        level,
+        class_id: classId,
         is_public: isPublic,
       });
       setSaveMsg("Build sauvegardé !");

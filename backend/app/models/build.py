@@ -27,6 +27,9 @@ class Build(Base):
     slots: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     total_stats: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     active_set_bonuses: Mapped[Optional[list[Any]]] = mapped_column(JSONB, nullable=True)
+    char_stats: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    parcho_stats: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    exo_fm: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

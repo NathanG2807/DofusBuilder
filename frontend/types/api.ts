@@ -94,6 +94,9 @@ export type BuildOut = {
   slots: Record<string, number | null> | null;
   total_stats: Record<string, number> | null;
   active_set_bonuses: string[] | null;
+  char_stats: Record<string, number> | null;
+  parcho_stats: Record<string, number> | null;
+  exo_fm: Record<string, string> | null;
   is_public: boolean;
   created_at: string;
   updated_at: string;
@@ -107,6 +110,9 @@ export type BuildCreatePayload = {
   slots?: Record<string, number | null> | null;
   total_stats?: Record<string, number> | null;
   active_set_bonuses?: string[] | null;
+  char_stats?: Record<string, number> | null;
+  parcho_stats?: Record<string, number> | null;
+  exo_fm?: Record<string, string> | null;
   is_public?: boolean;
 };
 
