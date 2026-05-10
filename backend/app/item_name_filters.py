@@ -12,10 +12,19 @@ _EXCLUDED_ITEM_IDS: set[int] = {
     2155,  # Amulette de Jiva
 }
 
+# Panoplies exclues manuellement (parent_set_id).
+_EXCLUDED_SET_IDS: set[int] = {
+    505,  # Panoplie Ankarton (items de tutoriel sans stats réelles)
+}
+
 
 def sql_exclude_gm_items():
     """Exclut les items MJ et les items blacklistés manuellement."""
     not_mj = or_(Item.name.is_(None), not_(Item.name.ilike("%(MJ)%")))
-    if not _EXCLUDED_ITEM_IDS:
-        return not_mj
-    return and_(not_mj, Item.ankama_id.not_in(_EXCLUDED_ITEM_IDS))
+    not_excluded_ids = Item.ankama_id.not_in(_EXCLUDED_ITEM_IDS) if _EXCLUDED_ITEM_IDS else True
+    not_excluded_sets = (
+        or_(Item.parent_set_id.is_(None), Item.parent_set_id.not_in(_EXCLUDED_SET_IDS))
+        if _EXCLUDED_SET_IDS
+        else True
+    )
+    return and_(not_mj, not_excluded_ids, not_excluded_sets)
