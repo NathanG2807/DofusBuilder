@@ -283,6 +283,18 @@ export function isWeaponDamagesBucketEffect(eff: RawEffect): boolean {
   return type?.is_active === true;
 }
 
+/**
+ * Icône pour une ligne de bonus de panoplie (chaîne formatée, ex: "100 Vitalité", "5% Critique").
+ * Extrait le nom de stat en supprimant le préfixe numérique, puis fait la résolution habituelle.
+ */
+export function bonusEffectIcon(formatted: string): string | null {
+  const name = formatted.replace(/^\d+\s*/, "").trim().toLowerCase();
+  if (!name) return null;
+  const key = EFFECT_NAME_TO_KEY[name];
+  if (!key) return null;
+  return STAT_KEY_TO_ICON[key] ?? null;
+}
+
 /** Icône (chemin fichier sans .png) pour un effet brut, ou null si inconnue. */
 export function effectIcon(eff: RawEffect): string | null {
   const type = eff.type as { name?: string; id?: number } | null;

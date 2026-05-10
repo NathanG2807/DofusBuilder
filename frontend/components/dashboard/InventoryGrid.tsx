@@ -13,6 +13,8 @@ import {
   SLOT_SHORT_LABEL,
 } from "@/components/dashboard/inventoryLayout";
 import { useDisplayStats } from "@/hooks/useDisplayStats";
+import { createBuild } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
 import { SLOT_DEFS } from "@/lib/slots";
 import type { SlotId } from "@/lib/slots";
 import type { ItemOut } from "@/types/api";
@@ -305,6 +307,70 @@ function StuffLevelBadge() {
   );
 }
 
+/* ─── Bouton de sauvegarde rapide ─── */
+function SaveBuildButton() {
+  const [msg, setMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const currentBuild = useBuildStore((s) => s.currentBuild);
+  const stats = useBuildStore((s) => s.stats);
+  const activeSetBonuses = useBuildStore((s) => s.activeSetBonuses);
+  const charStats = useBuildStore((s) => s.charStats);
+  const parchoStats = useBuildStore((s) => s.parchoStats);
+  const exoFm = useBuildStore((s) => s.exoFm);
+  const level = useBuildStore((s) => s.level);
+  const classId = useBuildStore((s) => s.classId);
+  const buildName = useBuildStore((s) => s.buildName);
+
+  async function handleSave() {
+    if (!getAccessToken()) {
+      setMsg("Connectez-vous pour sauvegarder.");
+      setTimeout(() => setMsg(null), 3000);
+      return;
+    }
+    setBusy(true);
+    setMsg(null);
+    try {
+      await createBuild({
+        name: buildName.trim() || "Sans titre",
+        slots: { ...currentBuild },
+        total_stats: { ...stats },
+        active_set_bonuses: [...activeSetBonuses],
+        char_stats: Object.keys(charStats).length > 0 ? { ...charStats } : null,
+        parcho_stats: Object.keys(parchoStats).length > 0 ? { ...parchoStats } : null,
+        exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
+        level,
+        class_id: classId,
+        is_public: true,
+      });
+      setMsg("Sauvegardé !");
+    } catch {
+      setMsg("Échec de la sauvegarde.");
+    } finally {
+      setBusy(false);
+      setTimeout(() => setMsg(null), 3000);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <button
+        type="button"
+        onClick={() => void handleSave()}
+        disabled={busy}
+        title="Sauvegarder le build"
+        className="flex items-center gap-1 rounded border border-[#2e4a10] bg-[#111f06] px-2 py-1 text-[11px] font-medium text-[#7ab820] transition hover:border-[#4a8000]/80 hover:bg-[#1a2c0a] hover:text-[#9cce38] disabled:opacity-50"
+      >
+        💾 Sauver
+      </button>
+      {msg && (
+        <span className={`text-[11px] ${msg.includes("Échec") || msg.includes("Connectez") ? "text-red-400" : "text-emerald-400"}`}>
+          {msg}
+        </span>
+      )}
+    </div>
+  );
+}
+
 /* ─── Grille principale ─── */
 export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}) {
   const currentBuild = useBuildStore((s) => s.currentBuild);
@@ -414,6 +480,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
           </button>
         )}
 
+        <SaveBuildButton />
         <StuffLevelBadge />
       </div>
 

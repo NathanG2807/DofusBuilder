@@ -152,10 +152,12 @@ function StatGroup({
 
   return (
     <div className="rounded-xl border border-[#282828] bg-[#181818]/95 overflow-hidden shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
-      <button
-        type="button"
+      <div
+        role="button"
+        tabIndex={0}
         onClick={() => setOpen((o) => !o)}
-        className="flex w-full items-center justify-between px-2.5 py-1.5 hover:bg-[#1e1e1e]/60 transition"
+        onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") setOpen((o) => !o); }}
+        className="flex w-full cursor-pointer items-center justify-between px-2.5 py-1.5 hover:bg-[#1e1e1e]/60 transition"
       >
         <span className="text-[10px] font-semibold uppercase tracking-widest text-[#888888]">
           {title}
@@ -180,7 +182,7 @@ function StatGroup({
           )}
           <span className="text-[10px] text-[#444444]">{open ? "▲" : "▼"}</span>
         </div>
-      </button>
+      </div>
 
       {open && (
         <div className={`flex flex-col gap-0.5 px-2 pb-2 ${hasPrimaries ? "" : "grid grid-cols-2 gap-x-1"}`}

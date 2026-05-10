@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { ItemCatalogPanel } from "@/components/items/ItemCatalogPanel";
@@ -11,6 +11,9 @@ export function CatalogDrawer() {
   const setSelectedSlot = useBuildStore((s) => s.setSelectedSlot);
   const isOpen = selectedSlot !== null;
 
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   useEffect(() => {
     if (!isOpen) return;
     function onKey(e: KeyboardEvent) {
@@ -20,7 +23,7 @@ export function CatalogDrawer() {
     return () => window.removeEventListener("keydown", onKey);
   }, [isOpen, setSelectedSlot]);
 
-  if (typeof document === "undefined") return null;
+  if (!mounted) return null;
 
   return createPortal(
     <>

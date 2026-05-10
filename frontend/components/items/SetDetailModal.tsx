@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { fetchItemsBySet, fetchItemSet } from "@/lib/api";
 import { typeLabel } from "@/lib/equipmentTypes";
 import { EffectLine } from "@/components/items/EffectLine";
+import { bonusEffectIcon } from "@/lib/effectFormat";
 import { useBuildStore } from "@/store/build-store";
 import type { ItemOut, ItemSetOut } from "@/types/api";
 
@@ -30,11 +31,14 @@ function tierEffects(
 function SetItemCard({
   item,
   onEquip,
+  isExpanded,
+  onToggle,
 }: {
   item: ItemOut;
   onEquip?: (item: ItemOut) => void;
+  isExpanded: boolean;
+  onToggle: () => void;
 }) {
-  const [expanded, setExpanded] = useState(false);
   const rawEffects =
     (item.effects?.filter((e) => e != null) as Record<string, unknown>[]) ?? [];
 
@@ -66,10 +70,10 @@ function SetItemCard({
             {rawEffects.length > 0 && (
               <button
                 type="button"
-                onClick={() => setExpanded((v) => !v)}
+                onClick={onToggle}
                 className="btn-dofus-gray rounded px-2 py-0.5 text-[10px]"
               >
-                {expanded ? "▲ Stats" : "▼ Stats"}
+                {isExpanded ? "▲ Stats" : "▼ Stats"}
               </button>
             )}
             {onEquip && (
@@ -84,7 +88,7 @@ function SetItemCard({
           </div>
         </div>
       </div>
-      {expanded && rawEffects.length > 0 && (
+      {isExpanded && rawEffects.length > 0 && (
         <ul className="mt-2 space-y-0.5 border-t border-[#222222] pt-2 text-[11px] text-[#d0d0d0]">
           {rawEffects.map((eff, i) => (
             <EffectLine key={i} eff={eff} />
@@ -107,6 +111,7 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState<string | null>(null);
   const [equipMsg, setEquipMsg] = useState<string | null>(null);
+  const [expandedItemId, setExpandedItemId] = useState<number | null>(null);
   const overlayRef = useRef<HTMLDivElement>(null);
 
   const equipSet = useBuildStore((s) => s.equipSet);
@@ -233,6 +238,10 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
                     key={it.ankama_id}
                     item={it}
                     onEquip={handleSingleEquip}
+                    isExpanded={expandedItemId === it.ankama_id}
+                    onToggle={() => setExpandedItemId(
+                      expandedItemId === it.ankama_id ? null : it.ankama_id
+                    )}
                   />
                 ))}
               </div>
@@ -260,17 +269,29 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
                               {tier} pièces
                             </p>
                             <ul className="space-y-0.5">
-                              {effects.map((eff, i) => (
-                                <li
-                                  key={i}
-                                  className="flex items-start gap-1 text-[12px] text-[#c0c0c0]"
-                                >
-                                  <span className="mt-0.5 shrink-0 text-[#5a9818]">
-                                    •
-                                  </span>
-                                  {eff}
-                                </li>
-                              ))}
+                              {effects.map((eff, i) => {
+                                const icon = bonusEffectIcon(eff);
+                                return (
+                                  <li
+                                    key={i}
+                                    className="flex items-center gap-1.5 text-[12px] text-[#c0c0c0]"
+                                  >
+                                    {icon ? (
+                                      // eslint-disable-next-line @next/next/no-img-element
+                                      <img
+                                        src={`/assets/elements/${icon}.png`}
+                                        alt=""
+                                        width={13}
+                                        height={13}
+                                        className="h-[13px] w-[13px] shrink-0 object-contain"
+                                      />
+                                    ) : (
+                                      <span className="mt-0.5 shrink-0 text-[#5a9818]">•</span>
+                                    )}
+                                    {eff}
+                                  </li>
+                                );
+                              })}
                             </ul>
                           </div>
                         );
