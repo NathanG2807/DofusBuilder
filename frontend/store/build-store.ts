@@ -223,6 +223,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
       exoFm: { ...(b.exo_fm ?? {}) } as Partial<Record<import("@/lib/slots").SlotId, ExoType>>,
       ...(b.level != null ? { level: b.level } : {}),
       ...(b.class_id != null ? { classId: b.class_id } : {}),
+      ...(b.sex === "male" || b.sex === "female" ? { sex: b.sex } : {}),
       ...(b.name ? { buildName: b.name } : {}),
     });
   },

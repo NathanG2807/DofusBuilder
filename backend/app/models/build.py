@@ -30,6 +30,7 @@ class Build(Base):
     char_stats: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     parcho_stats: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     exo_fm: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    sex: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(

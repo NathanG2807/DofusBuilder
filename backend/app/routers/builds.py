@@ -41,6 +41,7 @@ async def create_build(
         description=body.description,
         class_id=body.class_id,
         level=body.level,
+        sex=body.sex,
         slots=body.slots or {},
         total_stats=body.total_stats,
         active_set_bonuses=body.active_set_bonuses,

@@ -13,6 +13,7 @@ import {
   listMyBuilds,
 } from "@/lib/api";
 import { clearAccessToken, getAccessToken, setAccessToken } from "@/lib/auth";
+import { classHeadUrl } from "@/lib/classImage";
 import { useBuildStore } from "@/store/build-store";
 import type { BuildOut, UserPublic } from "@/types/api";
 
@@ -46,6 +47,7 @@ export function AccountButton() {
   const exoFm = useBuildStore((s) => s.exoFm);
   const level = useBuildStore((s) => s.level);
   const classId = useBuildStore((s) => s.classId);
+  const sex = useBuildStore((s) => s.sex);
 
   useEffect(() => {
     setSaveName(buildName);
@@ -127,6 +129,7 @@ export function AccountButton() {
         exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
         level,
         class_id: classId,
+        sex,
         is_public: isPublic,
       });
       setSaveMsg("Build sauvegardé !");
@@ -327,6 +330,15 @@ export function AccountButton() {
                       key={b.id}
                       className="flex items-center gap-1.5 rounded-lg border border-[#282828] bg-[#111111]/80 px-2 py-1.5"
                     >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={classHeadUrl(b.class_id ?? 8, (b.sex === "female" ? "female" : "male"))}
+                        alt=""
+                        width={28}
+                        height={28}
+                        className="h-7 w-7 shrink-0 rounded-md object-cover"
+                        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                      />
                       <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#d0d0d0]">
                         {b.name}
                       </span>

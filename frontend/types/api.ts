@@ -91,6 +91,7 @@ export type BuildOut = {
   description: string | null;
   class_id: number | null;
   level: number | null;
+  sex: string | null;
   slots: Record<string, number | null> | null;
   total_stats: Record<string, number> | null;
   active_set_bonuses: string[] | null;
@@ -107,6 +108,7 @@ export type BuildCreatePayload = {
   description?: string | null;
   class_id?: number | null;
   level?: number | null;
+  sex?: string | null;
   slots?: Record<string, number | null> | null;
   total_stats?: Record<string, number> | null;
   active_set_bonuses?: string[] | null;

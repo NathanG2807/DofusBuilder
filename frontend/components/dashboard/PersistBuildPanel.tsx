@@ -46,6 +46,7 @@ export function PersistBuildPanel() {
   const exoFm = useBuildStore((s) => s.exoFm);
   const level = useBuildStore((s) => s.level);
   const classId = useBuildStore((s) => s.classId);
+  const sex = useBuildStore((s) => s.sex);
 
   const refreshBuilds = useCallback(async () => {
     if (!getAccessToken()) {
@@ -134,6 +135,7 @@ export function PersistBuildPanel() {
         exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
         level,
         class_id: classId,
+        sex,
         is_public: isPublic,
       });
       setSaveMsg(`Enregistré — lien : ${shareUrl(created.id)}`);

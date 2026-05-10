@@ -20,7 +20,7 @@ import type { SlotId } from "@/lib/slots";
 import type { ItemOut } from "@/types/api";
 import { useBuildStore, type ExoType } from "@/store/build-store";
 import { DOFUS_CLASS_BY_ID, DOFUS_CLASS_OPTIONS } from "@/lib/dofusClasses";
-import { classImageFallback, classImageUrl } from "@/lib/classImage";
+import { classHeadUrl, classImageFallback, classImageUrl } from "@/lib/classImage";
 import { isConditionMet } from "@/lib/conditionCheck";
 
 /* ─── Cellule d'emplacement ─── */
@@ -286,6 +286,64 @@ function BuildStatsSummary() {
   );
 }
 
+/* ─── Picker de classe (grille de têtes) ─── */
+function ClassPicker({ classId, onSelect }: { classId: number; onSelect: (id: number) => void }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        title="Changer de classe"
+        onClick={() => setOpen((o) => !o)}
+        className="flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-md border border-[#383838] bg-[#141414] transition hover:border-[#505050]"
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={classHeadUrl(classId, "male")}
+          alt=""
+          width={30}
+          height={30}
+          className="h-full w-full object-cover"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+        />
+      </button>
+
+      {open && (
+        <>
+          {/* Fond cliquable pour fermer */}
+          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
+          <div className="absolute left-0 top-full z-50 mt-1 grid grid-cols-5 gap-1 rounded-xl border border-[#383838] bg-[#141414] p-2 shadow-[0_8px_32px_rgba(0,0,0,0.8)]">
+            {DOFUS_CLASS_OPTIONS.map((opt) => (
+              <button
+                key={opt.id}
+                type="button"
+                title={opt.label}
+                onClick={() => { onSelect(opt.id); setOpen(false); }}
+                className={`flex h-[36px] w-[36px] items-center justify-center overflow-hidden rounded-lg border transition ${
+                  classId === opt.id
+                    ? "border-[#6db824] bg-[#1a2c0a]"
+                    : "border-[#2a2a2a] bg-[#1a1a1a] hover:border-[#505050]"
+                }`}
+              >
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={classHeadUrl(opt.id, "male")}
+                  alt={opt.label}
+                  width={36}
+                  height={36}
+                  className="h-full w-full object-cover"
+                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                />
+              </button>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 /* ─── Badge niveau du stuff ─── */
 function StuffLevelBadge() {
   const currentBuild = useBuildStore((s) => s.currentBuild);
@@ -319,6 +377,7 @@ function SaveBuildButton() {
   const exoFm = useBuildStore((s) => s.exoFm);
   const level = useBuildStore((s) => s.level);
   const classId = useBuildStore((s) => s.classId);
+  const sex = useBuildStore((s) => s.sex);
   const buildName = useBuildStore((s) => s.buildName);
 
   async function handleSave() {
@@ -340,6 +399,7 @@ function SaveBuildButton() {
         exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
         level,
         class_id: classId,
+        sex,
         is_public: true,
       });
       setMsg("Sauvegardé !");
@@ -427,15 +487,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
         />
 
         {/* Classe */}
-        <select
-          value={classId}
-          onChange={(e) => setClassId(Number(e.target.value))}
-          className="min-w-0 flex-1 rounded border border-[#383838] bg-[#141414] px-1.5 py-1 text-[12px] text-[#d0d0d0] focus:outline-none"
-        >
-          {DOFUS_CLASS_OPTIONS.map((o) => (
-            <option key={o.id} value={o.id}>{o.label}</option>
-          ))}
-        </select>
+        <ClassPicker classId={classId} onSelect={setClassId} />
 
         {/* Sexe */}
         <div className="flex overflow-hidden rounded border border-[#383838]">

@@ -157,6 +157,7 @@ class BuildCreate(BaseModel):
     description: Optional[str] = None
     class_id: Optional[int] = None
     level: Optional[int] = None
+    sex: Optional[str] = None
     slots: Optional[dict[str, Optional[int]]] = None
     total_stats: Optional[dict[str, int]] = None
     active_set_bonuses: Optional[list[str]] = None
@@ -171,6 +172,7 @@ class BuildUpdate(BaseModel):
     description: Optional[str] = None
     class_id: Optional[int] = None
     level: Optional[int] = None
+    sex: Optional[str] = None
     slots: Optional[dict[str, Optional[int]]] = None
     total_stats: Optional[dict[str, int]] = None
     active_set_bonuses: Optional[list[str]] = None
@@ -189,6 +191,7 @@ class BuildOut(BaseModel):
     description: Optional[str] = None
     class_id: Optional[int] = None
     level: Optional[int] = None
+    sex: Optional[str] = None
     slots: Optional[dict[str, Any]] = None
     total_stats: Optional[dict[str, int]] = None
     active_set_bonuses: Optional[list[str]] = None

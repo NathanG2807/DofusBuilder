@@ -22,6 +22,11 @@ export function classImageUrl(classId: number, sex: ClassSex = "male"): string {
 }
 
 export function classImageFallback(classId: number, sex: ClassSex = "male"): string {
-  // Aucun fallback distant: on reste sur les assets du projet.
   return classImageUrl(classId, sex);
+}
+
+/** Miniature "tête" de classe : Head_X-0.png (male) / Head_X-1.png (female). */
+export function classHeadUrl(classId: number, sex: ClassSex = "male"): string {
+  const cid = normalizeClassId(classId);
+  return `/assets/classes/Head_${cid}-${sexCode(sex)}.png`;
 }
