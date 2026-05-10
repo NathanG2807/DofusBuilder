@@ -1,6 +1,7 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 
 import {
   ItemHoverCard,
@@ -289,58 +290,143 @@ function BuildStatsSummary() {
 /* ─── Picker de classe (grille de têtes) ─── */
 function ClassPicker({ classId, onSelect }: { classId: number; onSelect: (id: number) => void }) {
   const [open, setOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
+  const anchorRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0 });
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  function updatePosition() {
+    const btn = anchorRef.current;
+    if (!btn) return;
+    const rect = btn.getBoundingClientRect();
+    const panel = panelRef.current;
+    let left = rect.left;
+    let top = rect.bottom + 6;
+    if (panel && typeof window !== "undefined") {
+      const vw = window.innerWidth;
+      const panelW = panel.offsetWidth;
+      left = Math.max(8, Math.min(left, vw - panelW - 8));
+      const panelH = panel.offsetHeight;
+      if (top + panelH > window.innerHeight - 8) {
+        top = Math.max(8, rect.top - panelH - 6);
+      }
+    }
+    setPos({ top, left });
+  }
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    updatePosition();
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") setOpen(false);
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open]);
+
+  useLayoutEffect(() => {
+    if (!open) return;
+    function onViewport() {
+      updatePosition();
+    }
+    window.addEventListener("scroll", onViewport, true);
+    window.addEventListener("resize", onViewport);
+    return () => {
+      window.removeEventListener("scroll", onViewport, true);
+      window.removeEventListener("resize", onViewport);
+    };
+  }, [open]);
+
+  const portal =
+    mounted &&
+    open &&
+    createPortal(
+      <>
+        <div
+          className="fixed inset-0 z-[310] bg-black/50 backdrop-blur-[1px]"
+          aria-hidden
+          onClick={() => setOpen(false)}
+        />
+        <div
+          ref={panelRef}
+          role="dialog"
+          aria-label="Choisir une classe"
+          className="fixed z-[311] rounded-xl border border-[#383838] bg-[#141414] p-2 shadow-[0_16px_48px_rgba(0,0,0,0.85)]"
+          style={{
+            display: "grid",
+            gridTemplateColumns: "repeat(5, 40px)",
+            gap: "4px",
+            width: "216px",
+            top: pos.top,
+            left: pos.left,
+          }}
+        >
+          {DOFUS_CLASS_OPTIONS.map((opt) => (
+            <button
+              key={opt.id}
+              type="button"
+              title={opt.label}
+              onClick={() => {
+                onSelect(opt.id);
+                setOpen(false);
+              }}
+              className={`flex h-[40px] w-[40px] items-center justify-center overflow-hidden rounded-lg border transition hover:border-[#6db824] ${
+                classId === opt.id
+                  ? "border-[#6db824] ring-1 ring-[#6db824]/50"
+                  : "border-[#2a2a2a]"
+              }`}
+            >
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={classHeadUrl(opt.id, "male")}
+                alt={opt.label}
+                width={40}
+                height={40}
+                className="h-full w-full object-cover"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).style.display = "none";
+                }}
+              />
+            </button>
+          ))}
+        </div>
+      </>,
+      document.body,
+    );
 
   return (
-    <div className="relative">
-      <button
-        type="button"
-        title="Changer de classe"
-        onClick={() => setOpen((o) => !o)}
-        className="flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-md border border-[#383838] bg-[#141414] transition hover:border-[#505050]"
-      >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={classHeadUrl(classId, "male")}
-          alt=""
-          width={30}
-          height={30}
-          className="h-full w-full object-cover"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-        />
-      </button>
-
-      {open && (
-        <>
-          {/* Fond cliquable pour fermer */}
-          <div className="fixed inset-0 z-40" onClick={() => setOpen(false)} />
-          <div className="absolute left-0 top-full z-50 mt-1 grid grid-cols-5 gap-1 rounded-xl border border-[#383838] bg-[#141414] p-2 shadow-[0_8px_32px_rgba(0,0,0,0.8)]">
-            {DOFUS_CLASS_OPTIONS.map((opt) => (
-              <button
-                key={opt.id}
-                type="button"
-                title={opt.label}
-                onClick={() => { onSelect(opt.id); setOpen(false); }}
-                className={`flex h-[36px] w-[36px] items-center justify-center overflow-hidden rounded-lg border transition ${
-                  classId === opt.id
-                    ? "border-[#6db824] bg-[#1a2c0a]"
-                    : "border-[#2a2a2a] bg-[#1a1a1a] hover:border-[#505050]"
-                }`}
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={classHeadUrl(opt.id, "male")}
-                  alt={opt.label}
-                  width={36}
-                  height={36}
-                  className="h-full w-full object-cover"
-                  onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                />
-              </button>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
+    <>
+      <div className="relative">
+        <button
+          ref={anchorRef}
+          type="button"
+          title="Changer de classe"
+          onClick={() => setOpen((o) => !o)}
+          className="flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-md border border-[#383838] bg-[#141414] transition hover:border-[#505050]"
+        >
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={classHeadUrl(classId, "male")}
+            alt=""
+            width={30}
+            height={30}
+            className="h-full w-full object-cover"
+            onError={(e) => {
+              (e.currentTarget as HTMLImageElement).style.display = "none";
+            }}
+          />
+        </button>
+      </div>
+      {portal}
+    </>
   );
 }
 
