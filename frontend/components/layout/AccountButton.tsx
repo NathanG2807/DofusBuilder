@@ -177,27 +177,23 @@ export function AccountButton() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="btn-dofus-gray flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm"
+        className="btn-dofus-gray flex items-center gap-1.5 rounded px-2 py-1 text-[11px]"
       >
         {user ? (
           <>
-            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[#5a9818]/20 text-[11px] font-bold uppercase text-[#9cce38]">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--dofus-ui-accent-tint-20)] text-[10px] font-bold uppercase text-[var(--dofus-green-active)]">
               {user.username[0]}
             </span>
-            <span className="max-w-[100px] truncate text-[#d0d0d0]">{user.username}</span>
+            <span className="max-w-[90px] truncate">{user.username}</span>
           </>
         ) : (
           <>
-            <span className="text-[#888888]">
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <circle cx="12" cy="8" r="4" />
-                <path d="M4 20c0-4 3.6-7 8-7s8 3 8 7" />
-              </svg>
-            </span>
-            <span className="text-[#c0c0c0]">Connexion</span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/global/UI/player.png" width={13} height={13} alt="" className="shrink-0" />
+            Connexion
           </>
         )}
-        <svg className={`h-3 w-3 text-[#666666] transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+        <svg className={`h-2.5 w-2.5 shrink-0 opacity-60 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
@@ -215,7 +211,7 @@ export function AccountButton() {
                     type="button"
                     onClick={() => { setAuthMode(m); setAuthError(null); }}
                     className={`text-sm font-medium transition ${
-                      authMode === m ? "text-[#9cce38]" : "text-[#555555] hover:text-[#aaaaaa]"
+                      authMode === m ? "text-[var(--dofus-green-active)]" : "text-[#555555] hover:text-[#aaaaaa]"
                     }`}
                   >
                     {m === "login" ? "Connexion" : "Inscription"}
@@ -267,7 +263,7 @@ export function AccountButton() {
               {/* En-tête utilisateur */}
               <div className="flex items-center justify-between border-b border-[#252525] px-4 py-3">
                 <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5a9818]/20 text-sm font-bold uppercase text-[#9cce38]">
+                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--dofus-ui-accent-tint-20)] text-sm font-bold uppercase text-[var(--dofus-green-active)]">
                     {user.username[0]}
                   </span>
                   <span className="font-medium text-[#f0d78c]">{user.username}</span>
@@ -342,7 +338,7 @@ export function AccountButton() {
                       <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#d0d0d0]">
                         {b.name}
                       </span>
-                      <button type="button" onClick={() => void handleLoad(b)} className="shrink-0 text-[11px] text-[#9cce38] hover:underline">
+                      <button type="button" onClick={() => void handleLoad(b)} className="shrink-0 text-[11px] text-[var(--dofus-green-active)] hover:underline">
                         Charger
                       </button>
                       <button type="button" onClick={() => void copyLink(b.id)} className="shrink-0 text-[11px] text-[#888888] hover:underline">

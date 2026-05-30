@@ -27,6 +27,11 @@ const FOCUS_OPTIONS = [
   { key: "damage",                label: "Dommages",   icon: "dmg" },
   { key: "damage_spell_percent",  label: "% Sorts",    icon: "ds"  },
   { key: "damage_weapon_percent", label: "% Armes",    icon: "dw"  },
+  // Caractéristiques élémentaires
+  { key: "strength",     label: "Force",   icon: "ter" },
+  { key: "intelligence", label: "Intel.",  icon: "feu" },
+  { key: "chance",       label: "Chance",  icon: "eau" },
+  { key: "agility",      label: "Agil.",   icon: "air" },
   // Caractéristiques
   { key: "critical_percent", label: "% CC",    icon: "cc"  },
   { key: "vitality",         label: "Vita.",   icon: "vi"  },
@@ -183,7 +188,7 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
                 onClick={() => toggleElement(o.id)}
                 className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium transition ${
                   active
-                    ? "border-[#4a8000]/70 bg-[#1a2c0a] text-[#9cce38]"
+                    ? "border-[var(--dofus-ui-olive-border-70)] bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
                     : "border-[#303030] bg-[#181818] text-[#888888] hover:border-[#404040] hover:text-[#cccccc]"
                 }`}
               >
@@ -233,14 +238,14 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
             onClick={() => setAllowExoPm((v) => !v)}
             className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition ${
               allowExoPm
-                ? "border-[#2a6000]/80 bg-[#071500] text-[#72bc1e]"
+                ? "border-[var(--dofus-ui-exo-pm-border)] bg-[var(--dofus-ui-exo-pm-bg)] text-[var(--dofus-green-active)]"
                 : "border-[#252525] bg-[#111111] text-[#666666] hover:border-[#383838] hover:text-[#aaaaaa]"
             }`}
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/build/pm.png" alt="" width={12} height={12} className="h-[12px] w-[12px] object-contain" />
             Exo PM
-            <span className={`ml-auto text-[9px] ${allowExoPm ? "text-[#72bc1e]" : "text-[#3a3a3a]"}`}>
+            <span className={`ml-auto text-[9px] ${allowExoPm ? "text-[var(--dofus-green-active)]" : "text-[#3a3a3a]"}`}>
               {allowExoPm ? "✓" : "○"}
             </span>
           </button>
@@ -262,7 +267,7 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
                 onClick={() => toggleFocus(o.key)}
                 className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
                   active
-                    ? "border-[#4a8000]/70 bg-[#1a2c0a] text-[#9cce38]"
+                    ? "border-[var(--dofus-ui-olive-border-70)] bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
                     : "border-[#252525] bg-[#111111] text-[#777777] hover:border-[#383838] hover:text-[#bbbbbb]"
                 }`}
               >

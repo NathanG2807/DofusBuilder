@@ -99,7 +99,7 @@ function InvestableRow({ statKey, label, icon, equipValue, invested, availablePo
           const maxAllowed = getMaxAffordableInvest(statKey, invested, availablePoints);
           onInvest(Math.min(v, maxAllowed));
         }}
-        className="w-full rounded border border-[#383838] bg-[#141414] px-1 py-0 text-center text-[11px] text-[#9cce38] outline-none focus:border-[#5a9818] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        className="w-full rounded border border-[#383838] bg-[#141414] px-1 py-0 text-center text-[11px] text-[var(--dofus-green-active)] outline-none focus:border-[var(--dofus-color-ref-end)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
       />
 
       {/* Parchotage */}
@@ -258,7 +258,7 @@ function ForgemagieCard() {
                 {item?.name ?? slotId}
               </span>
               <span className={`shrink-0 text-[11px] font-bold tabular-nums ${
-                type === "pa" ? "text-[#4a90d9]" : "text-[#9cce38]"
+                type === "pa" ? "text-[#4a90d9]" : "text-[var(--dofus-green-active)]"
               }`}>
                 +1 {type.toUpperCase()}
               </span>
@@ -310,7 +310,9 @@ export function StatsPanel() {
     <aside className="flex flex-col gap-2">
       {/* ── En-tête ── */}
       <div className="flex items-center justify-between rounded-lg border border-[#282828] bg-[#181818]/95 px-3 py-1.5">
-        <span className="font-serif text-sm font-semibold text-[#f0d78c]">
+        <span className="flex items-center gap-2 font-serif text-sm font-semibold text-[#f0d78c]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/assets/global/UI/characteristic.png" alt="" width={20} height={20} className="h-5 w-5 shrink-0 object-contain opacity-95" />
           Caractéristiques
         </span>
         <div className="flex items-center gap-2">
@@ -323,7 +325,7 @@ export function StatsPanel() {
             </span>
           )}
           {level >= 100 && (
-            <span className="rounded-full bg-[#5a9818]/15 px-1.5 py-0.5 text-[10px] font-medium text-[#9cce38]">
+            <span className="rounded-full bg-[var(--dofus-ui-accent-tint-15)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--dofus-green-active)]">
               +1 PA niv.100
             </span>
           )}

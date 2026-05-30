@@ -498,7 +498,7 @@ function SpellEffectRow({
 
   return (
     <li className="flex items-center gap-1.5 text-[11px]">
-      <span className="shrink-0 text-[#9cce38]">•</span>
+      <span className="shrink-0 text-[var(--dofus-green-active)]">•</span>
       {el && (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -641,7 +641,7 @@ function SpellCardBody({
                       selectedGrade === l.grade
                         ? isVariant
                           ? "border border-[#5a4080]/60 bg-[#1a0e2a] text-[#b090e0]"
-                          : "border border-[#4a8000]/60 bg-[#1a2c0a] text-[#9cce38]"
+                          : "border border-[var(--dofus-ui-olive-border-60)] bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
                         : "border border-[#282828] bg-[#222222] text-[#555555] hover:text-[#aaaaaa]"
                     }`}
                   >
@@ -938,7 +938,9 @@ export function SpellsPanel() {
   return (
     <section className="mt-4 overflow-hidden rounded-xl border border-[#2e2e2e] bg-[#181818]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.04),0_4px_24px_rgba(0,0,0,0.55)]">
       <div className="flex items-center justify-between border-b border-[#222222] px-4 py-2.5">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
+        <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wider text-[#888888]">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/assets/global/UI/spells.png" alt="" width={18} height={18} className="h-[18px] w-[18px] shrink-0 object-contain opacity-90" />
           Sorts de classe
         </p>
         {loading && (
@@ -1004,9 +1006,9 @@ export function SpellsPanel() {
                   title={baseSpell?.name.fr}
                   className={`overflow-hidden rounded-lg border bg-[#141414] transition-[border-color,box-shadow] ${
                     isSelected
-                      ? "border-[#72bc1e] shadow-[0_0_0_2px_rgba(114,188,30,0.35)]"
+                      ? "border-[var(--dofus-ui-selected-border)] shadow-[0_0_0_2px_var(--dofus-ui-selected-glow)]"
                       : isHovered
-                        ? "border-[#4a8000]/70"
+                        ? "border-[var(--dofus-ui-olive-border-70)]"
                         : "border-[#2a2a2a]"
                   }`}
                   style={{ width: ICON_SIZE, height: ICON_SIZE }}

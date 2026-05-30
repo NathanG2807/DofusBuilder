@@ -63,9 +63,9 @@ function SlotCell({
   const borderClass = exoType === "pa"
     ? "border-[#4a90d9] bg-[#060e1a]/90 shadow-[0_0_0_2px_rgba(74,144,217,0.45)]"
     : exoType === "pm"
-    ? "border-[#72bc1e] bg-[#071200]/90 shadow-[0_0_0_2px_rgba(114,188,30,0.45)]"
+    ? "border-[var(--dofus-ui-selected-border)] bg-[var(--dofus-ui-slot-pm-bg)] shadow-[0_0_0_2px_var(--dofus-ui-selected-glow-strong)]"
     : selected
-    ? "border-[#72bc1e]/90 bg-[#182808]/90 shadow-[0_0_0_2px_rgba(114,188,30,0.35)]"
+    ? "border-[var(--dofus-ui-selected-border-muted)] bg-[var(--dofus-ui-slot-selected-bg)] shadow-[0_0_0_2px_var(--dofus-ui-selected-glow)]"
     : !conditionOk
     ? "border-red-600/90 bg-[#250e0e]/90 shadow-[0_0_0_2px_rgba(220,50,50,0.35)] hover:border-red-500"
     : "border-[#383838] bg-[#111111]/90 shadow-[0_2px_8px_rgba(0,0,0,0.6)] hover:border-[#505050] hover:bg-[#1c1c1c]/90";
@@ -149,8 +149,8 @@ function SlotCell({
               }}
               className={`flex cursor-pointer items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-bold transition ${
                 exoType === "pm"
-                  ? "bg-[#1a3300] text-[#9cce38]"
-                  : "bg-[#1a1a1a] text-[#555555] hover:text-[#9cce38]"
+                  ? "bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
+                  : "bg-[#1a1a1a] text-[#555555] hover:text-[var(--dofus-green-active)]"
               }`}
             >
               +{/* eslint-disable-next-line @next/next/no-img-element */}
@@ -203,6 +203,20 @@ function ClassBackground({ classId }: { classId: number }) {
   );
 }
 
+/* ─── Socle de classe sous le personnage ─── */
+function ClassSocle({ classId }: { classId: number }) {
+  const nameId = DOFUS_CLASS_BY_ID[classId]?.nameId;
+  if (!nameId) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={`/assets/bgclass/socle_${nameId}.png`}
+      alt=""
+      className="-mt-[4.25rem] w-[202px] translate-y-1 select-none object-contain drop-shadow-2xl sm:-mt-[5.25rem] sm:w-[278px] sm:translate-y-1.5"
+    />
+  );
+}
+
 /* ─── Image de classe centrale ─── */
 function ClassPortrait({
   classId,
@@ -240,12 +254,14 @@ function ClassPortrait({
 /* ─── Résumé PA / PM / Invocations / Vitalité sous le portrait ─── */
 function StatGem({
   src,
+  overlaySrc,
   label,
   value,
   containerClass = "h-16 w-16",
   fontSize = "text-[15px]",
 }: {
   src: string;
+  overlaySrc?: string;
   label: string;
   value: number;
   containerClass?: string;
@@ -257,10 +273,19 @@ function StatGem({
       <img
         src={src}
         alt={label}
-        className="h-full w-full object-contain drop-shadow-lg"
+        className="relative z-0 h-full w-full object-contain drop-shadow-lg"
       />
+      {overlaySrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={overlaySrc}
+          alt=""
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-[1] h-full w-full object-contain"
+        />
+      ) : null}
       <span
-        className={`absolute ${fontSize} font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)]`}
+        className={`absolute z-[2] ${fontSize} font-bold text-white drop-shadow-[0_1px_3px_rgba(0,0,0,1)]`}
       >
         {value}
       </span>
@@ -276,13 +301,18 @@ function BuildStatsSummary() {
   const pv = displayStats.vitality ?? 0;
 
   return (
-    <div className="mt-1 flex flex-col items-center gap-1 sm:mt-2">
-      <div className="flex items-center gap-1.5 sm:gap-2">
-        <StatGem src="/assets/build/pa.png"  label="PA"       value={pa}    containerClass="h-[46px] w-[46px] sm:h-[58px] sm:w-[58px]" fontSize="text-[13px] sm:text-[14px]" />
-        <StatGem src="/assets/build/pv.png"  label="Vitalité" value={pv}    containerClass="h-[62px] w-[62px] sm:h-[76px] sm:w-[76px]" fontSize="text-[14px] sm:text-[16px]" />
-        <StatGem src="/assets/build/pm.png"  label="PM"       value={pm}    containerClass="h-[46px] w-[46px] sm:h-[58px] sm:w-[58px]" fontSize="text-[13px] sm:text-[14px]" />
-      </div>
-      <StatGem src="/assets/build/invoc.png" label="Invocations" value={invoc} containerClass="h-[36px] w-[36px] sm:h-[44px] sm:w-[44px]" fontSize="text-[11px] sm:text-[12px]" />
+    <div className="mt-1 flex items-center gap-1 sm:gap-1.5">
+      <StatGem src="/assets/build/pa.png"    label="PA"          value={pa}    containerClass="h-[42px] w-[42px] sm:h-[52px] sm:w-[52px]"  fontSize="text-[12px] sm:text-[13px]" />
+      <StatGem
+        src="/assets/build/pv.png"
+        overlaySrc="/assets/build/pvedge.png"
+        label="Vitalité"
+        value={pv}
+        containerClass="h-[56px] w-[56px] sm:h-[68px] sm:w-[68px]"
+        fontSize="text-[13px] sm:text-[15px]"
+      />
+      <StatGem src="/assets/build/pm.png"    label="PM"          value={pm}    containerClass="h-[42px] w-[42px] sm:h-[52px] sm:w-[52px]"  fontSize="text-[12px] sm:text-[13px]" />
+      <StatGem src="/assets/build/invoc.png" label="Invocations" value={invoc} containerClass="h-[32px] w-[32px] sm:h-[40px] sm:w-[40px]"  fontSize="text-[10px] sm:text-[11px]" />
     </div>
   );
 }
@@ -364,7 +394,8 @@ function ClassPicker({ classId, onSelect }: { classId: number; onSelect: (id: nu
             display: "grid",
             gridTemplateColumns: "repeat(5, 40px)",
             gap: "4px",
-            width: "216px",
+            /* 5×40 + 4×4 gaps = 216px grille + p-2 (8px×2) */
+            width: "232px",
             top: pos.top,
             left: pos.left,
           }}
@@ -446,7 +477,7 @@ function StuffLevelBadge() {
     <div className="flex items-center gap-0.5 rounded border border-[#383838] bg-[#141414] px-1.5 py-1">
       {/* eslint-disable-next-line @next/next/no-img-element */}
       <img src="/assets/elements/lvl.png" alt="lvl" width={14} height={14} className="h-[14px] w-[14px] object-contain" />
-      <span className="text-[12px] font-semibold text-[#9cce38]">{stuffLevel}</span>
+      <span className="text-[12px] font-semibold text-[var(--dofus-green-active)]">{stuffLevel}</span>
     </div>
   );
 }
@@ -504,9 +535,11 @@ function SaveBuildButton() {
         onClick={() => void handleSave()}
         disabled={busy}
         title="Sauvegarder le build"
-        className="flex items-center gap-1 rounded border border-[#2e4a10] bg-[#111f06] px-2 py-1 text-[11px] font-medium text-[#7ab820] transition hover:border-[#4a8000]/80 hover:bg-[#1a2c0a] hover:text-[#9cce38] disabled:opacity-50"
+        className="btn-dofus-green flex items-center gap-1.5 rounded px-2 py-1 text-[11px] disabled:opacity-50"
       >
-        💾 Sauver
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/assets/global/UI/save.png" width={13} height={13} alt="" className="shrink-0" />
+        Sauvegarder
       </button>
       {msg && (
         <span className={`text-[11px] ${msg.includes("Échec") || msg.includes("Connectez") ? "text-red-400" : "text-emerald-400"}`}>
@@ -584,7 +617,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
               onClick={() => setSex(s)}
               className={`px-2 py-1 text-[11px] font-medium transition ${
                 sex === s
-                  ? "bg-[#1a2c0a] text-[#9cce38]"
+                  ? "bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
                   : "bg-[#141414] text-[#666666] hover:bg-[#1e1e1e]"
               }`}
             >
@@ -612,9 +645,11 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
             type="button"
             onClick={onOpenTools}
             title="Optimisation & Conseiller IA"
-            className="flex items-center gap-1 rounded border border-[#2e2e2e] bg-[#141414] px-2 py-1 text-[11px] font-medium text-[#888888] transition hover:border-[#4a8000]/60 hover:bg-[#1a2c0a] hover:text-[#9cce38]"
+            className="btn-dofus-gray flex items-center gap-1.5 rounded px-2 py-1 text-[11px]"
           >
-            ⚡ Optim.
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src="/assets/global/UI/optimizer.png" width={13} height={13} alt="" className="shrink-0" />
+            Optimiseur
           </button>
         )}
 
@@ -629,14 +664,25 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
           {BOOK_LEFT_SLOTS.map((id) => <SlotCell key={id} {...slotProps(id)} />)}
         </div>
 
-        {/* Portrait de classe + résumé stats */}
-        <div className="relative flex flex-1 flex-col items-center justify-start pt-4 sm:pt-6">
-          {/* ─── Logo de classe centré sur le portrait ─── */}
+        {/* Portrait de classe + socle + résumé stats */}
+        <div className="relative flex flex-1 flex-col items-center justify-start pt-2 sm:pt-4">
+          {/* ─── Background de classe ─── */}
           <ClassBackground classId={classId} />
-          <div className="relative z-10 h-[240px] w-full max-w-[180px] overflow-hidden sm:h-[360px] sm:max-w-[260px]">
-            <ClassPortrait classId={classId} sex={sex} />
+
+          {/* ─── Portrait + Socle empilés ─── */}
+          <div className="relative z-10 flex flex-col items-center">
+            {/* Portrait avec z-index élevé pour passer au-dessus du socle */}
+            <div className="relative z-10 h-[185px] w-full max-w-[140px] translate-y-4 overflow-hidden sm:h-[250px] sm:max-w-[180px] sm:translate-y-24">
+              <ClassPortrait classId={classId} sex={sex} />
+            </div>
+            {/* Socle : z-0, tiré vers le haut pour superposition sous les pieds */}
+            <div className="relative z-0">
+              <ClassSocle classId={classId} />
+            </div>
           </div>
-          <div className="relative z-10">
+
+          {/* ─── Stats ─── */}
+          <div className="relative z-10 mt-1">
             <BuildStatsSummary />
           </div>
         </div>

@@ -409,7 +409,7 @@ export function ItemHoverCard({ item, anchor, compareItem, preferSide, onMouseEn
             <div className="h-full w-px bg-[#2a2a2a]" />
           </div>
           {/* Item survolé — droite */}
-          <div className="min-w-0 flex-1 rounded-lg border border-[#4a8000]/40 bg-[#0e1a06] p-2">
+          <div className="min-w-0 flex-1 rounded-lg border border-[var(--dofus-ui-olive-border-45)] bg-[var(--dofus-ui-deep-panel)] p-2">
             <ItemCardBody item={item} label="Survol" />
           </div>
         </div>

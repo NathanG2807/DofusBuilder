@@ -31,7 +31,7 @@ function MobileNavBtn({
       onClick={onClick}
       className={`flex flex-1 flex-col items-center justify-center gap-0.5 py-2 text-[10px] font-medium uppercase tracking-wide transition ${
         active
-          ? "text-[#9cce38]"
+          ? "text-[var(--dofus-green-active)]"
           : "text-[#666666] hover:text-[#aaaaaa]"
       }`}
     >

@@ -133,7 +133,7 @@ export function ActiveSetCards() {
                 </button>
               </div>
               <div className="ml-2 flex shrink-0 items-center gap-1.5">
-                <span className="rounded-full border border-[#4a8000]/30 bg-[#1a2c0a] px-2 py-0.5 text-[10px] font-medium text-[#9cce38]">
+                <span className="rounded-full border border-[var(--dofus-ui-olive-border-30)] bg-[var(--dofus-ui-select-bg)] px-2 py-0.5 text-[10px] font-medium text-[var(--dofus-green-active)]">
                   {set.piece_count}{set.total_pieces > 0 ? `/${set.total_pieces}` : ""} items
                   <button
                     type="button"
@@ -203,7 +203,7 @@ export function ActiveSetCards() {
                     key={i}
                     className="flex items-start gap-1.5 text-[11px] leading-snug text-[#c0c0c0]"
                   >
-                    <span className="mt-0.5 shrink-0 text-[#9cce38]">•</span>
+                    <span className="mt-0.5 shrink-0 text-[var(--dofus-green-active)]">•</span>
                     {(() => {
                       const icon = detectBonusIcon(eff);
                       return (

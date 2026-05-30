@@ -168,7 +168,7 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
       <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#3a3a3a] bg-[#181818] shadow-[0_16px_64px_rgba(0,0,0,0.8)]">
 
         {/* Liseré vert en haut */}
-        <div className="h-[2px] w-full shrink-0 bg-gradient-to-r from-transparent via-[#5a9818]/70 to-transparent" />
+        <div className="h-[2px] w-full shrink-0 bg-gradient-to-r from-transparent via-[var(--dofus-color-ref-end)]/70 to-transparent" />
 
         {/* En-tête */}
         <div className="flex items-start justify-between border-b border-[#222222] bg-[#1a1a1a] px-5 py-4">
@@ -265,7 +265,7 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
                             key={tier}
                             className="rounded-lg border border-[#282828] bg-[#161616] px-3 py-2"
                           >
-                            <p className="mb-1 text-[11px] font-semibold text-[#9cce38]">
+                            <p className="mb-1 text-[11px] font-semibold text-[var(--dofus-green-active)]">
                               {tier} pièces
                             </p>
                             <ul className="space-y-0.5">
@@ -286,7 +286,7 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
                                         className="h-[13px] w-[13px] shrink-0 object-contain"
                                       />
                                     ) : (
-                                      <span className="mt-0.5 shrink-0 text-[#5a9818]">•</span>
+                                      <span className="mt-0.5 shrink-0 text-[var(--dofus-color-ref-end)]">•</span>
                                     )}
                                     {eff}
                                   </li>

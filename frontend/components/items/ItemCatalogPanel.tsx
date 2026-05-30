@@ -297,7 +297,7 @@ export function ItemCatalogPanel() {
               onClick={() => setTab(t)}
               className={`px-3 py-1.5 text-[12px] font-medium transition ${
                 tab === t
-                  ? "bg-[#1a2c0a] text-[#9cce38]"
+                  ? "bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
                   : "bg-[#141414] text-[#888888] hover:bg-[#1e1e1e]"
               }`}
             >
@@ -361,7 +361,7 @@ export function ItemCatalogPanel() {
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between">
                 <span className="text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
-                  Stats minimum {statKeys.length > 0 && <span className="text-[#9cce38]">({statKeys.length})</span>}
+                  Stats minimum {statKeys.length > 0 && <span className="text-[var(--dofus-green-active)]">({statKeys.length})</span>}
                 </span>
                 {statKeys.length > 0 && (
                   <button
@@ -390,7 +390,7 @@ export function ItemCatalogPanel() {
                       }}
                       className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
                         active
-                          ? "border-[#4a8000]/70 bg-[#1a2c0a] text-[#9cce38]"
+                          ? "border-[var(--dofus-ui-olive-border-70)] bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
                           : "border-[#252525] bg-[#111111] text-[#777777] hover:border-[#383838] hover:text-[#bbbbbb]"
                       }`}
                     >
@@ -442,7 +442,7 @@ export function ItemCatalogPanel() {
 
           {/* ── Indicateur emplacement actif ── */}
           {selectedSlot && (
-            <p className="mt-2 rounded-lg bg-[#1a2c0a] px-2 py-1.5 text-[12px] text-[#9cce38]">
+            <p className="mt-2 rounded-lg bg-[var(--dofus-ui-select-bg)] px-2 py-1.5 text-[12px] text-[var(--dofus-green-active)]">
               Emplacement : <strong>{slotLabelFr(selectedSlot)}</strong> — clique sur un objet pour équiper.
             </p>
           )}
@@ -476,7 +476,7 @@ export function ItemCatalogPanel() {
                           onClick={() => void onEquip(it)}
                           className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition ${
                             ok
-                              ? "border-[#383838] bg-[#1e1e1e] hover:border-[#4a8000]/60 hover:bg-[#1a2c0a]"
+                              ? "border-[#383838] bg-[#1e1e1e] hover:border-[var(--dofus-ui-olive-border-60)] hover:bg-[var(--dofus-ui-select-bg)]"
                               : "border-[#282828] bg-[#181818]/80 opacity-80 hover:bg-[#1e1e1e]"
                           } ${!selectedSlot ? "cursor-not-allowed opacity-60" : ""}`}
                         >

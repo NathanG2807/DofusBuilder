@@ -57,7 +57,7 @@ export function ToolsDrawer({
           <div className="relative grid flex-1 grid-cols-2 rounded-lg border border-[#222222] bg-[#0e0e0e] p-1">
             <span
               aria-hidden
-              className={`absolute bottom-1 top-1 w-[calc(50%-0.25rem)] rounded-md border border-[#4a8000]/60 bg-[#1a2c0a] transition-transform duration-300 ease-out ${
+              className={`absolute bottom-1 top-1 w-[calc(50%-0.25rem)] rounded-md border border-[var(--dofus-ui-olive-border-60)] bg-[var(--dofus-ui-select-bg)] transition-transform duration-300 ease-out ${
                 activeTool === "optimize"
                   ? "translate-x-0"
                   : "translate-x-[calc(100%+0.5rem)]"
@@ -68,7 +68,7 @@ export function ToolsDrawer({
               onClick={() => setActiveTool("optimize")}
               className={`relative z-10 rounded-md px-2 py-2 text-xs font-medium transition-colors ${
                 activeTool === "optimize"
-                  ? "text-[#9cce38]"
+                  ? "text-[var(--dofus-green-active)]"
                   : "text-[#888888] hover:text-[#cccccc]"
               }`}
             >
@@ -79,7 +79,7 @@ export function ToolsDrawer({
               onClick={() => setActiveTool("chat")}
               className={`relative z-10 rounded-md px-2 py-2 text-xs font-medium transition-colors ${
                 activeTool === "chat"
-                  ? "text-[#9cce38]"
+                  ? "text-[var(--dofus-green-active)]"
                   : "text-[#888888] hover:text-[#cccccc]"
               }`}
             >

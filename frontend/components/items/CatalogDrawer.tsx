@@ -43,7 +43,7 @@ export function CatalogDrawer() {
       >
         {/* En-tête du tiroir */}
         <div className="flex shrink-0 items-center justify-between border-b border-[#2a2a2a] bg-[#181818] px-5 py-3">
-          <p className="text-[13px] font-medium text-[#9cce38]">
+          <p className="text-[13px] font-medium text-[var(--dofus-green-active)]">
             Choisir un objet pour l&apos;emplacement sélectionné
           </p>
           <button

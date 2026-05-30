@@ -20,13 +20,13 @@ import sqlalchemy as sa
 from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
+from app.config import get_settings
 from etl.effect_mapping import flatten_effects_to_base_stats
 
 
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@127.0.0.1:5433/dofusbuilder",
-)
+# Priorité à DATABASE_URL explicite, sinon la base configurée (.env via get_settings),
+# pour cibler la même base que l'application (ex. Render) et non le défaut local.
+DATABASE_URL = os.getenv("DATABASE_URL") or get_settings().database_url
 
 
 async def main() -> None:

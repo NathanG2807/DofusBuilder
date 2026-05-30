@@ -10,11 +10,35 @@
   --dofus-cream: #e0e0e0;         /* texte principal */
   --dofus-muted: #888888;         /* texte secondaire */
 
-  /* ── Vert primaire (boutons d'action, sélections) ── */
-  --dofus-green-top: #7cc51e;
-  --dofus-green-bot: #3f7a00;
-  --dofus-green-border: #1e3f00;
-  --dofus-green-active: #9cce38;  /* texte état actif */
+  /* ── Palette colorRef.png (`/assets/global/colorRef.png`) — charbon → olive ── */
+  --dofus-color-ref-start: #151b13;
+  --dofus-color-ref-mid: #30402a;
+  --dofus-color-ref-end: #4c6a3a;
+
+  /* Vert UI (boutons, accents) — aligné sur colorRef */
+  --dofus-green-top: var(--dofus-color-ref-end);
+  --dofus-green-bot: var(--dofus-color-ref-start);
+  --dofus-green-border: #0c100b;
+  --dofus-green-border-deep: #050705;
+  --dofus-green-active: #c8d9b0;
+
+  /* Sélections, halos, onglets (dérivés de ref-end) */
+  --dofus-ui-selected-border: #6d8f54;
+  --dofus-ui-selected-border-muted: rgb(109 143 84 / 0.88);
+  --dofus-ui-selected-glow: rgb(109 143 84 / 0.35);
+  --dofus-ui-selected-glow-strong: rgb(109 143 84 / 0.45);
+  --dofus-ui-slot-pm-bg: rgb(21 27 19 / 0.9);
+  --dofus-ui-slot-selected-bg: rgb(36 50 30 / 0.9);
+  --dofus-ui-select-bg: #1a2218;
+  --dofus-ui-deep-panel: #121910;
+  --dofus-ui-olive-border-70: rgb(76 106 58 / 0.7);
+  --dofus-ui-olive-border-60: rgb(76 106 58 / 0.58);
+  --dofus-ui-olive-border-45: rgb(76 106 58 / 0.45);
+  --dofus-ui-olive-border-30: rgb(76 106 58 / 0.32);
+  --dofus-ui-accent-tint-20: rgb(76 106 58 / 0.22);
+  --dofus-ui-accent-tint-15: rgb(76 106 58 / 0.16);
+  --dofus-ui-exo-pm-border: rgb(76 106 58 / 0.78);
+  --dofus-ui-exo-pm-bg: #10180e;
 
   /* ── Bordures ── */
   --dofus-border: #2a2a2a;
@@ -46,36 +70,56 @@ body.dofus-app {
     0 4px 24px rgba(0, 0, 0, 0.55);
 }
 
-/* ── Bouton primaire vert lime (style "RÉPARTIR MES POINTS") ── */
+/* ── Bouton primaire (dégradé horizontal colorRef) ── */
 .btn-dofus-green {
-  background: linear-gradient(180deg, var(--dofus-green-top) 0%, var(--dofus-green-bot) 100%);
+  cursor: pointer;
+  background: linear-gradient(
+    90deg,
+    var(--dofus-color-ref-start) 0%,
+    var(--dofus-color-ref-mid) 50%,
+    var(--dofus-color-ref-end) 100%
+  );
   border: 1px solid var(--dofus-green-border);
-  color: #0a1800;
-  font-weight: 600;
+  border-bottom-color: var(--dofus-green-border-deep);
+  color: #ecf4e4;
+  font-weight: 700;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
-  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.35);
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.18);
-  transition: filter 0.15s;
+  letter-spacing: 0.07em;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+  transition: filter 0.12s;
 }
 .btn-dofus-green:hover:not(:disabled) {
-  filter: brightness(1.12);
+  filter: brightness(1.1);
+}
+.btn-dofus-green:active:not(:disabled) {
+  filter: brightness(0.9);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.55), inset 0 2px 3px rgba(0, 0, 0, 0.2);
 }
 .btn-dofus-green:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }
 
-/* ── Bouton secondaire gris (style "MES ENSEMBLES") ── */
+/* ── Bouton secondaire gris (style "MES TENUES") ── */
 .btn-dofus-gray {
-  background: linear-gradient(180deg, #383838 0%, #242424 100%);
-  border: 1px solid #4a4a4a;
-  color: #c0c0c0;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.45);
-  transition: filter 0.15s;
+  cursor: pointer;
+  background: linear-gradient(180deg, #555555 0%, #323232 100%);
+  border: 1px solid #404040;
+  border-bottom-color: #1e1e1e;
+  color: #d4d4d4;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+  transition: filter 0.12s;
 }
 .btn-dofus-gray:hover:not(:disabled) {
-  filter: brightness(1.1);
+  filter: brightness(1.12);
+}
+.btn-dofus-gray:active:not(:disabled) {
+  filter: brightness(0.88);
 }
 .btn-dofus-gray:disabled {
   opacity: 0.4;

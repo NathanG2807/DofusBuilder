@@ -4,6 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useRef } from "react";
 
+import { dofusClassLabel } from "@/lib/dofusClasses";
 import { useBuildStore } from "@/store/build-store";
 import type { FullBuild } from "@/types/api";
 
@@ -33,12 +34,29 @@ function syncBuildFromMessages(messages: UIMessage[]) {
 
 export function ChatPanel({ bare = false }: { bare?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const level = useBuildStore((s) => s.level);
+  const classId = useBuildStore((s) => s.classId);
   const { messages, sendMessage, status, error, stop } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
     onFinish: ({ messages: msgs }) => {
       syncBuildFromMessages(msgs);
     },
   });
+
+  function send(text: string) {
+    void sendMessage(
+      { text },
+      {
+        body: {
+          buildContext: {
+            level,
+            classId,
+            className: dofusClassLabel(classId),
+          },
+        },
+      },
+    );
+  }
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -125,7 +143,7 @@ export function ChatPanel({ bare = false }: { bare?: boolean }) {
 
       <ChatInput
         status={status}
-        onSend={(text) => void sendMessage({ text })}
+        onSend={send}
         onStop={() => void stop()}
       />
     </>

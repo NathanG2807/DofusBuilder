@@ -156,10 +156,18 @@ def effect_numeric_max(effect: dict[str, Any]) -> Optional[int]:
 
 
 def flatten_effects_to_base_stats(effects: list[dict[str, Any]] | None) -> dict[str, int]:
-    """Aggregate mapped effects into non-negative integer totals (max roll per line)."""
+    """Aggregate mapped effects into non-negative integer totals (max roll per line).
+
+    Les lignes de dégâts d'arme (jets au hit, marquées ``type.is_active``) sont des
+    dégâts d'attaque, pas des bonus passifs : on les exclut des ``base_stats`` pour ne
+    pas les compter comme bonus de dommage élémentaire (ex. « 45 à 53 Neutre »).
+    """
     out: dict[str, int] = {}
     for eff in effects or []:
-        key = effect_type_to_stat_key(eff.get("type") or {})
+        et = eff.get("type") or {}
+        if et.get("is_active") is True:
+            continue
+        key = effect_type_to_stat_key(et)
         if not key:
             continue
         val = effect_numeric_max(eff)
