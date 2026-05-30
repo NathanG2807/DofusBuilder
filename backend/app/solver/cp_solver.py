@@ -67,23 +67,29 @@ def solve_optimization(
         return objective_score(it.base_stats or {}, elements, focus)
 
     # --- Build variables: x[slot][j] = Bool
+    # Seuls les slots ayant au moins un candidat éligible participent au modèle.
+    # Les autres (ex: aucun dofus/trophée dispo à bas niveau) restent simplement vides.
     model = cp_model.CpModel()
+    active_slots = [slot for slot in SLOT_ORDER if candidates.get(slot)]
+    if not active_slots:
+        raise SolverError(
+            f"No eligible item for any slot at level ≤ {request.level}."
+        )
+
     x_vars: dict[tuple[str, int], cp_model.IntVar] = {}
-    for slot in SLOT_ORDER:
-        row = candidates.get(slot) or []
-        if not row:
-            raise SolverError(f"No eligible item for slot '{slot}' at level ≤ {request.level}.")
+    for slot in active_slots:
+        row = candidates[slot]
         for j, _it in enumerate(row):
             x_vars[(slot, j)] = model.NewBoolVar(f"x_{slot}_{j}")
 
-    # Exactly one item per slot
-    for slot in SLOT_ORDER:
+    # Au plus un item par slot (un slot peut rester vide si rien ne convient).
+    for slot in active_slots:
         row = candidates[slot]
-        model.Add(sum(x_vars[(slot, j)] for j in range(len(row))) == 1)
+        model.Add(sum(x_vars[(slot, j)] for j in range(len(row))) <= 1)
 
     # Each ankama_id at most once across all slots
     id_to_indices: dict[int, list[tuple[str, int]]] = {}
-    for slot in SLOT_ORDER:
+    for slot in active_slots:
         for j, it in enumerate(candidates[slot]):
             id_to_indices.setdefault(it.ankama_id, []).append((slot, j))
     for _aid, idxs in id_to_indices.items():
@@ -100,7 +106,7 @@ def solve_optimization(
     # PA / PM (gear only in base_stats keys pa / pm)
     pa_terms = []
     pm_terms = []
-    for slot in SLOT_ORDER:
+    for slot in active_slots:
         for j, it in enumerate(candidates[slot]):
             bs = it.base_stats or {}
             pa_terms.append(stat_int(bs, "pa") * x_vars[(slot, j)])
@@ -125,7 +131,7 @@ def solve_optimization(
 
     # ── Bonus de panoplie dans l'objectif ─────────────────────────────────────
     set_indices: dict[int, list[tuple[str, int]]] = defaultdict(list)
-    for slot in SLOT_ORDER:
+    for slot in active_slots:
         for j, it in enumerate(candidates[slot]):
             if it.parent_set_id is not None:
                 set_indices[it.parent_set_id].append((slot, j))
@@ -139,11 +145,19 @@ def solve_optimization(
 
     # Objective : items individuels (stats non-capées uniquement)
     obj_terms = []
-    for slot in SLOT_ORDER:
+    for slot in active_slots:
         for j, it in enumerate(candidates[slot]):
             sc = score_item_uncapped(it)
             if sc:
                 obj_terms.append(sc * x_vars[(slot, j)])
+
+    # Incitation à remplir les slots : petit bonus par item équipé. Le poids (1) est
+    # négligeable devant les multiplicateurs de stats (≥ 50), donc il n'altère pas le
+    # classement des items ; il sert uniquement à privilégier un slot rempli plutôt
+    # que vide quand un candidat existe (même sans stat prioritaire).
+    for slot in active_slots:
+        for j in range(len(candidates[slot])):
+            obj_terms.append(1 * x_vars[(slot, j)])
 
     # Objective : stats capées au niveau build (PA/PM)
     # L'exo n'est PAS inclus dans le scoring — il n'intervient que dans la
@@ -151,7 +165,7 @@ def solve_optimization(
     # l'exo est autorisé mais jamais forcé par l'objectif.
     for stat_key, cap_val in capped_focus.items():
         item_terms = []
-        for slot in SLOT_ORDER:
+        for slot in active_slots:
             for j, it in enumerate(candidates[slot]):
                 v = stat_int(it.base_stats or {}, stat_key)
                 if v:
@@ -214,16 +228,16 @@ def solve_optimization(
     chosen: list[Item] = []
     slots_out: dict[str, int | None] = {}
     for slot in SLOT_ORDER:
-        row = candidates[slot]
+        row = candidates.get(slot) or []
         picked: Item | None = None
         for j, it in enumerate(row):
-            if solver.Value(x_vars[(slot, j)]) == 1:
+            if (slot, j) in x_vars and solver.Value(x_vars[(slot, j)]) == 1:
                 picked = it
                 break
-        if picked is None:
-            raise SolverError(f"Internal: no selection for slot {slot}")
-        slots_out[slot] = picked.ankama_id
-        chosen.append(picked)
+        # Un slot sans candidat (ou laissé vide par le solveur) est rapporté à None.
+        slots_out[slot] = picked.ankama_id if picked is not None else None
+        if picked is not None:
+            chosen.append(picked)
 
     exo_pa_used = use_exo_pa is not None and solver.Value(use_exo_pa) == 1
     exo_pm_used = use_exo_pm is not None and solver.Value(use_exo_pm) == 1
