@@ -25,7 +25,8 @@ async def run_optimization_job(
 
     def score_fn(it) -> int:
         return objective_score(
-            it.base_stats or {}, request.elements, request.focus_stats
+            it.base_stats or {}, request.elements, request.focus_stats,
+            request.stat_weights or None,
         )
 
     candidates = build_slot_candidates(

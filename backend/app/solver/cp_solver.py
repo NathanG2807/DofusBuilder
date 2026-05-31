@@ -27,6 +27,7 @@ def _incremental_set_scores(
     max_pieces: int,
     elements: list[str],
     focus: list[str],
+    stat_weights: dict[str, int] | None = None,
 ) -> dict[int, int]:
     """
     Pour chaque palier t (2..max_pieces), retourne le score INCRÉMENTAL
@@ -44,7 +45,7 @@ def _incremental_set_scores(
         for k in prev_stats:
             if k not in cur_stats:
                 delta[k] = -prev_stats[k]
-        sc = objective_score(delta, elements, focus)
+        sc = objective_score(delta, elements, focus, stat_weights)
         if sc != 0:
             scores[tier] = sc
         prev_stats = cur_stats
@@ -62,9 +63,10 @@ def solve_optimization(
 ) -> FullBuild:
     elements = list(request.elements)
     focus = list(request.focus_stats)
+    stat_weights = request.stat_weights or None
 
     def score_item(it: Item) -> int:
-        return objective_score(it.base_stats or {}, elements, focus)
+        return objective_score(it.base_stats or {}, elements, focus, stat_weights)
 
     # --- Build variables: x[slot][j] = Bool
     # Seuls les slots ayant au moins un candidat éligible participent au modèle.
@@ -141,7 +143,7 @@ def solve_optimization(
     uncapped_focus = [f for f in focus if f not in capped_focus]
 
     def score_item_uncapped(it: Item) -> int:
-        return objective_score(it.base_stats or {}, elements, uncapped_focus)
+        return objective_score(it.base_stats or {}, elements, uncapped_focus, stat_weights)
 
     # Objective : items individuels (stats non-capées uniquement)
     obj_terms = []
@@ -192,7 +194,7 @@ def solve_optimization(
             continue
 
         incremental = _incremental_set_scores(
-            st.bonus_effects, max_achievable, elements, focus
+            st.bonus_effects, max_achievable, elements, focus, stat_weights
         )
         if not incremental:
             continue

@@ -88,6 +88,7 @@ def objective_score(
     stats: dict[str, Any] | None,
     elements: list[str],
     focus_stats: list[str],
+    stat_weights: dict[str, int] | None = None,
 ) -> int:
     """Higher is better (integer, for CP-SAT linear objective).
 
@@ -97,15 +98,25 @@ def objective_score(
     Les stats d'éléments principaux bénéficient d'un bonus ×3 pour rester
     la priorité absolue. Les stats focus bénéficient d'un bonus ×2 pour peser
     significativement dans le scoring (~40-50% du total).
+
+    Si ``stat_weights`` est fourni, le poids de la stat (1-10) remplace le
+    multiplicateur de priorité (_ELEMENT_PRIORITY / _FOCUS_PRIORITY) pour les
+    stats concernées — les autres stats gardent leur comportement par défaut.
     """
     if not stats:
         stats = {}
     total = 0
     for e in elements:
-        mult = _STAT_MULT.get(e, _DEFAULT_MULT) * _ELEMENT_PRIORITY
+        if stat_weights and e in stat_weights:
+            mult = _STAT_MULT.get(e, _DEFAULT_MULT) * stat_weights[e]
+        else:
+            mult = _STAT_MULT.get(e, _DEFAULT_MULT) * _ELEMENT_PRIORITY
         total += mult * stat_int(stats, e)
     for f in focus_stats:
-        mult = _STAT_MULT.get(f, _DEFAULT_MULT) * _FOCUS_PRIORITY
+        if stat_weights and f in stat_weights:
+            mult = _STAT_MULT.get(f, _DEFAULT_MULT) * stat_weights[f]
+        else:
+            mult = _STAT_MULT.get(f, _DEFAULT_MULT) * _FOCUS_PRIORITY
         total += mult * stat_int(stats, f)
     return total
 

@@ -80,6 +80,14 @@ class OptimizationRequest(BaseModel):
         default="solver",
         description="'solver' pour l'optimum unique, 'genetic' pour des variantes",
     )
+    stat_weights: Optional[dict[str, int]] = Field(
+        default=None,
+        description=(
+            "Poids personnalisés par stat (clé = stat key, valeur = 1-10). "
+            "Si fourni, remplace les multiplicateurs par défaut pour les stats concernées. "
+            "Les stats non listées gardent leur poids par défaut."
+        ),
+    )
 
 
 # --- HTTP payloads ---
