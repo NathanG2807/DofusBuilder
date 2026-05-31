@@ -81,6 +81,8 @@ export type OptimizationRequest = {
   allow_exo_pa?: boolean;
   allow_exo_pm?: boolean;
   mode: "solver" | "genetic";
+  /** Poids personnalisés par stat (1-10). Si absent = poids par défaut du solver. */
+  stat_weights?: Record<string, number>;
 };
 
 /** Aligné sur `BuildOut` (backend). */

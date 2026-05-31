@@ -106,6 +106,8 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
   const [allowExoPa, setAllowExoPa] = useState(false);
   const [allowExoPm, setAllowExoPm] = useState(false);
   const [focusKeys, setFocusKeys] = useState<string[]>(["damage_earth", "critical_percent"]);
+  const [customPriorities, setCustomPriorities] = useState(false);
+  const [statWeights, setStatWeights] = useState<Record<string, number>>({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -121,6 +123,14 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
     );
   }
 
+  function setWeight(key: string, value: number) {
+    setStatWeights((prev) => ({ ...prev, [key]: value }));
+  }
+
+  function getWeight(key: string): number {
+    return statWeights[key] ?? 5;
+  }
+
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
@@ -128,11 +138,19 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
     if (focusKeys.length === 0) { setError("Choisis au moins une stat prioritaire."); return; }
     setLoading(true);
     try {
+      // Si les priorités custom sont activées, on construit le dict stat_weights
+      // pour toutes les stats sélectionnées (éléments + focus).
+      const resolvedWeights: Record<string, number> | undefined = customPriorities
+        ? Object.fromEntries(
+            [...elements, ...focusKeys].map((k) => [k, getWeight(k)]),
+          )
+        : undefined;
       const fb = await runOptimize({
         level, class_id: classId, elements,
         min_pa: minPa, min_pm: minPm,
         allow_exo_pa: allowExoPa, allow_exo_pm: allowExoPm,
         focus_stats: focusKeys, mode: "solver",
+        ...(resolvedWeights ? { stat_weights: resolvedWeights } : {}),
       });
       applyFullBuild(fb);
       await prefetchEquippedItems();
@@ -279,6 +297,87 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
             );
           })}
         </div>
+      </div>
+
+      {/* ── Modifier les priorités ── */}
+      <div className="flex flex-col gap-1.5">
+        <label className="flex cursor-pointer items-center gap-2 select-none">
+          <div
+            role="checkbox"
+            aria-checked={customPriorities}
+            tabIndex={0}
+            onClick={() => setCustomPriorities((v) => !v)}
+            onKeyDown={(e) => (e.key === " " || e.key === "Enter") && setCustomPriorities((v) => !v)}
+            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded border transition ${
+              customPriorities
+                ? "border-[var(--dofus-ui-olive-border-70)] bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
+                : "border-[#383838] bg-[#111111] text-transparent"
+            }`}
+          >
+            <svg viewBox="0 0 10 10" className="h-2.5 w-2.5 fill-current" aria-hidden>
+              <path d="M1.5 5l2.5 2.5 4.5-4" stroke="currentColor" strokeWidth="1.5" fill="none" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </div>
+          <span className="text-[11px] font-medium text-[#aaaaaa]">Modifier les priorités</span>
+        </label>
+
+        {customPriorities && (
+          <div className="mt-1 flex flex-col gap-2 rounded-lg border border-[#2a2a2a] bg-[#0e0e0e] px-3 py-2.5">
+            <p className="text-[10px] text-[#555555]">
+              Glisse le curseur pour ajuster le poids de chaque stat dans le calcul. Défaut : 5.
+            </p>
+
+            {/* Éléments sélectionnés */}
+            {elements.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[9px] font-semibold uppercase tracking-widest text-[#444444]">Éléments</span>
+                {elements.map((eid) => {
+                  const opt = ELEMENT_OPTIONS.find((o) => o.id === eid);
+                  if (!opt) return null;
+                  const w = getWeight(eid);
+                  return (
+                    <div key={eid} className="flex items-center gap-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`/assets/elements/${opt.icon}.png`} alt="" width={12} height={12} className="h-[12px] w-[12px] shrink-0 object-contain" />
+                      <span className="w-[52px] text-[11px] text-[#cccccc]">{opt.label}</span>
+                      <input
+                        type="range" min={1} max={10} step={1} value={w}
+                        onChange={(e) => setWeight(eid, Number(e.target.value))}
+                        className="flex-1 accent-[var(--dofus-green-active)]"
+                      />
+                      <span className="w-4 text-right text-[11px] font-bold tabular-nums text-[var(--dofus-green-active)]">{w}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* Stats focus sélectionnées */}
+            {focusKeys.length > 0 && (
+              <div className="flex flex-col gap-1.5">
+                <span className="text-[9px] font-semibold uppercase tracking-widest text-[#444444]">Stats prioritaires</span>
+                {focusKeys.map((fk) => {
+                  const opt = FOCUS_OPTIONS.find((o) => o.key === fk);
+                  if (!opt) return null;
+                  const w = getWeight(fk);
+                  return (
+                    <div key={fk} className="flex items-center gap-2">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={`/assets/elements/${opt.icon}.png`} alt="" width={12} height={12} className="h-[12px] w-[12px] shrink-0 object-contain" />
+                      <span className="w-[52px] text-[11px] text-[#cccccc]">{opt.label}</span>
+                      <input
+                        type="range" min={1} max={10} step={1} value={w}
+                        onChange={(e) => setWeight(fk, Number(e.target.value))}
+                        className="flex-1 accent-[var(--dofus-green-active)]"
+                      />
+                      <span className="w-4 text-right text-[11px] font-bold tabular-nums text-[var(--dofus-green-active)]">{w}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
       </div>
 
       {/* ── Erreur ── */}
