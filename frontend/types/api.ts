@@ -80,6 +80,8 @@ export type OptimizationRequest = {
   focus_stats: string[];
   allow_exo_pa?: boolean;
   allow_exo_pm?: boolean;
+  allow_dofus?: boolean;
+  allow_prysmaradite?: boolean;
   mode: "solver" | "genetic";
   /** Poids personnalisés par stat (1-10). Si absent = poids par défaut du solver. */
   stat_weights?: Record<string, number>;

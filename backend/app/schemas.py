@@ -76,6 +76,14 @@ class OptimizationRequest(BaseModel):
         default=False,
         description="Autoriser un exo +1 PM (Forgemagie) — max 1 par build",
     )
+    allow_dofus: bool = Field(
+        default=False,
+        description="Autoriser les dofus dans les emplacements dofus (sinon trophées/prysmaradites seulement si autorisés)",
+    )
+    allow_prysmaradite: bool = Field(
+        default=False,
+        description="Autoriser les prysmaradites dans les emplacements dofus",
+    )
     mode: str = Field(
         default="solver",
         description="'solver' pour l'optimum unique, 'genetic' pour des variantes",

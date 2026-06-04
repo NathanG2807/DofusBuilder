@@ -105,6 +105,8 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
   const [minPm, setMinPm] = useState(6);
   const [allowExoPa, setAllowExoPa] = useState(false);
   const [allowExoPm, setAllowExoPm] = useState(false);
+  const [allowDofus, setAllowDofus] = useState(false);
+  const [allowPrysmaradite, setAllowPrysmaradite] = useState(false);
   const [focusKeys, setFocusKeys] = useState<string[]>(["damage_earth", "critical_percent"]);
   const [customPriorities, setCustomPriorities] = useState(false);
   const [statWeights, setStatWeights] = useState<Record<string, number>>({});
@@ -149,6 +151,7 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
         level, class_id: classId, elements,
         min_pa: minPa, min_pm: minPm,
         allow_exo_pa: allowExoPa, allow_exo_pm: allowExoPm,
+        allow_dofus: allowDofus, allow_prysmaradite: allowPrysmaradite,
         focus_stats: focusKeys, mode: "solver",
         ...(resolvedWeights ? { stat_weights: resolvedWeights } : {}),
       });
@@ -265,6 +268,38 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
             Exo PM
             <span className={`ml-auto text-[9px] ${allowExoPm ? "text-[var(--dofus-green-active)]" : "text-[#3a3a3a]"}`}>
               {allowExoPm ? "✓" : "○"}
+            </span>
+          </button>
+        </div>
+
+        {/* Dofus / Prysmaradites */}
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={() => setAllowDofus((v) => !v)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition ${
+              allowDofus
+                ? "border-[#6b4a10]/80 bg-[#1a1408] text-[#e8c96e]"
+                : "border-[#252525] bg-[#111111] text-[#666666] hover:border-[#383838] hover:text-[#aaaaaa]"
+            }`}
+          >
+            Dofus
+            <span className={`ml-auto text-[9px] ${allowDofus ? "text-[#e8c96e]" : "text-[#3a3a3a]"}`}>
+              {allowDofus ? "✓" : "○"}
+            </span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setAllowPrysmaradite((v) => !v)}
+            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition ${
+              allowPrysmaradite
+                ? "border-[#4a2a6b]/80 bg-[#12081a] text-[#c8a0e8]"
+                : "border-[#252525] bg-[#111111] text-[#666666] hover:border-[#383838] hover:text-[#aaaaaa]"
+            }`}
+          >
+            Prysmaradite
+            <span className={`ml-auto text-[9px] ${allowPrysmaradite ? "text-[#c8a0e8]" : "text-[#3a3a3a]"}`}>
+              {allowPrysmaradite ? "✓" : "○"}
             </span>
           </button>
         </div>

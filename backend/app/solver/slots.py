@@ -40,7 +40,13 @@ def _excluded(item: Item) -> bool:
     return False
 
 
-def item_fits_slot(slot: str, item: Item) -> bool:
+def item_fits_slot(
+    slot: str,
+    item: Item,
+    *,
+    allow_dofus: bool = True,
+    allow_prysmaradite: bool = True,
+) -> bool:
     if _excluded(item):
         return False
     t = item.type_name_id
@@ -55,8 +61,12 @@ def item_fits_slot(slot: str, item: Item) -> bool:
     if slot == "shield":
         return t == "shield"
     if slot.startswith("dofus"):
-        # Les 6 emplacements dofus acceptent les dofus ET les trophées.
-        return t in ("dofus", "trophy", "prysmaradite")
+        allowed: list[str] = ["trophy"]
+        if allow_dofus:
+            allowed.append("dofus")
+        if allow_prysmaradite:
+            allowed.append("prysmaradite")
+        return t in allowed
     if slot == "pet":
         return t in ("pet", "mount", "petsmount")
     return False

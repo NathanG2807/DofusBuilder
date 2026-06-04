@@ -29,12 +29,20 @@ def build_slot_candidates(
     items: list[Item],
     score_fn,
     max_per_slot: int,
+    *,
+    allow_dofus: bool = False,
+    allow_prysmaradite: bool = False,
 ) -> dict[str, list[Item]]:
     """Assign each item to eligible slots; keep top `max_per_slot` by score per slot."""
     by_slot: dict[str, list[Item]] = {s: [] for s in SLOT_ORDER}
     for it in items:
         for slot in SLOT_ORDER:
-            if item_fits_slot(slot, it):
+            if item_fits_slot(
+                slot,
+                it,
+                allow_dofus=allow_dofus,
+                allow_prysmaradite=allow_prysmaradite,
+            ):
                 by_slot[slot].append(it)
     for slot in SLOT_ORDER:
         row = by_slot[slot]

@@ -33,6 +33,8 @@ async def run_optimization_job(
         items,
         score_fn,
         max_per_slot=settings.solver_max_candidates_per_slot,
+        allow_dofus=request.allow_dofus,
+        allow_prysmaradite=request.allow_prysmaradite,
     )
 
     def _sync_solve():
