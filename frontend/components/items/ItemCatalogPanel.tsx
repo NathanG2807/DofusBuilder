@@ -61,11 +61,18 @@ const DOFUS_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: "trophy", label: "Trophée" },
 ];
 
+const PET_TYPE_OPTIONS: { value: string; label: string }[] = [
+  { value: "", label: "Familiers & Montures" },
+  { value: "pet", label: "Familier" },
+  { value: "mount", label: "Monture" },
+];
+
 /** Détermine si le dropdown de type doit être affiché et quelles options proposer. */
 function typeDropdownOptions(slot: SlotId | null): { visible: boolean; options: { value: string; label: string }[] } {
   if (!slot) return { visible: true, options: EQUIPMENT_TYPE_OPTIONS };
   if (slot === "weapon") return { visible: true, options: WEAPON_TYPE_OPTIONS };
   if (slot.startsWith("dofus")) return { visible: true, options: DOFUS_TYPE_OPTIONS };
+  if (slot === "pet") return { visible: true, options: PET_TYPE_OPTIONS };
   // Slot régulier (chapeau, cape, etc.) : type imposé, pas de choix
   return { visible: false, options: [] };
 }

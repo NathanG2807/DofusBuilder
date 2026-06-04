@@ -20,7 +20,7 @@ export const SLOT_DEFS = [
   { id: "dofus4", label: "Dofus / Trophée 4" },
   { id: "dofus5", label: "Dofus / Trophée 5" },
   { id: "dofus6", label: "Dofus / Trophée 6" },
-  { id: "pet", label: "Familier" },
+  { id: "pet", label: "Familier / Monture" },
 ] as const;
 
 export type SlotId = (typeof SLOT_DEFS)[number]["id"];

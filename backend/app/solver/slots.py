@@ -58,5 +58,5 @@ def item_fits_slot(slot: str, item: Item) -> bool:
         # Les 6 emplacements dofus acceptent les dofus ET les trophées.
         return t in ("dofus", "trophy")
     if slot == "pet":
-        return t == "pet"
+        return t in ("pet", "mount")
     return False

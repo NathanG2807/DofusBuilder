@@ -265,7 +265,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
         if (slot === "weapon") return item.is_weapon;
         if (slot === "shield") return t === "shield";
         if (slot.startsWith("dofus")) return t === "dofus" || t === "trophy";
-        if (slot === "pet") return t === "pet";
+        if (slot === "pet") return t === "pet" || t === "mount";
         return false;
       }).map((s) => s.id);
 

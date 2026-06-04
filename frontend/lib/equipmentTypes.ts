@@ -11,6 +11,7 @@ export const EQUIPMENT_TYPE_OPTIONS: { value: string; label: string }[] = [
   { value: "shield", label: "Bouclier" },
   { value: "dofus", label: "Dofus" },
   { value: "pet", label: "Familier" },
+  { value: "mount", label: "Monture" },
   { value: "trophy", label: "Trophée" },
   { value: "sword", label: "Épée" },
   { value: "wand", label: "Baguette" },

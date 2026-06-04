@@ -1,5 +1,5 @@
 """
-Ingest Dofus 3 equipment and item sets from api.dofusdu.de.
+Ingest Dofus 3 equipment, item sets and mounts from api.dofusdu.de.
 
 Locale for labels (item/set names, effect `formatted`, etc.): `DOFUSDU_LOCALE` in `.env`
 (default **fr**). Solver slot matching uses stable `type.id` → slug, not the localized name.
@@ -8,6 +8,7 @@ Usage (from backend/):
     python -m etl.ingest
     python -m etl.ingest --only items
     python -m etl.ingest --only sets
+    python -m etl.ingest --only mounts
 """
 
 from __future__ import annotations
@@ -82,6 +83,43 @@ async def fetch_all_sets(client: httpx.AsyncClient) -> list[dict[str, Any]]:
     r.raise_for_status()
     data = r.json()
     return data.get("sets") or []
+
+
+async def fetch_all_mounts(client: httpx.AsyncClient) -> list[dict[str, Any]]:
+    r = await client.get(
+        f"{API_BASE}/{_locale()}/mounts/all",
+        headers={"Accept-Encoding": "gzip"},
+        timeout=180.0,
+    )
+    r.raise_for_status()
+    data = r.json()
+    return data.get("mounts") or []
+
+
+def mount_row_from_api(raw: dict[str, Any]) -> tuple[Any, ...]:
+    """Convertit une monture en ligne items.
+
+    Les montures n'ont pas de niveau — on utilise level=1 pour qu'elles soient
+    toujours disponibles dans l'optimiseur quel que soit le niveau demandé.
+    type_name_id='mount' → slot 'pet' (familier/monture).
+    """
+    effects = raw.get("effects") or []
+    base_stats = flatten_effects_to_base_stats(effects if isinstance(effects, list) else [])
+    return (
+        int(raw["ankama_id"]),
+        raw["name"],
+        1,          # level=1 : toujours éligible
+        "mount",    # type_name_id → slot pet
+        False,      # is_weapon
+        pick_image_url(raw.get("image_urls")),
+        _json(effects),
+        None,       # conditions
+        None,       # parent_set_id
+        None,       # pods
+        _json(base_stats),
+        None,       # description
+        None,       # weapon_detail
+    )
 
 
 def _weapon_detail_from_api(raw: dict[str, Any]) -> Optional[dict[str, Any]]:
@@ -218,6 +256,12 @@ async def run_ingest(*, only: str, page_size: int) -> None:
                 rows = [set_row_from_api(s) for s in raw_sets]
                 await upsert_sets(conn, rows)
                 logger.info("Sets ingest finished: %s rows", len(rows))
+
+            if only in ("all", "mounts"):
+                raw_mounts = await fetch_all_mounts(client)
+                rows = [mount_row_from_api(m) for m in raw_mounts]
+                await upsert_items(conn, rows)
+                logger.info("Mounts ingest finished: %s rows", len(rows))
         finally:
             await conn.close()
 
@@ -230,9 +274,9 @@ def main() -> None:
     p = argparse.ArgumentParser(description="DIA ETL — dofusdu.de → PostgreSQL")
     p.add_argument(
         "--only",
-        choices=("all", "items", "sets"),
+        choices=("all", "items", "sets", "mounts"),
         default="all",
-        help="Restrict to equipment or sets only",
+        help="Restrict to equipment, sets or mounts only",
     )
     p.add_argument(
         "--page-size",

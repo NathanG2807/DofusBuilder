@@ -16,6 +16,6 @@ export function itemFitsSlot(slot: SlotId, item: ItemOut): boolean {
   if (slot === "shield") return t === "shield";
   // Les 6 emplacements dofus acceptent dofus ET trophées (fusionnés en jeu).
   if (slot.startsWith("dofus")) return t === "dofus" || t === "trophy";
-  if (slot === "pet") return t === "pet";
+  if (slot === "pet") return t === "pet" || t === "mount";
   return false;
 }

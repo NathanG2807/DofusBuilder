@@ -105,7 +105,13 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
   }, [pid]);
 
   const rawEffects = (
-    item.effects?.filter((e) => e != null) as Record<string, unknown>[] ?? []
+    item.effects?.filter((e) => {
+      if (e == null) return false;
+      const typeName = ((e as Record<string, unknown>).type as { name?: string } | null)?.name;
+      // Les montures ont un effet "Fertile" (propriété de reproduction en jeu) inutile à afficher.
+      if (typeName && typeName.toLowerCase() === "fertile") return false;
+      return true;
+    }) as Record<string, unknown>[] ?? []
   ).sort((a, b) => {
     const aActive = (a.type as { is_active?: boolean } | null)?.is_active === true;
     const bActive = (b.type as { is_active?: boolean } | null)?.is_active === true;
