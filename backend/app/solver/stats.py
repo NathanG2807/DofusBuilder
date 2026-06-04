@@ -78,10 +78,75 @@ _STAT_MULT: dict[str, int] = {
 }
 _DEFAULT_MULT = 50
 
+# Valeurs typiques « max par slot » au niveau 200 — sert uniquement au mode poids custom
+# pour mettre les stats sélectionnées sur un pied d'égalité (voir objective_score).
+_STAT_REF: dict[str, int] = {
+    "strength": 80,
+    "intelligence": 80,
+    "chance": 80,
+    "agility": 80,
+    "critical_percent": 7,
+    "critical_damage": 40,
+    "damage_earth": 15,
+    "damage_fire": 15,
+    "damage_water": 15,
+    "damage_air": 15,
+    "damage_neutral": 15,
+    "damage": 15,
+    "damage_push": 15,
+    "damage_spell_percent": 10,
+    "damage_weapon_percent": 10,
+    "power": 80,
+    "vitality": 150,
+    "pa": 1,
+    "pm": 1,
+    "prospecting": 25,
+    "wisdom": 30,
+    "heals": 20,
+    "initiative": 400,
+    "range": 1,
+    "summons": 1,
+    "dodge": 50,
+    "lock": 50,
+    "dodge_pa": 10,
+    "dodge_pm": 10,
+    "trap_pa": 10,
+    "trap_pm": 10,
+    "pods": 100,
+    "resistance_fire": 15,
+    "resistance_earth": 15,
+    "resistance_water": 15,
+    "resistance_air": 15,
+    "resistance_neutral": 15,
+    "resistance_critical": 15,
+    "resistance_push": 15,
+}
+_STAT_REF_DEFAULT = 80
+# Échelle entière pour le score custom (compatible CP-SAT).
+_CUSTOM_SCORE_SCALE = 1000
+
 # Les stats élément principaux ont un bonus de priorité (×3) pour rester primaires.
 _ELEMENT_PRIORITY = 3
 # Les stats focus sélectionnées ont un bonus ×2 pour avoir un impact réel sur le build.
 _FOCUS_PRIORITY = 2
+
+
+def _custom_stat_contribution(key: str, value: int, weight: int) -> int:
+    """Score normalisé : à valeur typique max, seul ``weight`` (1-10) discrimine."""
+    if value == 0:
+        return 0
+    ref = _STAT_REF.get(key, _STAT_REF_DEFAULT)
+    return weight * (_CUSTOM_SCORE_SCALE * value // ref)
+
+
+def capped_stat_objective_coeff(
+    key: str, stat_weights: dict[str, int] | None
+) -> int:
+    """Coefficient objectif pour PA/PM plafonnés (cp_solver)."""
+    if stat_weights and key in stat_weights:
+        ref = _STAT_REF.get(key, _STAT_REF_DEFAULT)
+        return stat_weights[key] * (_CUSTOM_SCORE_SCALE // max(ref, 1))
+    return stat_mult(key)
 
 
 def objective_score(
@@ -92,32 +157,31 @@ def objective_score(
 ) -> int:
     """Higher is better (integer, for CP-SAT linear objective).
 
-    Chaque stat est normalisée par un multiplicateur calé sur sa plage typique
-    (niveau 200) afin que les stats focus soient réellement discriminantes —
-    notamment % CC, dommages élémentaires, etc.
-    Les stats d'éléments principaux bénéficient d'un bonus ×3 pour rester
-    la priorité absolue. Les stats focus bénéficient d'un bonus ×2 pour peser
-    significativement dans le scoring (~40-50% du total).
+    Mode par défaut (``stat_weights`` absent) : multiplicateurs calibrés niveau 200,
+    éléments ×3, focus ×2.
 
-    Si ``stat_weights`` est fourni, le poids de la stat (1-10) remplace le
-    multiplicateur de priorité (_ELEMENT_PRIORITY / _FOCUS_PRIORITY) pour les
-    stats concernées — les autres stats gardent leur comportement par défaut.
+    Mode poids custom (``stat_weights`` fourni pour une stat) : les stats listées
+    sont normalisées sur leur valeur typique max ; seul le slider (1-10) fixe
+    la priorité relative entre elles. ``_STAT_MULT`` et les bonus ×3/×2 ne
+    s'appliquent pas à ces stats.
     """
     if not stats:
         stats = {}
     total = 0
     for e in elements:
+        v = stat_int(stats, e)
         if stat_weights and e in stat_weights:
-            mult = _STAT_MULT.get(e, _DEFAULT_MULT) * stat_weights[e]
+            total += _custom_stat_contribution(e, v, stat_weights[e])
         else:
             mult = _STAT_MULT.get(e, _DEFAULT_MULT) * _ELEMENT_PRIORITY
-        total += mult * stat_int(stats, e)
+            total += mult * v
     for f in focus_stats:
+        v = stat_int(stats, f)
         if stat_weights and f in stat_weights:
-            mult = _STAT_MULT.get(f, _DEFAULT_MULT) * stat_weights[f]
+            total += _custom_stat_contribution(f, v, stat_weights[f])
         else:
             mult = _STAT_MULT.get(f, _DEFAULT_MULT) * _FOCUS_PRIORITY
-        total += mult * stat_int(stats, f)
+            total += mult * v
     return total
 
 

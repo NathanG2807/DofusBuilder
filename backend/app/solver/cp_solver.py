@@ -11,10 +11,10 @@ from app.solver.slots import SLOT_ORDER
 from app.solver.stats import (
     STAT_BUILD_CAPS,
     aggregate_totals,
+    capped_stat_objective_coeff,
     objective_score,
     set_tier_bonus_stats,
     stat_int,
-    stat_mult,
 )
 
 
@@ -179,7 +179,7 @@ def solve_optimization(
         model.Add(total_var == raw_sum)
         capped_var = model.NewIntVar(0, cap_val, f"capped_{stat_key}")
         model.AddMinEquality(capped_var, [total_var, cap_val])
-        obj_terms.append(stat_mult(stat_key) * capped_var)
+        obj_terms.append(capped_stat_objective_coeff(stat_key, stat_weights) * capped_var)
 
     # Objective : bonus incrémentaux de panoplies
     for set_id, idx_list in set_indices.items():

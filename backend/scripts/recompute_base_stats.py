@@ -30,7 +30,15 @@ DATABASE_URL = os.getenv("DATABASE_URL") or get_settings().database_url
 
 
 async def main() -> None:
-    engine = create_async_engine(DATABASE_URL, echo=False)
+    connect_args: dict = {}
+    if "supabase.com" in DATABASE_URL or "supabase.co" in DATABASE_URL:
+        import ssl as _ssl_mod
+
+        ctx = _ssl_mod.create_default_context()
+        ctx.check_hostname = False
+        ctx.verify_mode = _ssl_mod.CERT_NONE
+        connect_args = {"ssl": ctx}
+    engine = create_async_engine(DATABASE_URL, echo=False, connect_args=connect_args)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:
