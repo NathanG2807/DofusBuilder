@@ -35,7 +35,7 @@ def _excluded(item: Item) -> bool:
     t = item.type_name_id or ""
     if "certificate" in t or t.startswith("perceptor-"):
         return True
-    if t in {"tool", "sidekick", "prysmaradite"}:
+    if t in {"tool", "sidekick"}:
         return True
     return False
 
@@ -56,7 +56,7 @@ def item_fits_slot(slot: str, item: Item) -> bool:
         return t == "shield"
     if slot.startswith("dofus"):
         # Les 6 emplacements dofus acceptent les dofus ET les trophées.
-        return t in ("dofus", "trophy")
+        return t in ("dofus", "trophy", "prysmaradite")
     if slot == "pet":
-        return t in ("pet", "mount")
+        return t in ("pet", "mount", "petsmount")
     return False

@@ -44,5 +44,5 @@ export const SLOT_SHORT_LABEL: Record<SlotId, string> = {
   dofus4: "Dofus/Trophée 4",
   dofus5: "Dofus/Trophée 5",
   dofus6: "Dofus/Trophée 6",
-  pet: "Familier",
+  pet: "Familier/Monture",
 };

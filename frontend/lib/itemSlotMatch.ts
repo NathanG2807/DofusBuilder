@@ -5,7 +5,7 @@ import type { SlotId } from "@/lib/slots";
 export function itemFitsSlot(slot: SlotId, item: ItemOut): boolean {
   const t = item.type_name_id ?? "";
   if (t.includes("certificate") || t.startsWith("perceptor-")) return false;
-  if (t === "tool" || t === "sidekick" || t === "prysmaradite") return false;
+  if (t === "tool" || t === "sidekick") return false;
   if (!t && slot !== "weapon") return false;
 
   if (["hat", "cloak", "amulet", "belt", "boots"].includes(slot)) {
@@ -15,7 +15,7 @@ export function itemFitsSlot(slot: SlotId, item: ItemOut): boolean {
   if (slot === "weapon") return item.is_weapon;
   if (slot === "shield") return t === "shield";
   // Les 6 emplacements dofus acceptent dofus ET trophées (fusionnés en jeu).
-  if (slot.startsWith("dofus")) return t === "dofus" || t === "trophy";
-  if (slot === "pet") return t === "pet" || t === "mount";
+  if (slot.startsWith("dofus")) return t === "dofus" || t === "trophy" || t === "prysmaradite";
+  if (slot === "pet") return t === "pet" || t === "mount" || t === "petsmount";
   return false;
 }

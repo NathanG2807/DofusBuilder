@@ -108,8 +108,8 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
     item.effects?.filter((e) => {
       if (e == null) return false;
       const typeName = ((e as Record<string, unknown>).type as { name?: string } | null)?.name;
-      // Les montures ont un effet "Fertile" (propriété de reproduction en jeu) inutile à afficher.
-      if (typeName && typeName.toLowerCase() === "fertile") return false;
+      // Effets cosmétiques/techniques sans intérêt pour le builder.
+      if (typeName && ["fertile", "attitude"].includes(typeName.toLowerCase())) return false;
       return true;
     }) as Record<string, unknown>[] ?? []
   ).sort((a, b) => {

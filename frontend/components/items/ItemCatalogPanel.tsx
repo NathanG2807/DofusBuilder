@@ -56,15 +56,17 @@ const WEAPON_TYPE_OPTIONS: { value: string; label: string }[] = [
 ];
 
 const DOFUS_TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "Dofus & Trophées" },
+  { value: "", label: "Dofus, Trophées & Prysmaradites" },
   { value: "dofus", label: "Dofus" },
   { value: "trophy", label: "Trophée" },
+  { value: "prysmaradite", label: "Prysmaradite" },
 ];
 
 const PET_TYPE_OPTIONS: { value: string; label: string }[] = [
-  { value: "", label: "Familiers & Montures" },
+  { value: "", label: "Familiers, Montures & Montiliers" },
   { value: "pet", label: "Familier" },
   { value: "mount", label: "Monture" },
+  { value: "petsmount", label: "Montilier" },
 ];
 
 /** Détermine si le dropdown de type doit être affiché et quelles options proposer. */
