@@ -8,7 +8,7 @@ from sqlalchemy import Integer, cast, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
-from app.item_name_filters import sql_exclude_gm_items
+from app.item_name_filters import is_excluded_item_id, sql_exclude_gm_items
 from app.models import Item
 from app.schemas import ItemListResponse, ItemOut
 
@@ -93,6 +93,8 @@ async def list_items(
 
 @router.get("/{ankama_id}", response_model=ItemOut)
 async def get_item(ankama_id: int, db: AsyncSession = Depends(get_db)) -> Item:
+    if is_excluded_item_id(ankama_id):
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Item not found")
     result = await db.execute(select(Item).where(Item.ankama_id == ankama_id))
     item = result.scalar_one_or_none()
     if item is None:

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { aggregateBuildStats, fetchItem, fetchItemsBySet, fetchItemSet } from "@/lib/api";
+import { isExcludedItemId } from "@/lib/excludedItems";
 import { SLOT_DEFS, emptyBuild, mergeFullBuildSlots, type SlotId } from "@/lib/slots";
 import type { ActiveSetDetail, BuildOut, FullBuild, ItemOut } from "@/types/api";
 
@@ -119,6 +120,9 @@ export const useBuildStore = create<BuildState>((set, get) => {
     }),
 
   equipItemOnSlot: async (slot, ankamaId) => {
+    if (isExcludedItemId(ankamaId)) {
+      throw new Error("Cet objet n'est pas disponible dans le builder.");
+    }
     const item = await fetchItem(ankamaId);
     set((s) => ({
       currentBuild: {
@@ -292,7 +296,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
         ),
       ),
     ];
-    const missing = ids.filter((id) => !itemById[id]);
+    const missing = ids.filter((id) => !itemById[id] && !isExcludedItemId(id));
     if (missing.length === 0) return;
     const loaded = await Promise.all(missing.map((id) => fetchItem(id)));
     cacheItems(loaded);

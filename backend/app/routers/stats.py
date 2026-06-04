@@ -9,6 +9,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
+from app.item_name_filters import is_excluded_item_id
 from app.models.item import Item
 from app.models.item_set import ItemSet
 from app.schemas import ActiveSetDetail, AggregateStatsRequest, AggregateStatsResponse
@@ -64,7 +65,7 @@ async def aggregate_equipment_stats(
     ids_needed: list[int] = []
     for slot in SLOT_ORDER:
         aid = normalized_slots.get(slot)
-        if aid is None:
+        if aid is None or is_excluded_item_id(aid):
             continue
         ids_needed.append(aid)
 

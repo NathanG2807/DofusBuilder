@@ -10,7 +10,12 @@ from app.models.item import Item
 _EXCLUDED_ITEM_IDS: set[int] = {
     9031,  # Annobusé de Maître Jarbo
     2155,  # Amulette de Jiva
+    6713,  # Lorsotheuses
 }
+
+
+def is_excluded_item_id(ankama_id: int) -> bool:
+    return ankama_id in _EXCLUDED_ITEM_IDS
 
 # Panoplies exclues manuellement (parent_set_id).
 _EXCLUDED_SET_IDS: set[int] = {

@@ -1,3 +1,4 @@
+import { isExcludedItemId } from "@/lib/excludedItems";
 import type { FullBuild } from "@/types/api";
 
 /**
@@ -36,7 +37,13 @@ export function mergeFullBuildSlots(fb: FullBuild): Record<SlotId, number | null
   const base = emptyBuild();
   for (const s of SLOT_DEFS) {
     const v = fb.slots[s.id];
-    base[s.id] = v === undefined || v === null ? null : v;
+    if (v === undefined || v === null) {
+      base[s.id] = null;
+    } else if (isExcludedItemId(v)) {
+      base[s.id] = null;
+    } else {
+      base[s.id] = v;
+    }
   }
   return base;
 }
