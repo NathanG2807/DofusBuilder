@@ -253,7 +253,7 @@ export function ItemCatalogPanel() {
   // Reset du filtre type et élément quand le slot change
   useEffect(() => {
     setTypeId("");
-    setWeaponElement(null);
+    setWeaponElements([]);
     setPage(1);
   }, [selectedSlot]);
 
