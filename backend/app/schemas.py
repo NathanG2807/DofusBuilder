@@ -96,6 +96,13 @@ class OptimizationRequest(BaseModel):
             "Les stats non listées gardent leur poids par défaut."
         ),
     )
+    locked_slots: dict[str, int] = Field(
+        default_factory=dict,
+        description=(
+            "Slots verrouillés : emplacement → ankama_id. "
+            "Ces items seront conservés dans le build optimisé (le solver les pique comme seul candidat du slot)."
+        ),
+    )
 
 
 # --- HTTP payloads ---
@@ -180,6 +187,7 @@ class BuildCreate(BaseModel):
     char_stats: Optional[dict[str, int]] = None
     parcho_stats: Optional[dict[str, int]] = None
     exo_fm: Optional[dict[str, str]] = None
+    locked_slots: Optional[dict[str, int]] = None
     is_public: bool = True
 
 
@@ -195,6 +203,7 @@ class BuildUpdate(BaseModel):
     char_stats: Optional[dict[str, int]] = None
     parcho_stats: Optional[dict[str, int]] = None
     exo_fm: Optional[dict[str, str]] = None
+    locked_slots: Optional[dict[str, int]] = None
     is_public: Optional[bool] = None
 
 
@@ -214,6 +223,7 @@ class BuildOut(BaseModel):
     char_stats: Optional[dict[str, int]] = None
     parcho_stats: Optional[dict[str, int]] = None
     exo_fm: Optional[dict[str, str]] = None
+    locked_slots: Optional[dict[str, int]] = None
     is_public: bool = True
     created_at: datetime
     updated_at: datetime

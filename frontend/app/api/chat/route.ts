@@ -14,18 +14,26 @@ type BuildContext = {
   level?: number;
   classId?: number;
   className?: string;
+  lockedSlots?: Record<string, number>;
+  lockedItemNames?: string;
 };
 
 function buildSystemPrompt(ctx: BuildContext): string {
   const level = ctx.level ?? 200;
   const classId = ctx.classId ?? 8;
   const className = ctx.className ?? `classe #${classId}`;
+
+  const lockedSection =
+    ctx.lockedItemNames
+      ? `\n- Items verrouillés (NE PAS changer, le solver les conserve automatiquement) : ${ctx.lockedItemNames}\n  → Transmets toujours locked_slots dans ton appel à optimize_build.`
+      : "";
+
   return `Tu es l'assistant « Dofus Intelligence Architect » pour Dofus 3.
 Tu aides au theorycraft : builds, stats, compromis, explications.
 
 Contexte du build en cours (utilise-le par défaut, ne le redemande jamais) :
 - Classe : ${className} (class_id=${classId})
-- Niveau du personnage : ${level}
+- Niveau du personnage : ${level}${lockedSection}
 
 Quand l'utilisateur veut un stuff optimisé, sois PROACTIF : déduis les paramètres manquants au lieu de poser des questions. Appelle l'outil optimize_build dès que tu peux raisonnablement remplir les paramètres.
 
@@ -35,6 +43,7 @@ Règles de déduction des paramètres :
 - elements : déduis-les de la demande (« build feu » → intelligence ; « cac/agi » → agility ; etc.) ou du sens commun pour la classe. Force=strength, Intelligence=intelligence, Chance=chance, Agilité=agility.
 - min_pa / min_pm : si l'utilisateur ne les précise PAS, choisis toi-même des valeurs cohérentes avec le niveau, la classe et la méta actuelle de Dofus 3 (ex. endgame niveau 200 : viser 12 PA et 6 PM ; objectifs PM/PA adaptés à la classe et au style de jeu). Mentionne brièvement le choix que tu as fait et pourquoi.
 - focus_stats : stats secondaires à pousser, clés API en anglais (ex: damage_earth, critical_percent, vitality).
+- locked_slots : si des items sont verrouillés dans le contexte ci-dessus, TOUJOURS les inclure tels quels dans l'appel optimize_build.
 
 Ne demande une précision QUE si la demande est réellement ambiguë ou contradictoire (jamais pour le niveau ou la classe, déjà connus). 
 Note : ta connaissance de la méta s'arrête à ta date d'entraînement ; propose des valeurs raisonnables et invite l'utilisateur à les ajuster s'il connaît la méta du patch actuel.
@@ -80,6 +89,12 @@ const optimizeSchema = z.object({
     .array(z.string())
     .default([])
     .describe("Stats secondaires à maximiser (clés API, ex: damage_earth)"),
+  locked_slots: z
+    .record(z.string(), z.number())
+    .optional()
+    .describe(
+      "Items verrouillés à conserver : { slotId: ankama_id }. Toujours transmettre si des items sont verrouillés dans le contexte.",
+    ),
   mode: z.literal("solver").default("solver"),
 });
 
@@ -117,6 +132,14 @@ export async function POST(req: Request) {
         inputSchema: optimizeSchema,
         execute: async (input) => {
           const url = `${backendBaseUrl()}/api/v1/optimize`;
+          // Fusionne les locked_slots : ceux transmis par le modèle + ceux du contexte (fallback)
+          const lockedSlots =
+            input.locked_slots && Object.keys(input.locked_slots).length > 0
+              ? input.locked_slots
+              : buildContext.lockedSlots && Object.keys(buildContext.lockedSlots).length > 0
+              ? buildContext.lockedSlots
+              : undefined;
+
           const res = await fetch(url, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -127,6 +150,7 @@ export async function POST(req: Request) {
               min_pa: input.min_pa ?? 11,
               min_pm: input.min_pm ?? 6,
               mode: "solver",
+              ...(lockedSlots ? { locked_slots: lockedSlots } : {}),
             }),
           });
           const data = (await res.json().catch(() => ({}))) as Record<

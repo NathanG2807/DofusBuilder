@@ -45,6 +45,7 @@ export function AccountButton() {
   const charStats = useBuildStore((s) => s.charStats);
   const parchoStats = useBuildStore((s) => s.parchoStats);
   const exoFm = useBuildStore((s) => s.exoFm);
+  const lockedSlots = useBuildStore((s) => s.lockedSlots);
   const level = useBuildStore((s) => s.level);
   const classId = useBuildStore((s) => s.classId);
   const sex = useBuildStore((s) => s.sex);
@@ -119,6 +120,12 @@ export function AccountButton() {
     if (!getAccessToken()) return;
     setBusy(true);
     try {
+      // Construit la map locked_slots : slotId → ankamaId
+      const lockedSlotsMap: Record<string, number> = {};
+      for (const slot of lockedSlots) {
+        const id = currentBuild[slot];
+        if (id != null) lockedSlotsMap[slot] = id;
+      }
       await createBuild({
         name: saveName.trim() || "Sans titre",
         slots: { ...currentBuild },
@@ -127,6 +134,7 @@ export function AccountButton() {
         char_stats: Object.keys(charStats).length > 0 ? { ...charStats } : null,
         parcho_stats: Object.keys(parchoStats).length > 0 ? { ...parchoStats } : null,
         exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
+        locked_slots: Object.keys(lockedSlotsMap).length > 0 ? lockedSlotsMap : null,
         level,
         class_id: classId,
         sex,

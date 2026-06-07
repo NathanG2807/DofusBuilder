@@ -36,6 +36,9 @@ export function ChatPanel({ bare = false }: { bare?: boolean }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const level = useBuildStore((s) => s.level);
   const classId = useBuildStore((s) => s.classId);
+  const lockedSlots = useBuildStore((s) => s.lockedSlots);
+  const currentBuild = useBuildStore((s) => s.currentBuild);
+  const itemById = useBuildStore((s) => s.itemById);
   const { messages, sendMessage, status, error, stop } = useChat({
     transport: new DefaultChatTransport({ api: "/api/chat" }),
     onFinish: ({ messages: msgs }) => {
@@ -44,6 +47,17 @@ export function ChatPanel({ bare = false }: { bare?: boolean }) {
   });
 
   function send(text: string) {
+    // Construit la map des slots verrouillés : slotId → ankama_id
+    const lockedSlotsMap: Record<string, number> = {};
+    for (const slot of lockedSlots) {
+      const id = currentBuild[slot];
+      if (id != null) lockedSlotsMap[slot] = id;
+    }
+    // Noms des items lockés pour le contexte textuel de l'IA
+    const lockedItemNames = Object.entries(lockedSlotsMap)
+      .map(([slot, id]) => `${slot}: ${itemById[id]?.name ?? `#${id}`}`)
+      .join(", ");
+
     void sendMessage(
       { text },
       {
@@ -52,6 +66,8 @@ export function ChatPanel({ bare = false }: { bare?: boolean }) {
             level,
             classId,
             className: dofusClassLabel(classId),
+            lockedSlots: Object.keys(lockedSlotsMap).length > 0 ? lockedSlotsMap : undefined,
+            lockedItemNames: lockedItemNames || undefined,
           },
         },
       },

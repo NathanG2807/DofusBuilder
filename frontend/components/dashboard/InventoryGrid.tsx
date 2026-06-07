@@ -24,6 +24,27 @@ import { DOFUS_CLASS_BY_ID, DOFUS_CLASS_OPTIONS } from "@/lib/dofusClasses";
 import { classHeadUrl, classImageFallback, classImageUrl } from "@/lib/classImage";
 import { isConditionMet } from "@/lib/conditionCheck";
 
+/* ─── Icône cadenas inline ─── */
+function LockIcon({ locked, size = 10 }: { locked: boolean; size?: number }) {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill={locked ? "currentColor" : "none"}
+      stroke="currentColor"
+      strokeWidth={2.5}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+      <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+    </svg>
+  );
+}
+
 /* ─── Cellule d'emplacement ─── */
 function SlotCell({
   slotId,
@@ -33,9 +54,11 @@ function SlotCell({
   rawItemId,
   conditionOk = true,
   exoType,
+  locked = false,
   onSelect,
   onUnequip,
   onToggleExo,
+  onToggleLock,
   onHoverEnter,
   onHoverMove,
   onHoverLeave,
@@ -47,9 +70,11 @@ function SlotCell({
   rawItemId: number | null | undefined;
   conditionOk?: boolean;
   exoType?: ExoType;
+  locked?: boolean;
   onSelect: () => void;
   onUnequip: () => void;
   onToggleExo: (type: ExoType) => void;
+  onToggleLock: () => void;
   onHoverEnter: (e: React.MouseEvent) => void;
   onHoverMove: (e: React.MouseEvent) => void;
   onHoverLeave: () => void;
@@ -60,7 +85,9 @@ function SlotCell({
     : "h-[58px] w-[58px] sm:h-[68px] sm:w-[68px]";
   const imgPx = compact ? 36 : 48;
 
-  const borderClass = exoType === "pa"
+  const borderClass = locked
+    ? "border-[#c8a030] bg-[#1a1400]/90 shadow-[0_0_0_2px_rgba(200,160,48,0.40)]"
+    : exoType === "pa"
     ? "border-[#4a90d9] bg-[#060e1a]/90 shadow-[0_0_0_2px_rgba(74,144,217,0.45)]"
     : exoType === "pm"
     ? "border-[var(--dofus-ui-selected-border)] bg-[var(--dofus-ui-slot-pm-bg)] shadow-[0_0_0_2px_var(--dofus-ui-selected-glow-strong)]"
@@ -103,8 +130,8 @@ function SlotCell({
           <span className="text-[18px] font-extralight text-[#2a2a2a]">+</span>
         )}
 
-        {/* Bouton retirer */}
-        {item && (
+        {/* Bouton retirer — masqué si l'item est verrouillé */}
+        {item && !locked && (
           <span
             role="button"
             tabIndex={0}
@@ -119,8 +146,28 @@ function SlotCell({
           </span>
         )}
 
+        {/* Bouton verrou — visible sur les items ; actif (doré) si verrouillé */}
+        {item && (
+          <span
+            role="button"
+            tabIndex={0}
+            onClick={(e) => { e.stopPropagation(); onToggleLock(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") { e.preventDefault(); e.stopPropagation(); onToggleLock(); }
+            }}
+            className={`absolute -left-0.5 -top-0.5 flex h-[14px] w-[14px] items-center justify-center rounded-sm transition ${
+              locked
+                ? "bg-[#3a2e00] text-[#c8a030]"
+                : "hidden bg-[#1e1e1e] text-[#555555] hover:text-[#c8a030] group-hover:flex"
+            }`}
+            title={locked ? "Déverrouiller cet item" : "Verrouiller cet item (l'optimiseur le conservera)"}
+          >
+            <LockIcon locked={locked} size={9} />
+          </span>
+        )}
+
         {/* Boutons exo FM — apparaissent au hover (pas sur dofus/trophées/familier) */}
-        {item && !slotId.startsWith("dofus") && slotId !== "pet" && (
+        {item && !locked && !slotId.startsWith("dofus") && slotId !== "pet" && (
           <div className="absolute bottom-0 left-0 right-0 hidden justify-center gap-0.5 bg-[#0a0a0a]/85 py-0.5 group-hover:flex">
             <span
               role="button"
@@ -155,6 +202,18 @@ function SlotCell({
             >
               +{/* eslint-disable-next-line @next/next/no-img-element */}
               <img src="/assets/build/pm.png" alt="PM" width={9} height={9} className="h-[9px] w-[9px] object-contain" />
+            </span>
+          </div>
+        )}
+
+        {/* Exo FM sur item verrouillé : affiché sans modifier (lecture seule) */}
+        {item && locked && exoType && !slotId.startsWith("dofus") && slotId !== "pet" && (
+          <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-0.5 bg-[#0a0a0a]/85 py-0.5">
+            <span className={`flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-bold ${
+              exoType === "pa" ? "bg-[#051225] text-[#4a90d9]" : "bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
+            }`}>
+              +{/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={`/assets/build/${exoType}.png`} alt={exoType.toUpperCase()} width={9} height={9} className="h-[9px] w-[9px] object-contain" />
             </span>
           </div>
         )}
@@ -492,6 +551,7 @@ function SaveBuildButton() {
   const charStats = useBuildStore((s) => s.charStats);
   const parchoStats = useBuildStore((s) => s.parchoStats);
   const exoFm = useBuildStore((s) => s.exoFm);
+  const lockedSlots = useBuildStore((s) => s.lockedSlots);
   const level = useBuildStore((s) => s.level);
   const classId = useBuildStore((s) => s.classId);
   const sex = useBuildStore((s) => s.sex);
@@ -505,6 +565,12 @@ function SaveBuildButton() {
     }
     setBusy(true);
     setMsg(null);
+    // Construit la map locked_slots : slotId → ankamaId
+    const lockedSlotsMap: Record<string, number> = {};
+    for (const slot of lockedSlots) {
+      const id = currentBuild[slot];
+      if (id != null) lockedSlotsMap[slot] = id;
+    }
     try {
       await createBuild({
         name: buildName.trim() || "Sans titre",
@@ -514,6 +580,7 @@ function SaveBuildButton() {
         char_stats: Object.keys(charStats).length > 0 ? { ...charStats } : null,
         parcho_stats: Object.keys(parchoStats).length > 0 ? { ...parchoStats } : null,
         exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
+        locked_slots: Object.keys(lockedSlotsMap).length > 0 ? lockedSlotsMap : null,
         level,
         class_id: classId,
         sex,
@@ -569,6 +636,8 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
   const setBuildName = useBuildStore((s) => s.setBuildName);
   const exoFm = useBuildStore((s) => s.exoFm);
   const setExoFm = useBuildStore((s) => s.setExoFm);
+  const lockedSlots = useBuildStore((s) => s.lockedSlots);
+  const toggleLockSlot = useBuildStore((s) => s.toggleLockSlot);
 
   const { hover, show, move, scheduleHide, cancelHide } = useItemHoverCard();
   function slotProps(id: SlotId) {
@@ -576,6 +645,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
     const item = itemId != null ? itemById[itemId] : undefined;
     const selected = selectedSlot === id;
     const conditionOk = item ? isConditionMet(item.conditions, displayStats) : true;
+    const locked = lockedSlots.includes(id);
     return {
       slotId: id,
       selected,
@@ -583,9 +653,11 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
       rawItemId: itemId,
       conditionOk,
       exoType: exoFm[id],
+      locked,
       onSelect: () => setSelectedSlot(selected ? null : id),
       onUnequip: () => updateSlot(id, null),
       onToggleExo: (type: ExoType) => setExoFm(id, type),
+      onToggleLock: () => toggleLockSlot(id),
       onHoverEnter: (e: React.MouseEvent) => { if (item) show(item, e); },
       onHoverMove: move,
       onHoverLeave: scheduleHide,

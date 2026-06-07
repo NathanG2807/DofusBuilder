@@ -29,6 +29,8 @@ export type BuildState = {
   parchoStats: Record<string, number>;
   /** Forgemagie exo : emplacement → type d'exo (pa ou pm). */
   exoFm: Partial<Record<SlotId, ExoType>>;
+  /** Slots verrouillés : l'optimiseur/IA ne modifie pas ces emplacements. */
+  lockedSlots: SlotId[];
 
   setSelectedSlot: (slot: SlotId | null) => void;
   setClassId: (id: number) => void;
@@ -40,6 +42,12 @@ export type BuildState = {
   /** Toggle un exo FM sur un slot (re-clic sur le même type = suppression). */
   setExoFm: (slot: SlotId, type: ExoType) => void;
   removeExoFm: (slot: SlotId) => void;
+  /** Verrouille un emplacement (l'item ne sera pas modifié par l'optimiseur/IA). */
+  lockSlot: (slot: SlotId) => void;
+  /** Déverrouille un emplacement. */
+  unlockSlot: (slot: SlotId) => void;
+  /** Bascule le verrou d'un emplacement. */
+  toggleLockSlot: (slot: SlotId) => void;
   equipItemOnSlot: (slot: SlotId, ankamaId: number) => Promise<void>;
   updateSlot: (slot: string, itemId: number | null) => void;
   syncWithAI: (newBuild: Record<string, number>) => void;
@@ -86,6 +94,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
   charStats: {},
   parchoStats: {},
   exoFm: {},
+  lockedSlots: [],
 
   setSelectedSlot: (slot) => set({ selectedSlot: slot }),
   setClassId: (id) => set({ classId: id }),
@@ -118,6 +127,23 @@ export const useBuildStore = create<BuildState>((set, get) => {
       delete next[slot];
       return { exoFm: next };
     }),
+
+  lockSlot: (slot) =>
+    set((s) => ({
+      lockedSlots: s.lockedSlots.includes(slot) ? s.lockedSlots : [...s.lockedSlots, slot],
+    })),
+
+  unlockSlot: (slot) =>
+    set((s) => ({
+      lockedSlots: s.lockedSlots.filter((sl) => sl !== slot),
+    })),
+
+  toggleLockSlot: (slot) =>
+    set((s) => ({
+      lockedSlots: s.lockedSlots.includes(slot)
+        ? s.lockedSlots.filter((sl) => sl !== slot)
+        : [...s.lockedSlots, slot],
+    })),
 
   equipItemOnSlot: async (slot, ankamaId) => {
     if (isExcludedItemId(ankamaId)) {
@@ -173,6 +199,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
       charStats: {},
       parchoStats: {},
       exoFm: {},
+      lockedSlots: [],
       activeSetBonuses: [],
       activeSetDetails: [],
       itemById: {},
@@ -184,7 +211,16 @@ export const useBuildStore = create<BuildState>((set, get) => {
     })),
 
   applyFullBuild: (fb) => {
+    const { lockedSlots, currentBuild, exoFm: currentExoFm } = get();
     const newBuild = mergeFullBuildSlots(fb);
+
+    // Préserve les items des slots verrouillés
+    for (const slot of lockedSlots) {
+      const lockedId = currentBuild[slot as SlotId];
+      if (lockedId != null) {
+        (newBuild as Record<string, number | null>)[slot] = lockedId;
+      }
+    }
 
     // Placement automatique de l'exo FM sur les anneaux (ring1 → ring2)
     const newExoFm: Partial<Record<SlotId, ExoType>> = {};
@@ -200,6 +236,13 @@ export const useBuildStore = create<BuildState>((set, get) => {
         : "ring1";
       newExoFm[slot] = "pm";
     }
+    // Conserve les exo FM des slots verrouillés
+    for (const slot of lockedSlots) {
+      const slotId = slot as SlotId;
+      if (currentExoFm[slotId]) {
+        newExoFm[slotId] = currentExoFm[slotId];
+      }
+    }
 
     set({
       currentBuild: newBuild,
@@ -213,6 +256,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
   },
 
   hydrateFromPersistedBuild: (b) => {
+    const restoredLockedSlots = Object.keys(b.locked_slots ?? {}) as SlotId[];
     set({
       currentBuild: mergeFullBuildSlots({
         slots: (b.slots ?? {}) as FullBuild["slots"],
@@ -225,6 +269,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
       charStats: { ...(b.char_stats ?? {}) },
       parchoStats: { ...(b.parcho_stats ?? {}) },
       exoFm: { ...(b.exo_fm ?? {}) } as Partial<Record<import("@/lib/slots").SlotId, ExoType>>,
+      lockedSlots: restoredLockedSlots,
       ...(b.level != null ? { level: b.level } : {}),
       ...(b.class_id != null ? { classId: b.class_id } : {}),
       ...(b.sex === "male" || b.sex === "female" ? { sex: b.sex } : {}),

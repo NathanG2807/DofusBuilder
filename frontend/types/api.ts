@@ -85,6 +85,8 @@ export type OptimizationRequest = {
   mode: "solver" | "genetic";
   /** Poids personnalisés par stat (1-10). Si absent = poids par défaut du solver. */
   stat_weights?: Record<string, number>;
+  /** Slots verrouillés : emplacement → ankama_id. Ces items seront conservés dans le build optimisé. */
+  locked_slots?: Record<string, number>;
 };
 
 /** Aligné sur `BuildOut` (backend). */
@@ -102,6 +104,7 @@ export type BuildOut = {
   char_stats: Record<string, number> | null;
   parcho_stats: Record<string, number> | null;
   exo_fm: Record<string, string> | null;
+  locked_slots: Record<string, number> | null;
   is_public: boolean;
   created_at: string;
   updated_at: string;
@@ -119,6 +122,7 @@ export type BuildCreatePayload = {
   char_stats?: Record<string, number> | null;
   parcho_stats?: Record<string, number> | null;
   exo_fm?: Record<string, string> | null;
+  locked_slots?: Record<string, number> | null;
   is_public?: boolean;
 };
 

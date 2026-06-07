@@ -100,6 +100,8 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
   const setClassId = useBuildStore((s) => s.setClassId);
   const level = useBuildStore((s) => s.level);
   const setLevel = useBuildStore((s) => s.setLevel);
+  const lockedSlots = useBuildStore((s) => s.lockedSlots);
+  const currentBuild = useBuildStore((s) => s.currentBuild);
   const [elements, setElements] = useState<string[]>(["strength", "intelligence"]);
   const [minPa, setMinPa] = useState(11);
   const [minPm, setMinPm] = useState(6);
@@ -147,6 +149,14 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
             [...elements, ...focusKeys].map((k) => [k, getWeight(k)]),
           )
         : undefined;
+
+      // Construit la map des slots verrouillés à transmettre au solver
+      const lockedSlotsMap: Record<string, number> = {};
+      for (const slot of lockedSlots) {
+        const id = currentBuild[slot];
+        if (id != null) lockedSlotsMap[slot] = id;
+      }
+
       const fb = await runOptimize({
         level, class_id: classId, elements,
         min_pa: minPa, min_pm: minPm,
@@ -154,6 +164,7 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
         allow_dofus: allowDofus, allow_prysmaradite: allowPrysmaradite,
         focus_stats: focusKeys, mode: "solver",
         ...(resolvedWeights ? { stat_weights: resolvedWeights } : {}),
+        ...(Object.keys(lockedSlotsMap).length > 0 ? { locked_slots: lockedSlotsMap } : {}),
       });
       applyFullBuild(fb);
       await prefetchEquippedItems();
@@ -414,6 +425,21 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
           </div>
         )}
       </div>
+
+      {/* ── Items verrouillés ── */}
+      {lockedSlots.length > 0 && (
+        <div className="flex flex-col gap-1 rounded-lg border border-[#3a2e00] bg-[#1a1400]/80 px-2.5 py-2">
+          <span className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-wide text-[#c8a030]">
+            <svg xmlns="http://www.w3.org/2000/svg" width={10} height={10} viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0 1 10 0v4" />
+            </svg>
+            {lockedSlots.length} item{lockedSlots.length > 1 ? "s" : ""} verrouillé{lockedSlots.length > 1 ? "s" : ""} — conservé{lockedSlots.length > 1 ? "s" : ""} par l'optimiseur
+          </span>
+          <p className="text-[9px] text-[#666666]">
+            Pour les modifier, déverrouillez-les dans l'inventaire (icône cadenas).
+          </p>
+        </div>
+      )}
 
       {/* ── Erreur ── */}
       {error && (
