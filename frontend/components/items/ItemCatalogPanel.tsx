@@ -292,7 +292,7 @@ export function ItemCatalogPanel() {
 
       if (useElementFilter) {
         const filtered = res.items.filter((it) =>
-          weaponElements.some((el) => weaponHasActiveElement(it, el))
+          weaponElements.every((el) => weaponHasActiveElement(it, el))
         );
         setItems(filtered);
         setTotal(filtered.length);
@@ -454,7 +454,7 @@ export function ItemCatalogPanel() {
                 </div>
                 {weaponElements.length > 0 && (
                   <p className="text-[9px] text-[#555555]">
-                    Affiche les armes avec des dégâts actifs dans {weaponElements.length > 1 ? "au moins un des éléments sélectionnés" : "cet élément"}.
+                    Affiche les armes ayant des dégâts actifs dans {weaponElements.length > 1 ? "tous les éléments sélectionnés" : "cet élément"}.
                   </p>
                 )}
               </div>
