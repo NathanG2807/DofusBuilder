@@ -34,6 +34,8 @@ type Props = {
   onMouseEnter?: () => void;
   /** Appelé quand la souris quitte la carte (pour déclencher le timer de fermeture). */
   onMouseLeave?: () => void;
+  /** Appelé pour forcer la fermeture immédiate (ex: ouverture d'un modal de panoplie). */
+  onForceHide?: () => void;
 };
 
 function fmtRange(lo: number, hi: number): string {
@@ -51,7 +53,7 @@ function StatRow({ children }: { children: React.ReactNode }) {
 }
 
 /* ── Carte d'un item (corps réutilisable) ─────────────────────────────────── */
-function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
+function ItemCardBody({ item, label, onOpenSetModal }: { item: ItemOut; label?: string; onOpenSetModal?: () => void }) {
   const [setInfo, setSetInfo] = useState<ItemSetOut | null>(null);
   const [setErr, setSetErr] = useState<string | null>(null);
   const [showSetModal, setShowSetModal] = useState(false);
@@ -313,7 +315,7 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
           {setErr ? (
             <p className="text-[11px] text-red-400/90">{setErr}</p>
           ) : setInfo ? (
-            <button type="button" onClick={() => setShowSetModal(true)}
+            <button type="button" onClick={() => { setShowSetModal(true); onOpenSetModal?.(); }}
               className="mt-0.5 text-left text-[11px] font-medium text-[#e8c96e] underline decoration-dotted underline-offset-2 hover:text-[#f5d980]">
               {setInfo.name ?? `Panoplie #${setInfo.ankama_id}`} →
             </button>
@@ -329,7 +331,7 @@ function ItemCardBody({ item, label }: { item: ItemOut; label?: string }) {
   );
 }
 
-export function ItemHoverCard({ item, anchor, compareItem, preferSide, onMouseEnter, onMouseLeave }: Props) {
+export function ItemHoverCard({ item, anchor, compareItem, preferSide, onMouseEnter, onMouseLeave, onForceHide }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; visible: boolean }>({
     top: -9999,
@@ -406,7 +408,7 @@ export function ItemHoverCard({ item, anchor, compareItem, preferSide, onMouseEn
         <div className="flex gap-2">
           {/* Item équipé — gauche */}
           <div className="min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-[#141414] p-2">
-            <ItemCardBody item={compareItem!} label="Équipé" />
+            <ItemCardBody item={compareItem!} label="Équipé" onOpenSetModal={onForceHide} />
           </div>
           {/* Séparateur */}
           <div className="flex flex-col items-center justify-center gap-1 shrink-0">
@@ -416,11 +418,11 @@ export function ItemHoverCard({ item, anchor, compareItem, preferSide, onMouseEn
           </div>
           {/* Item survolé — droite */}
           <div className="min-w-0 flex-1 rounded-lg border border-[var(--dofus-ui-olive-border-45)] bg-[var(--dofus-ui-deep-panel)] p-2">
-            <ItemCardBody item={item} label="Survol" />
+            <ItemCardBody item={item} label="Survol" onOpenSetModal={onForceHide} />
           </div>
         </div>
       ) : (
-        <ItemCardBody item={item} />
+        <ItemCardBody item={item} onOpenSetModal={onForceHide} />
       )}
     </div>,
     document.body,
@@ -464,5 +466,11 @@ export function useItemHoverCard() {
     closeTimer.current = setTimeout(() => setHover(null), 180);
   }, [clearClose]);
 
-  return { hover, show, move, scheduleHide, cancelHide: clearClose };
+  /** Fermeture immédiate (ex: ouverture d'un modal de panoplie). */
+  const hide = useCallback(() => {
+    clearClose();
+    setHover(null);
+  }, [clearClose]);
+
+  return { hover, show, move, scheduleHide, cancelHide: clearClose, hide };
 }

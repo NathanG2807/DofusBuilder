@@ -9,11 +9,31 @@ import {
 import { SetDetailModal } from "@/components/items/SetDetailModal";
 import { searchItems, searchSets } from "@/lib/api";
 import { EQUIPMENT_TYPE_OPTIONS } from "@/lib/equipmentTypes";
+import { effectTypeToStatKey, isWeaponDamagesBucketEffect } from "@/lib/effectFormat";
 import { itemFitsSlot } from "@/lib/itemSlotMatch";
 import { searchFiltersForSlot } from "@/lib/slotSearchFilter";
 import { useBuildStore } from "@/store/build-store";
 import type { ItemOut, ItemSetOut } from "@/types/api";
 import type { SlotId } from "@/lib/slots";
+
+/* ── Filtre élément d'attaque actif des armes ────────────────────────────── */
+const WEAPON_ELEMENT_OPTIONS = [
+  { value: "damage_earth",   label: "Terre",  icon: "dtf" },
+  { value: "damage_fire",    label: "Feu",    icon: "dff" },
+  { value: "damage_water",   label: "Eau",    icon: "def" },
+  { value: "damage_air",     label: "Air",    icon: "daf" },
+  { value: "damage_neutral", label: "Neutre", icon: "dnf" },
+] as const;
+
+/** Vérifie si une arme possède au moins un effet de dégâts actifs dans l'élément donné. */
+function weaponHasActiveElement(item: ItemOut, statKey: string): boolean {
+  if (!item.effects) return false;
+  return (item.effects as Record<string, unknown>[]).some((eff) => {
+    if (!eff || !isWeaponDamagesBucketEffect(eff)) return false;
+    const type = (eff.type as { name?: string; id?: number } | null) ?? null;
+    return effectTypeToStatKey(type) === statKey;
+  });
+}
 
 /* ── Options du filtre stat (avec icônes) ────────────────────────────────── */
 const STAT_FILTER_OPTIONS = [
@@ -197,7 +217,7 @@ export function ItemCatalogPanel() {
   const selectedSlot = useBuildStore((s) => s.selectedSlot);
   const equipItemOnSlot = useBuildStore((s) => s.equipItemOnSlot);
   const level = useBuildStore((s) => s.level);
-  const { hover, show, move, scheduleHide, cancelHide } = useItemHoverCard();
+  const { hover, show, move, scheduleHide, cancelHide, hide } = useItemHoverCard();
 
   const currentBuild = useBuildStore((s) => s.currentBuild);
   const itemById     = useBuildStore((s) => s.itemById);
@@ -209,6 +229,9 @@ export function ItemCatalogPanel() {
   const [minLv, setMinLv] = useState(1);
   const [maxLv, setMaxLv] = useState(level);
   const [typeId, setTypeId] = useState("");
+
+  // Filtre élément d'attaque actif (armes uniquement)
+  const [weaponElement, setWeaponElement] = useState<string | null>(null);
 
   // Filtre stat : multi-sélection + valeur min commune
   const [statKeys, setStatKeys] = useState<string[]>([]);
@@ -227,9 +250,10 @@ export function ItemCatalogPanel() {
     setPage(1);
   }, [level]);
 
-  // Reset du filtre type quand le slot change
+  // Reset du filtre type et élément quand le slot change
   useEffect(() => {
     setTypeId("");
+    setWeaponElement(null);
     setPage(1);
   }, [selectedSlot]);
 
@@ -248,10 +272,16 @@ export function ItemCatalogPanel() {
       const type_name_id = (typeId || slotF.type_name_id) || undefined;
       const is_weapon = slotF.is_weapon === true ? true : undefined;
 
+      // Quand un filtre d'élément actif est sélectionné, on charge un plus grand batch
+      // et on filtre côté client (le backend ne supporte pas ce filtre).
+      const useElementFilter = !!weaponElement;
+      const fetchPageSize = useElementFilter ? 200 : pageSize;
+      const fetchPage = useElementFilter ? 1 : page;
+
       const res = await searchItems({
         q: debouncedQ || undefined,
-        page,
-        page_size: pageSize,
+        page: fetchPage,
+        page_size: fetchPageSize,
         min_level: minLv,
         max_level: maxLv,
         type_name_id,
@@ -259,8 +289,15 @@ export function ItemCatalogPanel() {
         stat_key: statKeys.length > 0 ? statKeys : undefined,
         min_stat_value: statKeys.length > 0 ? minStat : undefined,
       });
-      setItems(res.items);
-      setTotal(res.total);
+
+      if (useElementFilter && weaponElement) {
+        const filtered = res.items.filter((it) => weaponHasActiveElement(it, weaponElement));
+        setItems(filtered);
+        setTotal(filtered.length);
+      } else {
+        setItems(res.items);
+        setTotal(res.total);
+      }
     } catch (e) {
       setErr(e instanceof Error ? e.message : "Erreur de recherche");
       setItems([]);
@@ -268,7 +305,7 @@ export function ItemCatalogPanel() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedQ, page, minLv, maxLv, typeId, statKeys, minStat, selectedSlot]);
+  }, [debouncedQ, page, minLv, maxLv, typeId, statKeys, minStat, selectedSlot, weaponElement]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -365,6 +402,59 @@ export function ItemCatalogPanel() {
                 </label>
               )}
             </div>
+
+            {/* Filtre élément d'attaque actif — visible quand le slot arme est sélectionné */}
+            {selectedSlot === "weapon" && (
+              <div className="flex flex-col gap-1">
+                <span className="text-[10px] font-semibold uppercase tracking-wide text-[#666666]">
+                  Élément d'attaque
+                </span>
+                <div className="flex flex-wrap gap-1">
+                  {WEAPON_ELEMENT_OPTIONS.map((o) => {
+                    const active = weaponElement === o.value;
+                    return (
+                      <button
+                        key={o.value}
+                        type="button"
+                        onClick={() => {
+                          setWeaponElement(active ? null : o.value);
+                          setPage(1);
+                        }}
+                        className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
+                          active
+                            ? "border-[var(--dofus-ui-olive-border-70)] bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
+                            : "border-[#252525] bg-[#111111] text-[#777777] hover:border-[#383838] hover:text-[#bbbbbb]"
+                        }`}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={`/assets/elements/${o.icon}.png`}
+                          alt=""
+                          width={12}
+                          height={12}
+                          className="h-[12px] w-[12px] shrink-0 object-contain"
+                        />
+                        {o.label}
+                      </button>
+                    );
+                  })}
+                  {weaponElement && (
+                    <button
+                      type="button"
+                      onClick={() => { setWeaponElement(null); setPage(1); }}
+                      className="text-[9px] text-[#555555] hover:text-[#cc4444] transition px-1"
+                    >
+                      ✕
+                    </button>
+                  )}
+                </div>
+                {weaponElement && (
+                  <p className="text-[9px] text-[#555555]">
+                    Affiche les armes ayant des dégâts actifs dans cet élément. Résultats filtrés sur les {200} premières armes du niveau sélectionné.
+                  </p>
+                )}
+              </div>
+            )}
 
             {/* Filtre stat — pills avec icônes (multi-sélect) */}
             <div className="flex flex-col gap-1.5">
@@ -532,6 +622,7 @@ export function ItemCatalogPanel() {
                 preferSide="left"
                 onMouseEnter={cancelHide}
                 onMouseLeave={scheduleHide}
+                onForceHide={hide}
               />
             );
           })()}

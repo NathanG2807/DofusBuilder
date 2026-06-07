@@ -160,7 +160,7 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
   return createPortal(
     <div
       ref={overlayRef}
-      className="fixed inset-0 z-[200] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
+      className="fixed inset-0 z-[400] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm"
       onMouseDown={(e) => {
         if (e.target === overlayRef.current) onClose();
       }}

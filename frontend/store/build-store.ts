@@ -265,6 +265,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
       }),
       stats: { ...(b.total_stats ?? {}) },
       activeSetBonuses: [...(b.active_set_bonuses ?? [])],
+      activeSetDetails: [],
       selectedSlot: null,
       charStats: { ...(b.char_stats ?? {}) },
       parchoStats: { ...(b.parcho_stats ?? {}) },
@@ -275,6 +276,8 @@ export const useBuildStore = create<BuildState>((set, get) => {
       ...(b.sex === "male" || b.sex === "female" ? { sex: b.sex } : {}),
       ...(b.name ? { buildName: b.name } : {}),
     });
+    // Recalcule les stats complètes (dont activeSetDetails) depuis le backend
+    void refreshStatsFromSlots();
   },
 
   cacheItems: (items) =>

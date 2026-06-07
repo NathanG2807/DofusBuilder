@@ -639,7 +639,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
   const lockedSlots = useBuildStore((s) => s.lockedSlots);
   const toggleLockSlot = useBuildStore((s) => s.toggleLockSlot);
 
-  const { hover, show, move, scheduleHide, cancelHide } = useItemHoverCard();
+  const { hover, show, move, scheduleHide, cancelHide, hide } = useItemHoverCard();
   function slotProps(id: SlotId) {
     const itemId = currentBuild[id];
     const item = itemId != null ? itemById[itemId] : undefined;
@@ -775,7 +775,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
         </div>
       </div>
 
-      {hover && <ItemHoverCard item={hover.item} anchor={{ x: hover.x, y: hover.y }} onMouseEnter={cancelHide} onMouseLeave={scheduleHide} />}
+      {hover && <ItemHoverCard item={hover.item} anchor={{ x: hover.x, y: hover.y }} onMouseEnter={cancelHide} onMouseLeave={scheduleHide} onForceHide={hide} />}
     </section>
   );
 }
