@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -122,7 +122,7 @@ async def update_build(
     for k, v in data.items():
         setattr(b, k, v)
     if data:
-        b.updated_at = datetime.now(timezone.utc)
+        b.updated_at = datetime.utcnow()
     await db.commit()
     await db.refresh(b)
     return b
