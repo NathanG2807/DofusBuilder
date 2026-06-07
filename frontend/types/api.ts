@@ -106,8 +106,8 @@ export type BuildOut = {
   exo_fm: Record<string, string> | null;
   locked_slots: Record<string, number> | null;
   is_public: boolean;
-  created_at: string;
-  updated_at: string;
+  created_at?: string | null;
+  updated_at?: string | null;
 };
 
 export type BuildCreatePayload = {

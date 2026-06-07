@@ -149,7 +149,7 @@ class ItemOut(BaseModel):
     base_stats: Optional[dict[str, Any]] = None
     description: Optional[str] = None
     weapon_detail: Optional[dict[str, Any]] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None
 
 
 class ItemListResponse(BaseModel):
@@ -225,5 +225,5 @@ class BuildOut(BaseModel):
     exo_fm: Optional[dict[str, str]] = None
     locked_slots: Optional[dict[str, int]] = None
     is_public: bool = True
-    created_at: datetime
-    updated_at: datetime
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
