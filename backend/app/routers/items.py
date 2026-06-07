@@ -21,7 +21,7 @@ _STAT_KEY_RE = re.compile(r"^[a-zA-Z][a-zA-Z0-9_]*$")
 async def list_items(
     db: AsyncSession = Depends(get_db),
     page: int = Query(1, ge=1),
-    page_size: int = Query(50, ge=1, le=100),
+    page_size: int = Query(50, ge=1, le=500),
     q: Optional[str] = Query(None, description="Recherche insensible à la casse sur le nom"),
     min_level: Optional[int] = Query(None, ge=0, le=200),
     max_level: Optional[int] = Query(None, ge=0, le=200),

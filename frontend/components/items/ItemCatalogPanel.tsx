@@ -231,7 +231,7 @@ export function ItemCatalogPanel() {
   const [typeId, setTypeId] = useState("");
 
   // Filtre élément d'attaque actif (armes uniquement)
-  const [weaponElement, setWeaponElement] = useState<string | null>(null);
+  const [weaponElements, setWeaponElements] = useState<string[]>([]);
 
   // Filtre stat : multi-sélection + valeur min commune
   const [statKeys, setStatKeys] = useState<string[]>([]);
@@ -274,8 +274,8 @@ export function ItemCatalogPanel() {
 
       // Quand un filtre d'élément actif est sélectionné, on charge un plus grand batch
       // et on filtre côté client (le backend ne supporte pas ce filtre).
-      const useElementFilter = !!weaponElement;
-      const fetchPageSize = useElementFilter ? 200 : pageSize;
+      const useElementFilter = weaponElements.length > 0;
+      const fetchPageSize = useElementFilter ? 500 : pageSize;
       const fetchPage = useElementFilter ? 1 : page;
 
       const res = await searchItems({
@@ -290,8 +290,10 @@ export function ItemCatalogPanel() {
         min_stat_value: statKeys.length > 0 ? minStat : undefined,
       });
 
-      if (useElementFilter && weaponElement) {
-        const filtered = res.items.filter((it) => weaponHasActiveElement(it, weaponElement));
+      if (useElementFilter) {
+        const filtered = res.items.filter((it) =>
+          weaponElements.some((el) => weaponHasActiveElement(it, el))
+        );
         setItems(filtered);
         setTotal(filtered.length);
       } else {
@@ -305,7 +307,7 @@ export function ItemCatalogPanel() {
     } finally {
       setLoading(false);
     }
-  }, [debouncedQ, page, minLv, maxLv, typeId, statKeys, minStat, selectedSlot, weaponElement]);
+  }, [debouncedQ, page, minLv, maxLv, typeId, statKeys, minStat, selectedSlot, weaponElements]);
 
   useEffect(() => { void load(); }, [load]);
 
@@ -411,13 +413,15 @@ export function ItemCatalogPanel() {
                 </span>
                 <div className="flex flex-wrap gap-1">
                   {WEAPON_ELEMENT_OPTIONS.map((o) => {
-                    const active = weaponElement === o.value;
+                    const active = weaponElements.includes(o.value);
                     return (
                       <button
                         key={o.value}
                         type="button"
                         onClick={() => {
-                          setWeaponElement(active ? null : o.value);
+                          setWeaponElements((prev) =>
+                            active ? prev.filter((v) => v !== o.value) : [...prev, o.value]
+                          );
                           setPage(1);
                         }}
                         className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
@@ -438,19 +442,19 @@ export function ItemCatalogPanel() {
                       </button>
                     );
                   })}
-                  {weaponElement && (
+                  {weaponElements.length > 0 && (
                     <button
                       type="button"
-                      onClick={() => { setWeaponElement(null); setPage(1); }}
+                      onClick={() => { setWeaponElements([]); setPage(1); }}
                       className="text-[9px] text-[#555555] hover:text-[#cc4444] transition px-1"
                     >
                       ✕
                     </button>
                   )}
                 </div>
-                {weaponElement && (
+                {weaponElements.length > 0 && (
                   <p className="text-[9px] text-[#555555]">
-                    Affiche les armes ayant des dégâts actifs dans cet élément. Résultats filtrés sur les {200} premières armes du niveau sélectionné.
+                    Affiche les armes avec des dégâts actifs dans {weaponElements.length > 1 ? "au moins un des éléments sélectionnés" : "cet élément"}.
                   </p>
                 )}
               </div>
