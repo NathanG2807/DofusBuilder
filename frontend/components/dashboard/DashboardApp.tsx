@@ -10,9 +10,14 @@ import { ToolsDrawer } from "@/components/dashboard/ToolsDrawer";
 import { CatalogDrawer } from "@/components/items/CatalogDrawer";
 import { Navbar, type AppTab } from "@/components/layout/Navbar";
 import { StuffsPanel } from "@/components/stuffs/StuffsPanel";
+import { createBuild, listMyBuilds } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
+import { useBuildStore } from "@/store/build-store";
 
 type MobileView = "build" | "stats" | "sets";
 type ActiveTool = "optimize" | "chat";
+
+type ForeignBuild = { id: string; name: string };
 
 /* ── Bouton de la barre de navigation mobile ─────────────────────────────── */
 function MobileNavBtn({
@@ -45,17 +50,124 @@ function MobileNavBtn({
   );
 }
 
+/* ── Banner "build étranger" ─────────────────────────────────────────────── */
+function ForeignBuildBanner({
+  build,
+  onDismiss,
+}: {
+  build: ForeignBuild;
+  onDismiss: () => void;
+}) {
+  const [saving, setSaving] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
+
+  const currentBuild = useBuildStore((s) => s.currentBuild);
+  const stats = useBuildStore((s) => s.stats);
+  const activeSetBonuses = useBuildStore((s) => s.activeSetBonuses);
+  const charStats = useBuildStore((s) => s.charStats);
+  const parchoStats = useBuildStore((s) => s.parchoStats);
+  const exoFm = useBuildStore((s) => s.exoFm);
+  const level = useBuildStore((s) => s.level);
+  const classId = useBuildStore((s) => s.classId);
+  const sex = useBuildStore((s) => s.sex);
+  const itemById = useBuildStore((s) => s.itemById);
+
+  async function handleCopy() {
+    if (!getAccessToken()) {
+      setMsg("Connectez-vous pour copier ce build.");
+      return;
+    }
+    setSaving(true);
+    setMsg(null);
+    try {
+      // Build slots_preview from cached items
+      const slotsPreview: Record<string, string | null> = {};
+      for (const [slot, itemId] of Object.entries(currentBuild)) {
+        if (itemId == null) continue;
+        slotsPreview[slot] = itemById[itemId]?.image_url_icon ?? null;
+      }
+      await createBuild({
+        name: `Copie — ${build.name}`,
+        slots: { ...currentBuild },
+        total_stats: { ...stats },
+        active_set_bonuses: [...activeSetBonuses],
+        char_stats: Object.keys(charStats).length > 0 ? { ...charStats } : null,
+        parcho_stats: Object.keys(parchoStats).length > 0 ? { ...parchoStats } : null,
+        exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
+        level,
+        class_id: classId,
+        sex,
+        is_public: false,
+        tags: [],
+        slots_preview: slotsPreview,
+      });
+      setMsg("Build copié dans vos sauvegardes !");
+      setTimeout(onDismiss, 1800);
+    } catch (e) {
+      setMsg(e instanceof Error ? e.message : "Erreur lors de la copie.");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="mx-4 mt-3 flex items-center justify-between gap-4 rounded-xl border border-[#f0d78c]/20 bg-[#f0d78c]/5 px-4 py-2.5 md:mx-8">
+      <div className="flex items-center gap-2 min-w-0">
+        <svg className="h-3.5 w-3.5 shrink-0 text-[#f0d78c]/60" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" />
+        </svg>
+        <span className="truncate text-[12px] text-[#f0d78c]/80">
+          Consultation du build <span className="font-semibold text-[#f0d78c]">{build.name}</span>
+          {" — "}lecture seule
+        </span>
+        {msg && (
+          <span className={`shrink-0 text-[11px] ${msg.includes("copié") ? "text-emerald-400" : "text-amber-400"}`}>
+            {msg}
+          </span>
+        )}
+      </div>
+      <div className="flex shrink-0 items-center gap-2">
+        <button
+          type="button"
+          disabled={saving}
+          onClick={() => void handleCopy()}
+          className="rounded-lg bg-[#f0d78c]/10 px-3 py-1 text-[11px] font-medium text-[#f0d78c] border border-[#f0d78c]/30 transition hover:bg-[#f0d78c]/20 disabled:opacity-50"
+        >
+          {saving ? "Copie…" : "Copier dans mes builds"}
+        </button>
+        <button
+          type="button"
+          onClick={onDismiss}
+          className="rounded p-0.5 text-[#555] transition hover:text-[#999]"
+          title="Fermer"
+        >
+          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+            <path d="M18 6L6 18M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /* ── Dashboard principal ─────────────────────────────────────────────────── */
 export function DashboardApp() {
   const [showTools, setShowTools] = useState(false);
   const [activeTool, setActiveTool] = useState<ActiveTool>("optimize");
   const [mobileView, setMobileView] = useState<MobileView>("build");
   const [activeTab, setActiveTab] = useState<AppTab>("buildroom");
+  const [foreignBuild, setForeignBuild] = useState<ForeignBuild | null>(null);
 
   useEffect(() => {
     function handleSwitchTab(e: Event) {
-      const tab = (e as CustomEvent<string>).detail as AppTab;
-      if (tab === "buildroom" || tab === "stuffs") setActiveTab(tab);
+      const detail = (e as CustomEvent).detail as { tab: AppTab; foreign?: ForeignBuild } | AppTab;
+      if (typeof detail === "string") {
+        if (detail === "buildroom" || detail === "stuffs") setActiveTab(detail);
+        if (detail === "buildroom") setForeignBuild(null);
+      } else {
+        if (detail.tab === "buildroom" || detail.tab === "stuffs") setActiveTab(detail.tab);
+        if (detail.tab === "buildroom") setForeignBuild(detail.foreign ?? null);
+      }
     }
     window.addEventListener("switch-tab", handleSwitchTab);
     return () => window.removeEventListener("switch-tab", handleSwitchTab);
@@ -68,12 +180,17 @@ export function DashboardApp() {
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Navbar activeTab={activeTab} onTabChange={setActiveTab} />
+      <Navbar activeTab={activeTab} onTabChange={(tab) => { setActiveTab(tab); if (tab !== "buildroom") setForeignBuild(null); }} />
 
       {activeTab === "stuffs" ? (
         <StuffsPanel />
       ) : (
         <>
+          {/* ── Bannière build étranger ── */}
+          {foreignBuild && (
+            <ForeignBuildBanner build={foreignBuild} onDismiss={() => setForeignBuild(null)} />
+          )}
+
           {/* ════════ Layout desktop (lg+) ════════ */}
           <main className="mx-auto hidden w-full max-w-[1600px] flex-1 gap-4 p-4 md:p-5 lg:flex lg:gap-6">
 
@@ -101,20 +218,17 @@ export function DashboardApp() {
           {/* ════════ Layout mobile (< lg) ════════ */}
           <div className="flex flex-1 flex-col lg:hidden">
             <div className="flex-1 overflow-y-auto">
-
               {mobileView === "build" && (
                 <div className="p-3 pb-2">
                   <InventoryGrid onOpenTools={openTools} />
                   <SpellsPanel />
                 </div>
               )}
-
               {mobileView === "stats" && (
                 <div className="p-3">
                   <StatsPanel />
                 </div>
               )}
-
               {mobileView === "sets" && (
                 <div className="flex flex-col p-3">
                   <ActiveSetCards />

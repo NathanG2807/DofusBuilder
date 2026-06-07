@@ -3,10 +3,10 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { getBuildById, listPublicBuilds } from "@/lib/api";
+import { getAccessToken } from "@/lib/auth";
 import { BUILD_TAGS, getBuildTag } from "@/lib/buildTags";
 import { classHeadUrl, classImageUrl } from "@/lib/classImage";
 import { DOFUS_CLASS_OPTIONS } from "@/lib/dofusClasses";
-import { SLOT_DEFS } from "@/lib/slots";
 import { useBuildStore } from "@/store/build-store";
 import type { PublicBuildOut } from "@/types/api";
 
@@ -322,8 +322,22 @@ export function StuffsPanel() {
       const full = await getBuildById(build.id);
       hydrateFromPersistedBuild(full);
       await prefetchEquippedItems();
-      // Switch back to buildroom tab — delegate via event
-      window.dispatchEvent(new CustomEvent("switch-tab", { detail: "buildroom" }));
+
+      // Determine if this build belongs to the current user
+      // We can't know the owner username easily, but we can check if the user
+      // is logged in. If they're not, or if they want a copy, the banner appears.
+      // We mark it as "foreign" if the user is logged in (they can copy it)
+      // or not logged in (read-only notice).
+      const isForeign = true; // always show the banner — user can dismiss if it's their own
+
+      window.dispatchEvent(
+        new CustomEvent("switch-tab", {
+          detail: {
+            tab: "buildroom",
+            foreign: isForeign ? { id: build.id, name: build.name } : undefined,
+          },
+        }),
+      );
     } catch (e) {
       console.error("Failed to load build", e);
     } finally {

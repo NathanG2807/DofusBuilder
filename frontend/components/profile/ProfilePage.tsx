@@ -51,105 +51,190 @@ function BuildRow({
   onLoad,
   onDelete,
   onToggleVisibility,
+  onUpdateTags,
   toggling,
 }: {
   build: BuildOut;
   onLoad: (b: BuildOut) => void;
   onDelete: (id: string) => void;
   onToggleVisibility: (b: BuildOut) => void;
+  onUpdateTags: (id: string, tags: string[]) => Promise<void>;
   toggling: boolean;
 }) {
   const classId = build.class_id ?? 8;
   const sex = build.sex === "female" ? "female" : "male";
   const className = DOFUS_CLASS_OPTIONS.find((c) => c.id === classId)?.label ?? `#${classId}`;
 
-  return (
-    <div className="flex items-center gap-3 rounded-xl border border-[#222] bg-[#141414] px-4 py-3 transition hover:border-[#2e2e2e]">
-      {/* Class icon */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img
-        src={classHeadUrl(classId, sex)}
-        alt={className}
-        width={36}
-        height={36}
-        className="h-9 w-9 shrink-0 rounded-lg object-cover"
-        onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-      />
+  const [editingTags, setEditingTags] = useState(false);
+  const [draftTags, setDraftTags] = useState<string[]>(build.tags ?? []);
+  const [savingTags, setSavingTags] = useState(false);
 
-      {/* Info */}
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-2">
-          <p className="truncate text-[13px] font-semibold text-[#e0d0a0]">{build.name}</p>
-          {build.level != null && (
-            <span className="shrink-0 rounded-full bg-[#1e1e1e] px-1.5 py-0.5 text-[10px] text-[#555]">
-              Niv. {build.level}
-            </span>
+  function toggleDraftTag(id: string) {
+    setDraftTags((prev) =>
+      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
+    );
+  }
+
+  async function handleSaveTags() {
+    setSavingTags(true);
+    try {
+      await onUpdateTags(build.id, draftTags);
+      setEditingTags(false);
+    } finally {
+      setSavingTags(false);
+    }
+  }
+
+  return (
+    <div className="rounded-xl border border-[#222] bg-[#141414] transition hover:border-[#2e2e2e]">
+      <div className="flex items-center gap-3 px-4 py-3">
+        {/* Class icon */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src={classHeadUrl(classId, sex)}
+          alt={className}
+          width={36}
+          height={36}
+          className="h-9 w-9 shrink-0 rounded-lg object-cover"
+          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+        />
+
+        {/* Info */}
+        <div className="min-w-0 flex-1">
+          <div className="flex items-center gap-2">
+            <p className="truncate text-[13px] font-semibold text-[#e0d0a0]">{build.name}</p>
+            {build.level != null && (
+              <span className="shrink-0 rounded-full bg-[#1e1e1e] px-1.5 py-0.5 text-[10px] text-[#555]">
+                Niv. {build.level}
+              </span>
+            )}
+            <span className="shrink-0 text-[11px] text-[#444]">{className}</span>
+          </div>
+          {/* Tags display */}
+          {!editingTags && (
+            <div className="mt-1 flex flex-wrap items-center gap-1">
+              {(build.tags?.length ?? 0) > 0 ? (
+                (build.tags ?? []).map((tagId) => {
+                  const tag = BUILD_TAGS.find((t) => t.id === tagId);
+                  return tag ? (
+                    <span
+                      key={tagId}
+                      className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                      style={{ backgroundColor: `${tag.color}22`, color: tag.color }}
+                    >
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={tag.icon} alt="" width={9} height={9} className="shrink-0" />
+                      {tag.label}
+                    </span>
+                  ) : null;
+                })
+              ) : (
+                <span className="text-[10px] text-[#333]">Aucun tag</span>
+              )}
+            </div>
           )}
-          <span className="shrink-0 text-[11px] text-[#444]">{className}</span>
         </div>
-        {/* Tags */}
-        {(build.tags?.length ?? 0) > 0 && (
-          <div className="mt-1 flex flex-wrap gap-1">
-            {(build.tags ?? []).map((tagId) => {
-              const tag = BUILD_TAGS.find((t) => t.id === tagId);
-              return tag ? (
-                <span
-                  key={tagId}
-                  className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
-                  style={{ backgroundColor: `${tag.color}22`, color: tag.color }}
+
+        {/* Actions */}
+        <div className="flex shrink-0 items-center gap-2">
+          {/* Edit tags */}
+          <button
+            type="button"
+            title="Modifier les tags"
+            onClick={() => { setDraftTags(build.tags ?? []); setEditingTags((v) => !v); }}
+            className={`rounded-lg border px-2.5 py-1 text-[11px] transition ${
+              editingTags
+                ? "border-[#f0d78c]/40 bg-[#f0d78c]/10 text-[#f0d78c]"
+                : "border-[#2a2a2a] bg-[#111] text-[#555] hover:border-[#444] hover:text-[#ccc]"
+            }`}
+          >
+            Tags
+          </button>
+          {/* Visibility toggle */}
+          <button
+            type="button"
+            title={build.is_public ? "Rendre privé" : "Rendre public"}
+            disabled={toggling}
+            onClick={() => onToggleVisibility(build)}
+            className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition disabled:opacity-40 ${
+              build.is_public
+                ? "border-[var(--dofus-green-active)]/40 bg-[var(--dofus-green-active)]/10 text-[var(--dofus-green-active)] hover:bg-[var(--dofus-green-active)]/20"
+                : "border-[#2a2a2a] bg-[#111] text-[#555] hover:border-[#444] hover:text-[#999]"
+            }`}
+          >
+            <EyeIcon open={build.is_public} />
+            {build.is_public ? "Public" : "Privé"}
+          </button>
+          {/* Load */}
+          <button
+            type="button"
+            onClick={() => onLoad(build)}
+            className="rounded-lg border border-[#2a2a2a] bg-[#111] px-2.5 py-1 text-[11px] text-[#888] transition hover:border-[#444] hover:text-[#ccc]"
+          >
+            Charger
+          </button>
+          {/* Delete */}
+          <button
+            type="button"
+            onClick={() => onDelete(build.id)}
+            className="rounded-lg border border-transparent px-2 py-1 text-[11px] text-red-500/50 transition hover:border-red-500/20 hover:bg-red-500/5 hover:text-red-400"
+            title="Supprimer"
+          >
+            <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <polyline points="3 6 5 6 21 6" />
+              <path d="M19 6l-1 14H6L5 6" />
+              <path d="M10 11v6M14 11v6" />
+              <path d="M9 6V4h6v2" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Inline tag editor */}
+      {editingTags && (
+        <div className="border-t border-[#1e1e1e] px-4 py-3">
+          <p className="mb-2 text-[11px] text-[#555]">Sélectionner les tags</p>
+          <div className="flex flex-wrap gap-2">
+            {BUILD_TAGS.map((tag) => {
+              const active = draftTags.includes(tag.id);
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  onClick={() => toggleDraftTag(tag.id)}
+                  className="flex items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-medium transition"
+                  style={
+                    active
+                      ? { backgroundColor: `${tag.color}33`, borderColor: `${tag.color}88`, color: tag.color }
+                      : { borderColor: "#2a2a2a", backgroundColor: "#0e0e0e", color: "#555" }
+                  }
                 >
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={tag.icon} alt="" width={9} height={9} className="shrink-0" />
+                  <img src={tag.icon} alt="" width={12} height={12} className="shrink-0" />
                   {tag.label}
-                </span>
-              ) : null;
+                </button>
+              );
             })}
           </div>
-        )}
-      </div>
-
-      {/* Actions */}
-      <div className="flex shrink-0 items-center gap-2">
-        {/* Visibility toggle */}
-        <button
-          type="button"
-          title={build.is_public ? "Rendre privé" : "Rendre public"}
-          disabled={toggling}
-          onClick={() => onToggleVisibility(build)}
-          className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1 text-[11px] font-medium transition disabled:opacity-40 ${
-            build.is_public
-              ? "border-[var(--dofus-green-active)]/40 bg-[var(--dofus-green-active)]/10 text-[var(--dofus-green-active)] hover:bg-[var(--dofus-green-active)]/20"
-              : "border-[#2a2a2a] bg-[#111] text-[#555] hover:border-[#444] hover:text-[#999]"
-          }`}
-        >
-          <EyeIcon open={build.is_public} />
-          {build.is_public ? "Public" : "Privé"}
-        </button>
-
-        {/* Load */}
-        <button
-          type="button"
-          onClick={() => onLoad(build)}
-          className="rounded-lg border border-[#2a2a2a] bg-[#111] px-2.5 py-1 text-[11px] text-[#888] transition hover:border-[#444] hover:text-[#ccc]"
-        >
-          Charger
-        </button>
-
-        {/* Delete */}
-        <button
-          type="button"
-          onClick={() => onDelete(build.id)}
-          className="rounded-lg border border-transparent px-2 py-1 text-[11px] text-red-500/50 transition hover:border-red-500/20 hover:bg-red-500/5 hover:text-red-400"
-          title="Supprimer"
-        >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14H6L5 6" />
-            <path d="M10 11v6M14 11v6" />
-            <path d="M9 6V4h6v2" />
-          </svg>
-        </button>
-      </div>
+          <div className="mt-3 flex items-center gap-2">
+            <button
+              type="button"
+              disabled={savingTags}
+              onClick={() => void handleSaveTags()}
+              className="rounded-lg bg-[var(--dofus-green-active)]/80 px-3 py-1.5 text-[11px] font-medium text-[#0a0a0a] transition hover:bg-[var(--dofus-green-active)] disabled:opacity-50"
+            >
+              {savingTags ? "Sauvegarde…" : "Enregistrer"}
+            </button>
+            <button
+              type="button"
+              onClick={() => setEditingTags(false)}
+              className="text-[11px] text-[#555] hover:text-[#999]"
+            >
+              Annuler
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -283,6 +368,17 @@ export function ProfilePage() {
       setBuilds((prev) => prev.filter((b) => b.id !== id));
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Impossible de supprimer.");
+    }
+  }
+
+  async function handleUpdateTags(id: string, tags: string[]) {
+    setActionError(null);
+    try {
+      const updated = await updateBuild(id, { tags });
+      setBuilds((prev) => prev.map((bld) => (bld.id === id ? { ...bld, tags: updated.tags } : bld)));
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Impossible de sauvegarder les tags.");
+      throw e;
     }
   }
 
@@ -432,6 +528,7 @@ export function ProfilePage() {
                   onLoad={(build) => void handleLoad(build)}
                   onDelete={(id) => void handleDelete(id)}
                   onToggleVisibility={(build) => void handleToggleVisibility(build)}
+                  onUpdateTags={handleUpdateTags}
                   toggling={togglingId === b.id}
                 />
               ))}
