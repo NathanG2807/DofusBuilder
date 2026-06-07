@@ -106,6 +106,22 @@ export type BuildOut = {
   exo_fm: Record<string, string> | null;
   locked_slots: Record<string, number> | null;
   is_public: boolean;
+  tags: string[] | null;
+  slots_preview: Record<string, string | null> | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+/** Lightweight public build (no private stats) for the Stuffs catalog. */
+export type PublicBuildOut = {
+  id: string;
+  name: string;
+  class_id: number | null;
+  level: number | null;
+  sex: string | null;
+  is_public: boolean;
+  tags: string[] | null;
+  slots_preview: Record<string, string | null> | null;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -124,6 +140,16 @@ export type BuildCreatePayload = {
   exo_fm?: Record<string, string> | null;
   locked_slots?: Record<string, number> | null;
   is_public?: boolean;
+  tags?: string[] | null;
+  slots_preview?: Record<string, string | null> | null;
+};
+
+export type BuildUpdatePayload = {
+  name?: string;
+  is_public?: boolean;
+  tags?: string[] | null;
+  slots_preview?: Record<string, string | null> | null;
+  description?: string | null;
 };
 
 export type UserPublic = {

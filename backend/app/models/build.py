@@ -33,6 +33,8 @@ class Build(Base):
     locked_slots: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     sex: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
+    tags: Mapped[Optional[list[Any]]] = mapped_column(JSONB, nullable=True, default=list)
+    slots_preview: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         default=datetime.utcnow, onupdate=datetime.utcnow

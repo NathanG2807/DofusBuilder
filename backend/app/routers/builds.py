@@ -4,16 +4,43 @@ import uuid
 from datetime import datetime, timezone
 from typing import Optional
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.deps import get_current_user, get_optional_user
 from app.models import Build, User
-from app.schemas import BuildCreate, BuildOut, BuildUpdate
+from app.schemas import BuildCreate, BuildOut, BuildUpdate, PublicBuildOut
 
 router = APIRouter(prefix="/builds", tags=["builds"])
+
+
+@router.get("/public", response_model=list[PublicBuildOut])
+async def list_public_builds(
+    q: Optional[str] = Query(default=None, description="Search by build name"),
+    class_id: Optional[int] = Query(default=None, description="Filter by class ID"),
+    tags: Optional[list[str]] = Query(default=None, description="Filter by tags (OR)"),
+    level: Optional[int] = Query(default=None, description="Filter by level"),
+    page: int = Query(default=1, ge=1),
+    page_size: int = Query(default=24, ge=1, le=100),
+    db: AsyncSession = Depends(get_db),
+) -> list[Build]:
+    stmt = select(Build).where(Build.is_public == True)  # noqa: E712
+    if q:
+        stmt = stmt.where(Build.name.ilike(f"%{q.strip()}%"))
+    if class_id is not None:
+        stmt = stmt.where(Build.class_id == class_id)
+    if level is not None:
+        stmt = stmt.where(Build.level == level)
+    if tags:
+        from sqlalchemy import cast
+        from sqlalchemy.dialects.postgresql import JSONB
+        for tag in tags:
+            stmt = stmt.where(Build.tags.contains(cast([tag], JSONB)))
+    stmt = stmt.order_by(Build.updated_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    result = await db.execute(stmt)
+    return list(result.scalars().all())
 
 
 @router.get("", response_model=list[BuildOut])
@@ -50,6 +77,8 @@ async def create_build(
         exo_fm=body.exo_fm,
         locked_slots=body.locked_slots,
         is_public=body.is_public,
+        tags=body.tags or [],
+        slots_preview=body.slots_preview or {},
     )
     db.add(b)
     await db.commit()

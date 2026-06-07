@@ -2,7 +2,14 @@
 
 import { AccountButton } from "@/components/layout/AccountButton";
 
-export function Navbar() {
+export type AppTab = "buildroom" | "stuffs";
+
+type NavbarProps = {
+  activeTab?: AppTab;
+  onTabChange?: (tab: AppTab) => void;
+};
+
+export function Navbar({ activeTab = "buildroom", onTabChange }: NavbarProps) {
   return (
     <header
       className="sticky top-8 z-40 mx-4 mt-6 rounded-2xl border border-white/[0.06] bg-[#0a0a0a]/70 backdrop-blur-xl md:mx-8"
@@ -28,15 +35,25 @@ export function Navbar() {
         <nav className="hidden items-center gap-0.5 sm:flex">
           <button
             type="button"
-            className="rounded-lg bg-white/[0.07] px-4 py-1.5 text-[13px] font-medium text-white/80 transition hover:bg-white/[0.10]"
+            onClick={() => onTabChange?.("buildroom")}
+            className={`rounded-lg px-4 py-1.5 text-[13px] font-medium transition ${
+              activeTab === "buildroom"
+                ? "bg-white/[0.07] text-white/80"
+                : "text-white/30 hover:bg-white/[0.05] hover:text-white/60"
+            }`}
           >
             Buildroom
           </button>
           <button
             type="button"
-            className="rounded-lg px-4 py-1.5 text-[13px] font-medium text-white/30 transition hover:bg-white/[0.05] hover:text-white/60"
+            onClick={() => onTabChange?.("stuffs")}
+            className={`rounded-lg px-4 py-1.5 text-[13px] font-medium transition ${
+              activeTab === "stuffs"
+                ? "bg-white/[0.07] text-white/80"
+                : "text-white/30 hover:bg-white/[0.05] hover:text-white/60"
+            }`}
           >
-            Encyclopédie
+            Stuffs
           </button>
         </nav>
 

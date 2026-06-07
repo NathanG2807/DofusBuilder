@@ -3,12 +3,14 @@ import type {
   ActiveSetDetail,
   BuildCreatePayload,
   BuildOut,
+  BuildUpdatePayload,
   FullBuild,
   ItemOut,
   ItemSetListResponse,
   ItemSetOut,
   OptimizationRequest,
   ItemListResponse,
+  PublicBuildOut,
   UserPublic,
 } from "@/types/api";
 
@@ -71,6 +73,16 @@ export function authLogout(): void {
   clearAccessToken();
 }
 
+export async function updateMe(body: { username?: string }): Promise<UserPublic> {
+  const r = await fetch(`${getApiBase()}/api/v1/auth/me`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await parseError(r));
+  return r.json() as Promise<UserPublic>;
+}
+
 export async function listMyBuilds(): Promise<BuildOut[]> {
   const r = await fetch(`${getApiBase()}/api/v1/builds`, {
     headers: authHeaders(),
@@ -97,6 +109,42 @@ export async function getBuildById(buildId: string): Promise<BuildOut> {
   });
   if (!r.ok) throw new Error(await parseError(r));
   return r.json() as Promise<BuildOut>;
+}
+
+export async function updateBuild(buildId: string, body: BuildUpdatePayload): Promise<BuildOut> {
+  const r = await fetch(`${getApiBase()}/api/v1/builds/${buildId}`, {
+    method: "PATCH",
+    headers: authHeaders(),
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await parseError(r));
+  return r.json() as Promise<BuildOut>;
+}
+
+export type PublicBuildsParams = {
+  q?: string;
+  class_id?: number;
+  tags?: string[];
+  level?: number;
+  page?: number;
+  page_size?: number;
+};
+
+export async function listPublicBuilds(params: PublicBuildsParams = {}): Promise<PublicBuildOut[]> {
+  const sp = new URLSearchParams();
+  if (params.q?.trim()) sp.set("q", params.q.trim());
+  if (params.class_id != null) sp.set("class_id", String(params.class_id));
+  if (params.level != null) sp.set("level", String(params.level));
+  if (params.page != null) sp.set("page", String(params.page));
+  if (params.page_size != null) sp.set("page_size", String(params.page_size));
+  if (params.tags?.length) {
+    for (const t of params.tags) sp.append("tags", t);
+  }
+  const r = await fetch(`${getApiBase()}/api/v1/builds/public?${sp}`, {
+    cache: "no-store",
+  });
+  if (!r.ok) throw new Error(await parseError(r));
+  return r.json() as Promise<PublicBuildOut[]>;
 }
 
 export async function deleteBuild(buildId: string): Promise<void> {

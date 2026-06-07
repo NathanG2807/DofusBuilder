@@ -117,6 +117,10 @@ class UserPublic(BaseModel):
     created_at: datetime
 
 
+class UserUpdate(BaseModel):
+    username: Optional[str] = Field(default=None, min_length=2, max_length=100)
+
+
 class RegisterRequest(BaseModel):
     username: str = Field(min_length=2, max_length=100)
     email: EmailStr
@@ -189,6 +193,8 @@ class BuildCreate(BaseModel):
     exo_fm: Optional[dict[str, str]] = None
     locked_slots: Optional[dict[str, int]] = None
     is_public: bool = True
+    tags: Optional[list[str]] = None
+    slots_preview: Optional[dict[str, Optional[str]]] = None
 
 
 class BuildUpdate(BaseModel):
@@ -205,6 +211,8 @@ class BuildUpdate(BaseModel):
     exo_fm: Optional[dict[str, str]] = None
     locked_slots: Optional[dict[str, int]] = None
     is_public: Optional[bool] = None
+    tags: Optional[list[str]] = None
+    slots_preview: Optional[dict[str, Optional[str]]] = None
 
 
 class BuildOut(BaseModel):
@@ -225,5 +233,23 @@ class BuildOut(BaseModel):
     exo_fm: Optional[dict[str, str]] = None
     locked_slots: Optional[dict[str, int]] = None
     is_public: bool = True
+    tags: Optional[list[str]] = None
+    slots_preview: Optional[dict[str, Any]] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class PublicBuildOut(BaseModel):
+    """Lightweight build for the public stuffs catalog (no private stats data)."""
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    class_id: Optional[int] = None
+    level: Optional[int] = None
+    sex: Optional[str] = None
+    is_public: bool = True
+    tags: Optional[list[str]] = None
+    slots_preview: Optional[dict[str, Any]] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

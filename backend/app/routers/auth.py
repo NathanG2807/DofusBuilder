@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timezone
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -8,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.session import get_db
 from app.deps import get_current_user
 from app.models import User
-from app.schemas import LoginRequest, RegisterRequest, TokenResponse, UserPublic
+from app.schemas import LoginRequest, RegisterRequest, TokenResponse, UserPublic, UserUpdate
 from app.security import create_access_token, hash_password, verify_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -49,4 +51,34 @@ async def login(body: LoginRequest, db: AsyncSession = Depends(get_db)) -> Token
 
 @router.get("/me", response_model=UserPublic)
 async def me(current: User = Depends(get_current_user)) -> User:
+    return current
+
+
+@router.patch("/me", response_model=UserPublic)
+async def update_me(
+    body: UserUpdate,
+    db: AsyncSession = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> User:
+    if body.username is not None:
+        new_username = body.username.strip()
+        if new_username != current.username:
+            existing = await db.execute(
+                select(User).where(User.username == new_username)
+            )
+            if existing.scalar_one_or_none() is not None:
+                raise HTTPException(
+                    status.HTTP_409_CONFLICT,
+                    detail="Ce pseudo est déjà pris.",
+                )
+            current.username = new_username
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            detail="Ce pseudo est déjà pris.",
+        )
+    await db.refresh(current)
     return current
