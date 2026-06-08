@@ -13,7 +13,7 @@ import { BOOK_DOFUS_SLOTS, BOOK_LEFT_SLOTS, BOOK_RIGHT_SLOTS, SLOT_SHORT_LABEL }
 import { STAT_GROUPS } from "@/lib/statLabels";
 import { computeDisplayStats } from "@/lib/buildDisplayStats";
 import { DisplayStatsContext, useDisplayStats } from "@/hooks/useDisplayStats";
-import { useBuildStore } from "@/store/build-store";
+import { useBuildStore, type ExoType } from "@/store/build-store";
 import type { BuildOut, ItemOut, PublicBuildOut } from "@/types/api";
 
 /* ── Tag chip ────────────────────────────────────────────────────────────── */
@@ -422,7 +422,7 @@ function BuildFullscreenView({
         fullBuild.level ?? 200,
         fullBuild.char_stats ?? {},
         fullBuild.parcho_stats ?? {},
-        fullBuild.exo_fm ?? {},
+        (fullBuild.exo_fm ?? {}) as Partial<Record<string, ExoType>>,
       ),
     [fullBuild],
   );
