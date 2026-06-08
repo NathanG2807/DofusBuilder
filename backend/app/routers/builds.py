@@ -162,5 +162,5 @@ async def delete_build(
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Build not found")
     if not _can_edit(b, current):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not allowed")
-    db.delete(b)
+    await db.delete(b)
     await db.commit()
