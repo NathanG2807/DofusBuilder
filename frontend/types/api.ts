@@ -122,6 +122,9 @@ export type PublicBuildOut = {
   is_public: boolean;
   tags: string[] | null;
   slots_preview: Record<string, string | null> | null;
+  slots?: Record<string, number | null> | null;
+  exo_fm?: Record<string, string> | null;
+  username?: string | null;
   created_at?: string | null;
   updated_at?: string | null;
 };

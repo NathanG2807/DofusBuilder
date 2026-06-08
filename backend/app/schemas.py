@@ -251,5 +251,8 @@ class PublicBuildOut(BaseModel):
     is_public: bool = True
     tags: Optional[list[str]] = None
     slots_preview: Optional[dict[str, Any]] = None
+    slots: Optional[dict[str, Any]] = None
+    exo_fm: Optional[dict[str, str]] = None
+    username: Optional[str] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

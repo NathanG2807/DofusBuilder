@@ -7,6 +7,7 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.deps import get_current_user, get_optional_user
@@ -25,8 +26,12 @@ async def list_public_builds(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=24, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
-) -> list[Build]:
-    stmt = select(Build).where(Build.is_public == True)  # noqa: E712
+) -> list[dict]:
+    stmt = (
+        select(Build)
+        .where(Build.is_public == True)  # noqa: E712
+        .options(selectinload(Build.user))
+    )
     if q:
         stmt = stmt.where(Build.name.ilike(f"%{q.strip()}%"))
     if class_id is not None:
@@ -40,7 +45,25 @@ async def list_public_builds(
             stmt = stmt.where(Build.tags.contains(cast([tag], JSONB)))
     stmt = stmt.order_by(Build.updated_at.desc()).offset((page - 1) * page_size).limit(page_size)
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    builds = list(result.scalars().all())
+    return [
+        {
+            "id": b.id,
+            "name": b.name,
+            "class_id": b.class_id,
+            "level": b.level,
+            "sex": b.sex,
+            "is_public": b.is_public,
+            "tags": b.tags,
+            "slots_preview": b.slots_preview,
+            "slots": b.slots,
+            "exo_fm": b.exo_fm,
+            "username": b.user.username if b.user else None,
+            "created_at": b.created_at,
+            "updated_at": b.updated_at,
+        }
+        for b in builds
+    ]
 
 
 @router.get("", response_model=list[BuildOut])

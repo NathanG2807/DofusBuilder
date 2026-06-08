@@ -864,8 +864,9 @@ function SpellCompareTooltip({
 /** Taille des icônes affichées dans la grille (px). */
 const ICON_SIZE = 48;
 
-export function SpellsPanel() {
-  const classId = useBuildStore((s) => s.classId);
+export function SpellsPanel({ classId: classIdProp }: { classId?: number } = {}) {
+  const storeClassId = useBuildStore((s) => s.classId);
+  const classId = classIdProp ?? storeClassId;
 
   const [groups, setGroups]             = useState<SpellVariantGroup[]>([]);
   const [loading, setLoading]           = useState(false);
@@ -967,6 +968,7 @@ export function SpellsPanel() {
           style={{
             gridTemplateColumns: `repeat(11, ${ICON_SIZE}px)`,
             gap: "4px",
+            justifyContent: "center",
           }}
         >
           {groups.map((group) => {
