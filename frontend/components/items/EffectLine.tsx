@@ -7,6 +7,22 @@ import { effectIcon, effectMaxLabel, effectRangeLabel } from "@/lib/effectFormat
 
 type RawEffect = Record<string, unknown>;
 
+/** Couleur du nom d'un sort spécial (effet meta). */
+const SPECIAL_SPELL_COLOR = "#80d8f0";
+
+/**
+ * Découpe un `formatted` de type "Nom du sort :\n• Description..."
+ * en { name, description }. Retourne null si le format n'est pas reconnu.
+ */
+function parseSpecialSpell(formatted: string): { name: string; description: string } | null {
+  const nlIdx = formatted.indexOf("\n");
+  if (nlIdx === -1) return null;
+  const name = formatted.slice(0, nlIdx).replace(/\s*:\s*$/, "").trim();
+  const description = formatted.slice(nlIdx + 1).trim();
+  if (!name || !description) return null;
+  return { name, description };
+}
+
 type Props = {
   eff: RawEffect;
   className?: string;
@@ -40,6 +56,7 @@ function scale(c: { min: number; max: number; element: number; colorClass: strin
  * en gras avec la couleur de leur élément, et scalés par weaponHits du contexte.
  */
 export function EffectLine({ eff, className = "" }: Props) {
+  const isMeta = (eff.type as { is_meta?: boolean } | null)?.is_meta === true;
   const isActive = (eff.type as { is_active?: boolean } | null)?.is_active === true;
   const label = isActive ? effectRangeLabel(eff) : effectMaxLabel(eff);
   const icon = effectIcon(eff);
@@ -65,6 +82,39 @@ export function EffectLine({ eff, className = "" }: Props) {
 
   const calc = calcRaw ? scale(calcRaw, hits) : null;
   const calcCrit = calcCritRaw ? scale(calcCritRaw, hits) : null;
+
+  /* ── Sort spécial (is_meta) ─── */
+  if (isMeta) {
+    const spell = parseSpecialSpell((eff.formatted as string) ?? "");
+    const displayName = spell?.name ?? (eff.formatted as string) ?? "";
+    return (
+      <li className={`group relative flex items-center gap-1.5 leading-snug ${className}`}>
+        <span className="h-[14px] w-[14px] shrink-0" />
+        <span
+          className="cursor-help font-bold"
+          style={{ color: SPECIAL_SPELL_COLOR }}
+        >
+          ✦ {displayName}
+        </span>
+        {spell?.description && (
+          <div
+            className="
+              pointer-events-none invisible absolute bottom-full left-5 z-[99999] mb-2
+              w-64 rounded-lg border border-[#2a3a4a] bg-[#0e1820] p-3
+              text-[11px] leading-relaxed text-[#a8c8d8] opacity-0 shadow-2xl
+              transition-all duration-150 group-hover:visible group-hover:opacity-100
+            "
+            style={{ whiteSpace: "pre-line" }}
+          >
+            <span className="mb-1 block font-bold" style={{ color: SPECIAL_SPELL_COLOR }}>
+              {spell.name}
+            </span>
+            {spell.description}
+          </div>
+        )}
+      </li>
+    );
+  }
 
   if (!label) return null;
 
