@@ -355,7 +355,7 @@ export function ProfilePage() {
       const full = await getBuildById(b.id);
       hydrateFromPersistedBuild(full);
       await prefetchEquippedItems();
-      router.push("/");
+      router.push("/builder");
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Impossible de charger le build.");
     }
@@ -430,7 +430,7 @@ export function ProfilePage() {
       <header className="sticky top-0 z-40 border-b border-[#1a1a1a] bg-[#0a0a0a]/90 backdrop-blur-xl">
         <div className="mx-auto flex h-14 max-w-[1100px] items-center gap-4 px-4 md:px-6">
           <Link
-            href="/"
+            href="/builder"
             className="flex items-center gap-1.5 text-[12px] text-[#555] transition hover:text-[#999]"
           >
             <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
@@ -515,7 +515,7 @@ export function ProfilePage() {
           {builds.length === 0 ? (
             <div className="rounded-xl border border-dashed border-[#222] py-12 text-center">
               <p className="text-[#444]">Aucun build sauvegardé.</p>
-              <Link href="/" className="mt-2 inline-block text-[12px] text-[var(--dofus-green-active)] hover:underline">
+              <Link href="/builder" className="mt-2 inline-block text-[12px] text-[var(--dofus-green-active)] hover:underline">
                 Créer un build →
               </Link>
             </div>

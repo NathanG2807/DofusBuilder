@@ -151,11 +151,11 @@ function ForeignBuildBanner({
 }
 
 /* ── Dashboard principal ─────────────────────────────────────────────────── */
-export function DashboardApp() {
+export function DashboardApp({ initialTab = "buildroom" }: { initialTab?: AppTab } = {}) {
   const [showTools, setShowTools] = useState(false);
   const [activeTool, setActiveTool] = useState<ActiveTool>("optimize");
   const [mobileView, setMobileView] = useState<MobileView>("build");
-  const [activeTab, setActiveTab] = useState<AppTab>("buildroom");
+  const [activeTab, setActiveTab] = useState<AppTab>(initialTab);
   const [foreignBuild, setForeignBuild] = useState<ForeignBuild | null>(null);
 
   useEffect(() => {
