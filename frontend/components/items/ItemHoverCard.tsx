@@ -175,6 +175,7 @@ function ItemCardBody({ item, label, onOpenSetModal }: { item: ItemOut; label?: 
           <p className="mt-0.5 text-[10px] text-[#888888]">
             Niv. {item.level} · {typeLabel(item.type_name_id)}
             {item.is_weapon ? " · Arme" : ""}
+            {item.pods != null && item.pods > 0 ? ` · ${item.pods} pods` : ""}
           </p>
         </div>
       </div>

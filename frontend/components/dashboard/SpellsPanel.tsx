@@ -13,6 +13,26 @@ import { useDisplayStats } from "@/hooks/useDisplayStats";
 import { useBuildStore } from "@/store/build-store";
 import { CLASS_TO_BREED_ID, CLASS_TO_SPELL_TYPE_ID } from "@/lib/dofusClasses";
 
+import {
+  ALWAYS_HIDDEN_EFFECT_IDS,
+  DESC_ELEMENT_PATTERNS,
+  DAMAGE_ELEMENT_INFO,
+  ELEMENT_ICONS,
+  MAX_DISPLAY_VALUE,
+  computeEffectDamage,
+  detectDescElements,
+  formatEffectValue,
+  gEffectCache,
+  gEffectPending,
+  getEffectLabel,
+  loadEffectInfo,
+  parseApiEffectLabel,
+  resolveEffectElementIcon,
+  spellUsesBestElement,
+  type SpellEffect,
+  type SpellLevelData,
+} from "@/lib/spellEffects";
+
 /* ══════════════════════════════════════════════════════════════════════════════
    Types
 ══════════════════════════════════════════════════════════════════════════════ */
@@ -32,393 +52,14 @@ interface SpellVariantGroup {
   spells: SpellFullData[];
 }
 
-interface SpellEffect {
-  effectId: number;
-  effectElement: number;
-  value: number;
-  diceNum: number;
-  diceSide: number;
-  duration: number;
-  visibleInTooltip: boolean;
-}
-
-interface SpellLevelData {
-  id: number;
-  grade: number;
-  apCost: number;
-  minRange: number;
-  range: number;
-  criticalHitProbability: number;
-  maxCastPerTurn: number;
-  minPlayerLevel: number;
-  rangeCanBeBoosted: boolean;
-  castInLine: boolean;
-  castInDiagonal: boolean;
-  castTestLos: boolean;
-  effects: SpellEffect[];
-  criticalEffect: SpellEffect[];
-}
-
-/* ══════════════════════════════════════════════════════════════════════════════
-   Helpers
-══════════════════════════════════════════════════════════════════════════════ */
-/**
- * Mapping effectElement (spell-levels API) → icône visuelle.
- *
- * Convention DofusDB (vérifiée via /effects?id=…) :
- *   0 = Neutre (pas d'icône dédiée)
- *   1 = Terre
- *   2 = Feu
- *   3 = Eau
- *   4 = Air
- *   5 = "non-élément" (caractéristiques boostées : Puissance, etc.)
- *  -1 = aucun élément
- *
- * effectElement (spell-levels) === elementId (effects). Aucun "swap" Dofus 2 / Dofus 3.
- */
-const ELEMENT_ICONS: Record<number, { icon: string; label: string }> = {
-  1: { icon: "ter", label: "Terre" },
-  2: { icon: "feu", label: "Feu"   },
-  3: { icon: "eau", label: "Eau"   },
-  4: { icon: "air", label: "Air"   },
-};
-
-/**
- * Effets dont la ligne doit être entièrement masquée (même si visibleInTooltip=true
- * dans l'API spell-levels), car ce sont des mécanismes internes sans valeur affichable.
- *
- * 293 = "Soins (% PV cible)" : utilisé en mécanique interne (diceNum = spellId), jamais montré in-game.
- */
-const ALWAYS_HIDDEN_EFFECT_IDS = new Set<number>([293]);
-
-/** Max sane display value — au-dessus, c'est un ID interne (spellId/stateId), pas un nombre de gameplay. */
-const MAX_DISPLAY_VALUE = 9000;
-
-/* ── Cache d'effets dynamique ───────────────────────────────────────────────
-   Labels chargés depuis https://api.dofusdb.fr/effects/{id}?lang=fr
-   Cache module-level : persiste entre les montages React.
-────────────────────────────────────────────────────────────────────────────── */
-interface EffectInfo {
-  /** Libellé court à afficher (sans suffixe d'élément, sans "X" placeholder). */
-  label: string;
-  /** Affiche un "%" après la valeur. */
-  isPercent: boolean;
-  /** L'effet est élémentaire : afficher l'icône via effectElement (1-4). */
-  isElemental: boolean;
-  /** Ne jamais afficher de valeur numérique (état pur, ID interne, mécanique cachée). */
-  hideValue: boolean;
-}
-
-/** Cache module-level : effectId → informations */
-const gEffectCache   = new Map<number, EffectInfo>();
-/** Requêtes en cours pour éviter les doublons */
-const gEffectPending = new Map<number, Promise<void>>();
-
-/**
- * Parse le template de description de l'API Dofus DB.
- * Exemple : "#1{{~1~2 à }}#2% Érosion" → "Érosion"
- * Exemple : "#1{{~1~2 à }}#2 dommages Feu" → "dommages Feu"
- * Exemple : "#1{{~1~2 à }}#2% <sprite name=\"PV\"> PV du lanceur" → "PV du lanceur"
- */
-function parseApiEffectLabel(raw: string): string {
-  return raw
-    .replace(/<[^>]*>/g, "")        // supprime les balises Unity <sprite name="…">
-    .replace(/#\d+/g, "")           // supprime #1 #2 …
-    .replace(/\{\{[^}]*\}\}/g, "")  // supprime {{…}} (séparateurs conditionnels)
-    .replace(/^[\s%:+\-]+/, "")     // supprime les "% : + -" éventuels en tête
-    .replace(/[\s%:]+$/, "")        // supprime les "% :" éventuels en queue
-    .replace(/\s+/g, " ")
-    .trim();
-}
-
-/**
- * Pré-remplit le cache pour les effets les plus courants — évite N requêtes réseau au premier hover.
- *
- * Toutes les entrées sont vérifiées contre https://api.dofusdb.fr/effects/{id}?lang=fr
- * Les labels sont volontairement courts : l'élément est exprimé via l'icône, pas dupliqué dans le texte.
- */
-(function seedCache() {
-  // [id, label court, isPercent, isElemental, hideValue]
-  const SEED: Array<[number, string, boolean, boolean, boolean]> = [
-    // ── Déplacements / positionnement ─────────────────────────────────────
-    [  4, "Téléportation",                  false, false, true  ], // Téléporte sur case ciblée
-    [  5, "Repousse",                       false, false, false ], // Repousse de N cases
-    [  6, "Attire",                         false, false, false ], // Attire de N cases
-    [  8, "Échange de positions",           false, false, true  ],
-    [ 50, "Porte la cible",                 false, false, true  ],
-    [ 51, "Lance une entité",               false, false, true  ],
-    // ── PA / PM (vols/rembours) ──────────────────────────────────────────
-    [ 77, "Vol de PM",                      false, false, false ], // Vole #1 à #2 PM
-    [ 78, "Rembourse PM",                   false, false, false ],
-    [ 84, "Vol de PA",                      false, false, false ], // Vole #1 à #2 PA
-    // ── Soins / Vol de vie / Dommages "% PV lanceur" ─────────────────────
-    // 81 = "Soins" (Eniripsa & co)  /  82 = Vol de vie Neutre (fixe)
-    [ 81, "Soins",                          false, false, false ],
-    [ 82, "Vol de vie Neutre",              false, false, false ],
-    // 85/86/87 = Dommages élément % PV lanceur — élément via effectElement
-    [ 85, "Dommages (% PV lanceur)",        true,  true,  false ], // elementId=3 (Eau)
-    [ 86, "Dommages (% PV lanceur)",        true,  true,  false ], // elementId=1 (Terre)
-    [ 87, "Dommages (% PV lanceur)",        true,  true,  false ], // elementId=4 (Air)
-    // ── Vol de vie élémentaire (élément via effectElement = elementId) ──
-    [ 91, "Vol de vie",                     false, true,  false ], // Eau   (elementId=3)
-    [ 92, "Vol de vie",                     false, true,  false ], // Terre (elementId=1)
-    [ 93, "Vol de vie",                     false, true,  false ], // Air   (elementId=4)
-    [ 94, "Vol de vie",                     false, true,  false ], // Feu   (elementId=2)
-    [ 95, "Vol de vie Neutre",              false, false, false ], // Neutre (elementId=0, pas d'icône)
-    // ── Dommages élémentaires ────────────────────────────────────────────
-    [ 96, "Dommages",                       false, true,  false ], // Eau   (elementId=3)
-    [ 97, "Dommages",                       false, true,  false ], // Terre (elementId=1)
-    [ 98, "Dommages",                       false, true,  false ], // Air   (elementId=4)
-    [ 99, "Dommages",                       false, true,  false ], // Feu   (elementId=2)
-    [100, "Dommages Neutre",                false, false, false ], // Neutre (elementId=0)
-    // ── Soins additionnels ───────────────────────────────────────────────
-    [101, "Soins",                          false, false, false ],
-    [105, "Malus de PV",                    false, false, false ],
-    [108, "Soins",                          false, false, false ],
-    // ── PA / PM (octrois & retraits) ─────────────────────────────────────
-    [110, "PA octroyés",                    false, false, false ],
-    [111, "PA retirés (non esquivables)",   false, false, false ],
-    [112, "PA retirés",                     false, false, false ],
-    [116, "PM octroyés",                    false, false, false ],
-    [117, "PM retirés (non esquivables)",   false, false, false ],
-    [118, "PM retirés",                     false, false, false ],
-    // ── Portée ────────────────────────────────────────────────────────────
-    [120, "Portée ajoutée",                 false, false, false ],
-    [121, "Portée retirée",                 false, false, false ],
-    // ── Téléportations / invocations / états visuels ─────────────────────
-    [123, "Téléportation",                  false, false, true  ],
-    [125, "Invocation",                     false, false, true  ],
-    // ── Caractéristiques (ajoutées / retirées) ───────────────────────────
-    [126, "Force ajoutée",                  false, false, false ],
-    [127, "Force retirée",                  false, false, false ],
-    [131, "Vitalité ajoutée",               false, false, false ],
-    [132, "Vitalité retirée",               false, false, false ],
-    [136, "Agilité ajoutée",                false, false, false ],
-    [137, "Agilité retirée",                false, false, false ],
-    [138, "Intelligence ajoutée",           false, false, false ],
-    [139, "Intelligence retirée",           false, false, false ],
-    [141, "Chance ajoutée",                 false, false, false ],
-    [142, "Chance retirée",                 false, false, false ],
-    [143, "Sagesse ajoutée",                false, false, false ],
-    [144, "Sagesse retirée",                false, false, false ],
-    [145, "Érosion",                        true,  false, false ],
-    [147, "Dommages ajoutés",               false, false, false ],
-    [150, "Initiative ajoutée",             false, false, false ],
-    [152, "Puissance ajoutée",              false, false, false ],
-    [153, "Puissance retirée",              false, false, false ],
-    [154, "Critique ajouté",                false, false, false ],
-    [158, "Invocation",                     false, false, true  ],
-    [163, "Invisibilité",                   false, false, true  ],
-    [168, "Esquive PA ajoutée",             false, false, false ],
-    [169, "Esquive PA retirée",             false, false, false ],
-    [171, "Tacle ajouté",                   false, false, false ],
-    [172, "Tacle retiré",                   false, false, false ],
-    // 186 = -X Puissance (API description "-#1{{~1~2 à -}}#2 Puissance")
-    [186, "Puissance retirée",              false, false, false ],
-    [187, "Do. Poussée retirés",            false, false, false ],
-    [188, "Do. Critiques ajoutés",          false, false, false ],
-    [189, "Do. Critiques retirés",          false, false, false ],
-    [215, "Glyphe",                         false, false, true  ],
-    [281, "Bouclier",                       false, false, false ],
-    // 293 explicitement caché (voir ALWAYS_HIDDEN_EFFECT_IDS) — laissé en cache pour cohérence
-    [293, "Soins (% PV cible)",             false, false, true  ],
-    [406, "État appliqué",                  false, false, true  ],
-    [951, "État spécial",                   false, false, true  ],
-    [1160,"État",                           false, false, true  ],
-  ];
-  for (const [id, label, isPercent, isElemental, hideValue] of SEED) {
-    gEffectCache.set(id, { label, isPercent, isElemental, hideValue });
-  }
-})();
-
-/**
- * Charge les informations d'un effect depuis l'API et les met en cache.
- * Retourne immédiatement si l'effect est déjà en cache.
- *
- * Convention élément API : elementId ∈ {1,2,3,4} → élément réel ; 0 (Neutre) ou 5 (non-élément)
- * → pas d'icône d'élément (le label gère l'info Neutre).
- */
-function loadEffectInfo(effectId: number): Promise<void> {
-  if (gEffectCache.has(effectId)) return Promise.resolve();
-  if (gEffectPending.has(effectId)) return gEffectPending.get(effectId)!;
-
-  const promise = fetch(`https://api.dofusdb.fr/effects/${effectId}?lang=fr`)
-    .then((r) => {
-      if (!r.ok) throw new Error(`HTTP ${r.status}`);
-      return r.json();
-    })
-    .then((d) => {
-      const isPercent: boolean  = d.isInPercent ?? false;
-      const hideValue: boolean  = d.hideValueInTooltip ?? false;
-      const elementId: number   = d.elementId ?? -1;
-      const isElemental: boolean = elementId >= 1 && elementId <= 4;
-      const raw: string         = d.description?.fr ?? "";
-      const label = parseApiEffectLabel(raw) || `Effet #${effectId}`;
-      gEffectCache.set(effectId, { label, isPercent, isElemental, hideValue });
-    })
-    .catch(() => {
-      gEffectCache.set(effectId, {
-        label: `Effet #${effectId}`,
-        isPercent: false,
-        isElemental: false,
-        hideValue: false,
-      });
-    })
-    .finally(() => {
-      gEffectPending.delete(effectId);
-    });
-
-  gEffectPending.set(effectId, promise);
-  return promise;
-}
-
-/**
- * Résout l'icône d'élément pour un effet donné.
- *
- * Règle unique : afficher l'icône via `effectElement` (1=Terre, 2=Feu, 3=Eau, 4=Air)
- * UNIQUEMENT si l'effet est marqué `isElemental` (i.e. son `elementId` API est dans {1,2,3,4}).
- *
- * Cela exclut :
- *  - Neutre (elementId=0) : pas d'icône, info dans le label
- *  - Boost de caractéristique (elementId=5, ex: Puissance)
- *  - Effets sans élément (elementId=-1)
- */
+/* ── Alias local pour compat (SpellsPanel utilise resolveEffectElement) ───── */
 function resolveEffectElement(eff: SpellEffect): { icon: string; label: string } | undefined {
-  const info = gEffectCache.get(eff.effectId);
-  if (!info?.isElemental) return undefined;
-  if (eff.effectElement < 1 || eff.effectElement > 4) return undefined;
-  return ELEMENT_ICONS[eff.effectElement];
-}
-
-function getEffectLabel(eff: SpellEffect): string {
-  return gEffectCache.get(eff.effectId)?.label ?? `Effet #${eff.effectId}`;
+  return resolveEffectElementIcon(eff);
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
-   Calcul de dégâts réels (Dofus 3)
-   ─────────────────────────────────
-   Formule : Dégâts = base + base × ((Puissance + Caractéristique) / 100) + Dommages_fixes
-   En cas de Coup Critique : on ajoute en plus la stat « Dommages Critiques » (flat).
-
-   Mapping élément (effectElement / elementId) :
-     0 = Neutre (carac = Force,        dmg fixes = damage_neutral + damage)
-     1 = Terre  (carac = Force,        dmg fixes = damage_earth   + damage)
-     2 = Feu    (carac = Intelligence, dmg fixes = damage_fire    + damage)
-     3 = Eau    (carac = Chance,       dmg fixes = damage_water   + damage)
-     4 = Air    (carac = Agilité,      dmg fixes = damage_air     + damage)
+   Helpers variants
 ══════════════════════════════════════════════════════════════════════════════ */
-
-interface ElementInfo {
-  /** Clé de la caractéristique principale dans `stats`. */
-  caracKey: "strength" | "intelligence" | "chance" | "agility";
-  /** Clé des dommages fixes spécifiques à l'élément dans `stats`. */
-  damageKey:
-    | "damage_earth" | "damage_fire" | "damage_water"
-    | "damage_air"   | "damage_neutral";
-  /** Classe Tailwind pour la couleur du texte des dégâts. */
-  colorClass: string;
-}
-
-const ELEMENT_INFO: Record<number, ElementInfo> = {
-  0: { caracKey: "strength",     damageKey: "damage_neutral", colorClass: "text-[#a8a8a8]" }, // Neutre
-  1: { caracKey: "strength",     damageKey: "damage_earth",   colorClass: "text-[#7faf3a]" }, // Terre
-  2: { caracKey: "intelligence", damageKey: "damage_fire",    colorClass: "text-[#e26e3c]" }, // Feu
-  3: { caracKey: "chance",       damageKey: "damage_water",   colorClass: "text-[#4ba4dd]" }, // Eau
-  4: { caracKey: "agility",      damageKey: "damage_air",     colorClass: "text-[#b8d040]" }, // Air
-};
-
-/** Effets dont les dégâts (ou le vol de vie) suivent la formule standard. */
-const SCALABLE_DAMAGE_EFFECT_IDS = new Set<number>([
-  // Vol de vie élémentaires
-  91, 92, 93, 94,
-  // Vol Neutre élémentaire
-  95,
-  // Dommages élémentaires
-  96, 97, 98, 99,
-  // Dommages Neutre
-  100,
-]);
-
-/**
- * Détermine l'élément à utiliser pour le calcul d'un effet.
- *
- * - Si le sort est marqué « meilleur élément » (`useBestElement`),
- *   retourne l'élément {1..4} avec la plus haute caractéristique.
- * - Sinon retourne `effectElement` brut.
- */
-function pickElementForCalc(
-  eff: SpellEffect,
-  stats: Record<string, number>,
-  useBestElement: boolean,
-): number {
-  if (useBestElement) {
-    const candidates: Array<[number, number]> = [
-      [1, stats.strength     ?? 0],
-      [2, stats.intelligence ?? 0],
-      [3, stats.chance       ?? 0],
-      [4, stats.agility      ?? 0],
-    ];
-    candidates.sort((a, b) => b[1] - a[1]);
-    return candidates[0][0];
-  }
-  return eff.effectElement;
-}
-
-/**
- * Calcule la plage de dégâts réels (min-max) pour un effet, étant donné les stats du build.
- *
- * Retourne `null` si l'effet n'est pas un effet de dégâts/vol de vie scalable
- * ou si la dice est invalide (effet plate/état).
- */
-function computeEffectDamage(
-  eff: SpellEffect,
-  stats: Record<string, number>,
-  opts: { isCrit: boolean; useBestElement: boolean },
-): { min: number; max: number; element: number } | null {
-  if (!SCALABLE_DAMAGE_EFFECT_IDS.has(eff.effectId)) return null;
-
-  const { diceNum, diceSide } = eff;
-  if (diceNum <= 0 || diceNum >= MAX_DISPLAY_VALUE) return null;
-  // diceSide peut valoir 0 (dégâts fixes) ou être > diceNum (range)
-
-  const element = pickElementForCalc(eff, stats, opts.useBestElement);
-  const info    = ELEMENT_INFO[element];
-  if (!info) return null;
-
-  const power     = stats.power ?? 0;
-  const carac     = stats[info.caracKey] ?? 0;
-  const dmgFixes  = (stats[info.damageKey] ?? 0) + (stats.damage ?? 0);
-  const critFlat  = opts.isCrit ? (stats.critical_damage ?? 0) : 0;
-  const factor    = 1 + (power + carac) / 100;
-
-  const minBase = diceNum;
-  const maxBase = diceSide > diceNum ? diceSide : diceNum;
-
-  const min = Math.floor(minBase * factor + dmgFixes + critFlat);
-  const max = Math.floor(maxBase * factor + dmgFixes + critFlat);
-
-  return { min, max, element };
-}
-
-/** Détecte si un sort utilise la mécanique « meilleur élément » (depuis sa description). */
-function spellUsesBestElement(desc: string): boolean {
-  return desc.includes("meilleur élément");
-}
-
-/**
- * Identifie le sort de base d'un groupe de variants en fonction du classId.
- *
- * L'API DofusDB retourne pour chaque groupe `[base, variante]` (base toujours en premier)
- * mais la donnée formelle est le `typeId` :
- *  - Iop  (classId=8)  : base typeId=8,    variant typeId=598
- *  - Féca (classId=1)  : base typeId=1,    variant typeId=592
- *  - Sram (classId=4)  : base typeId=4,    variant typeId=589
- *  - Cra  (classId=9)  : base typeId=9,    variant typeId=594
- *  - …
- *  - Forgelance (classId=20) : base typeId=2374, variant typeId=2376
- *
- * `CLASS_TO_SPELL_TYPE_ID[classId]` donne le typeId de base attendu.
- */
 function pickBase(spells: SpellFullData[], classId: number): SpellFullData {
   const baseTypeId = CLASS_TO_SPELL_TYPE_ID[classId];
   return spells.find((s) => s.typeId === baseTypeId) ?? spells[0];
@@ -427,36 +68,6 @@ function pickBase(spells: SpellFullData[], classId: number): SpellFullData {
 function pickVariant(spells: SpellFullData[], classId: number): SpellFullData {
   const baseTypeId = CLASS_TO_SPELL_TYPE_ID[classId];
   return spells.find((s) => s.typeId !== baseTypeId) ?? spells[1] ?? spells[0];
-}
-
-function formatEffectValue(eff: SpellEffect): string {
-  const info = gEffectCache.get(eff.effectId);
-  if (info?.hideValue) return "";
-
-  const { diceNum, diceSide, value } = eff;
-  const MAX = MAX_DISPLAY_VALUE;
-
-  let raw = "";
-  if (diceNum > 0 && diceSide > 0 && diceNum !== diceSide && diceNum < MAX && diceSide < MAX)
-    raw = `${diceNum} à ${diceSide}`;
-  else if (diceNum > 0 && diceNum < MAX) raw = `${diceNum}`;
-  else if (diceSide > 0 && diceSide < MAX) raw = `${diceSide}`;
-  else if (value > 0 && value < MAX) raw = `${value}`;
-
-  if (!raw) return "";
-  return info?.isPercent ? `${raw}%` : raw;
-}
-
-const DESC_ELEMENT_PATTERNS = [
-  { word: "Terre", icon: "ter", label: "Terre" },
-  { word: "Feu",   icon: "feu", label: "Feu"   },
-  { word: "Eau",   icon: "eau", label: "Eau"   },
-  { word: "Air",   icon: "air", label: "Air"   },
-];
-
-function detectDescElements(desc: string) {
-  if (desc.includes("meilleur élément")) return DESC_ELEMENT_PATTERNS;
-  return DESC_ELEMENT_PATTERNS.filter(({ word }) => desc.includes(word));
 }
 
 /* ══════════════════════════════════════════════════════════════════════════════
@@ -494,7 +105,7 @@ function SpellEffectRow({
     cacheInfo?.isElemental && elIdx >= 1 && elIdx <= 4
       ? ELEMENT_ICONS[elIdx]
       : undefined;
-  const colorClass = calc ? ELEMENT_INFO[calc.element]?.colorClass ?? "" : "";
+  const colorClass = calc ? DAMAGE_ELEMENT_INFO[calc.element]?.colorClass ?? "" : "";
 
   return (
     <li className="flex items-center gap-1.5 text-[11px]">

@@ -37,6 +37,19 @@ function IconStuffs() {
   );
 }
 
+function IconBestiary() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" className="h-10 w-10" aria-hidden>
+      <circle cx="24" cy="20" r="11" fill="currentColor" opacity=".12" stroke="currentColor" strokeWidth="2" />
+      <circle cx="19" cy="18" r="2" fill="currentColor" opacity=".7" />
+      <circle cx="29" cy="18" r="2" fill="currentColor" opacity=".7" />
+      <path d="M19.5 24.5s1.2 2 4.5 2 4.5-2 4.5-2" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".6" />
+      <path d="M16 12c-2-3-5-3-6-1M32 12c2-3 5-3 6-1" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" opacity=".4" />
+      <path d="M12 28c-4 2-4 8 0 8h24c4 0 4-6 0-8" fill="currentColor" opacity=".1" stroke="currentColor" strokeWidth="1.5" />
+    </svg>
+  );
+}
+
 type NavCard = {
   href: string;
   title: string;
@@ -66,6 +79,15 @@ const CARDS: NavCard[] = [
     accent: "#f0d78c",
     icon: <IconStuffs />,
   },
+  {
+    href: "/bestiaire",
+    title: "Bestiaire",
+    description:
+      "Consulte les stats, les résistances et les archis-monstres de tous les monstres Dofus 3 pour préparer tes combats.",
+    label: "Ouvrir le bestiaire",
+    accent: "#e05838",
+    icon: <IconBestiary />,
+  },
 ];
 
 export default function HomePage() {
@@ -85,7 +107,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Cards ── */}
-      <div className="mx-auto grid w-full max-w-[860px] grid-cols-1 gap-4 px-4 pb-16 sm:grid-cols-2 sm:gap-6">
+      <div className="mx-auto grid w-full max-w-[1100px] grid-cols-1 gap-4 px-4 pb-16 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
         {CARDS.map((card) => (
           <Link
             key={card.href}
