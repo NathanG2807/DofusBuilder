@@ -50,6 +50,23 @@ function IconBestiary() {
   );
 }
 
+function IconAtelier() {
+  return (
+    <svg viewBox="0 0 48 48" fill="none" className="h-10 w-10" aria-hidden>
+      <rect x="8" y="10" width="32" height="28" rx="3" fill="currentColor" opacity=".1" stroke="currentColor" strokeWidth="2" />
+      <path d="M14 18h20M14 24h14M14 30h18" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity=".55" />
+      <path
+        d="M30 28l4 4 6-8"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <path d="M18 6v4M30 6v4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" opacity=".45" />
+    </svg>
+  );
+}
+
 type NavCard = {
   href: string;
   title: string;
@@ -88,6 +105,15 @@ const CARDS: NavCard[] = [
     accent: "#e05838",
     icon: <IconBestiary />,
   },
+  {
+    href: "/atelier",
+    title: "L'Atelier",
+    description:
+      "Suis l'avancement de tes crafts : listes d'ingrédients, panoplies, builds complets et validation progressive.",
+    label: "Ouvrir l'atelier",
+    accent: "#98c030",
+    icon: <IconAtelier />,
+  },
 ];
 
 export default function HomePage() {
@@ -107,7 +133,7 @@ export default function HomePage() {
       </div>
 
       {/* ── Cards ── */}
-      <div className="mx-auto grid w-full max-w-[1100px] grid-cols-1 gap-4 px-4 pb-16 sm:grid-cols-2 sm:gap-5 lg:grid-cols-3">
+      <div className="mx-auto grid w-full max-w-[1100px] grid-cols-1 gap-4 px-4 pb-16 sm:grid-cols-2 sm:gap-5 lg:grid-cols-2 xl:grid-cols-4">
         {CARDS.map((card) => (
           <Link
             key={card.href}

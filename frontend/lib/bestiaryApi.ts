@@ -30,7 +30,7 @@ export type MonsterDrop = {
   percentDropForGrade1: number;
   percentDropForGrade5: number;
   hasCriterions: boolean;
-  disableDropModificator: number;
+  disableDropModificator: number | boolean;
   isGlobal?: boolean;
 };
 
@@ -279,7 +279,7 @@ export async function fetchDropItems(ids: number[]): Promise<DropItemOut[]> {
 export function collectDropObjectIds(drops: MonsterDrop[]): number[] {
   return [...new Set(
     drops
-      .filter((d) => !d.isGlobal && d.disableDropModificator === 0)
+      .filter((d) => !d.isGlobal && !d.disableDropModificator)
       .filter((d) => {
         const row = d as unknown as Record<string, number>;
         for (let g = 1; g <= 5; g++) {

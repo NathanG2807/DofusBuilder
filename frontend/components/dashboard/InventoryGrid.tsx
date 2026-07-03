@@ -7,6 +7,7 @@ import {
   ItemHoverCard,
   useItemHoverCard,
 } from "@/components/items/ItemHoverCard";
+import { AddToAtelierModal } from "@/components/atelier/AddToAtelierModal";
 import {
   BOOK_DOFUS_SLOTS,
   BOOK_LEFT_SLOTS,
@@ -617,6 +618,23 @@ function SaveBuildButton() {
   );
 }
 
+function AddToAtelierButton() {
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <button
+        type="button"
+        onClick={() => setOpen(true)}
+        title="Ajouter le build à l'atelier"
+        className="btn-dofus-gray flex items-center gap-1.5 rounded px-2 py-1 text-[11px]"
+      >
+        Atelier
+      </button>
+      <AddToAtelierModal open={open} onClose={() => setOpen(false)} />
+    </>
+  );
+}
+
 /* ─── Grille principale ─── */
 export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}) {
   const currentBuild = useBuildStore((s) => s.currentBuild);
@@ -726,6 +744,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
         )}
 
         <SaveBuildButton />
+        <AddToAtelierButton />
         <StuffLevelBadge />
       </div>
 

@@ -15,6 +15,8 @@ CREATE TABLE items (
     pods INTEGER,
     base_stats JSONB,
     description TEXT,
+    weapon_detail JSONB,
+    recipe JSONB,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -47,3 +49,15 @@ CREATE TABLE builds (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
+
+CREATE TABLE craft_lists (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    name VARCHAR(255) NOT NULL,
+    entries JSONB NOT NULL DEFAULT '[]',
+    progress JSONB NOT NULL DEFAULT '{}',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE INDEX idx_craft_lists_user_id ON craft_lists(user_id);

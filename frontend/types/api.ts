@@ -16,6 +16,12 @@ export type WeaponDetailOut = {
   cast_test_los?: boolean;
 };
 
+export type RecipeLine = {
+  item_ankama_id: number;
+  quantity: number;
+  item_subtype?: string;
+};
+
 export type ItemOut = {
   ankama_id: number;
   name: string;
@@ -31,6 +37,7 @@ export type ItemOut = {
   description?: string | null;
   /** Métadonnées de combat arme (coup en PA, portée, CC, coups/tour…) — après migration + ETL. */
   weapon_detail?: WeaponDetailOut | null;
+  recipe?: RecipeLine[] | null;
 };
 
 export type ItemSetOut = {
@@ -160,4 +167,41 @@ export type UserPublic = {
   username: string;
   email: string;
   created_at: string;
+};
+
+export type CraftEntryType = "item" | "set" | "build";
+
+export type CraftEntry = {
+  id: string;
+  entry_type: CraftEntryType;
+  ref_id: string;
+  quantity: number;
+  label?: string | null;
+  slots?: Record<string, number | null> | null;
+};
+
+export type IngredientProgress = {
+  owned: number;
+  validated: number;
+};
+
+export type CraftListOut = {
+  id: string;
+  name: string;
+  entries: CraftEntry[];
+  progress: Record<string, IngredientProgress>;
+  created_at?: string | null;
+  updated_at?: string | null;
+};
+
+export type CraftListCreatePayload = {
+  name: string;
+  entries?: CraftEntry[];
+  progress?: Record<string, IngredientProgress>;
+};
+
+export type CraftListUpdatePayload = {
+  name?: string;
+  entries?: CraftEntry[];
+  progress?: Record<string, IngredientProgress>;
 };

@@ -5,12 +5,13 @@ import { usePathname } from "next/navigation";
 
 import { AccountButton } from "@/components/layout/AccountButton";
 
-export type AppTab = "buildroom" | "stuffs" | "bestiaire";
+export type AppTab = "buildroom" | "stuffs" | "bestiaire" | "atelier";
 
 const NAV_TABS: { label: string; href: string; tab: AppTab }[] = [
   { label: "Buildroom",  href: "/builder",   tab: "buildroom"  },
   { label: "Stuffs",     href: "/stuffs",    tab: "stuffs"     },
   { label: "Bestiaire",  href: "/bestiaire", tab: "bestiaire"  },
+  { label: "L'Atelier",  href: "/atelier",   tab: "atelier"    },
 ];
 
 type NavbarProps = {
@@ -28,6 +29,7 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
     if (tab === "buildroom") return pathname === "/builder" || pathname.startsWith("/builder/");
     if (tab === "stuffs")    return pathname === "/stuffs"    || pathname.startsWith("/stuffs/");
     if (tab === "bestiaire") return pathname === "/bestiaire" || pathname.startsWith("/bestiaire/");
+    if (tab === "atelier")   return pathname === "/atelier"   || pathname.startsWith("/atelier/");
     return false;
   }
 

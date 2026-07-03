@@ -828,7 +828,7 @@ function MonsterDetailPanel({ data }: { data: DetailData }) {
   const accent = monster.isBoss ? "#f87171" : "#6db824";
 
   const drops = monster.drops
-    .filter((d) => !d.isGlobal && d.disableDropModificator === 0)
+    .filter((d) => !d.isGlobal && !d.disableDropModificator)
     .map((d) => {
       const pct = (d as unknown as Record<string, number>)[`percentDropForGrade${gradeIdx + 1}`] ?? d.percentDropForGrade1;
       return { objectId: d.objectId, pct };

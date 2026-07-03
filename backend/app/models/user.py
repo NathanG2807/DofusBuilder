@@ -24,3 +24,6 @@ class User(Base):
     builds: Mapped[list["Build"]] = relationship(
         "Build", back_populates="user", cascade="all, delete-orphan"
     )
+    craft_lists: Mapped[list["CraftList"]] = relationship(
+        "CraftList", back_populates="user", cascade="all, delete-orphan"
+    )

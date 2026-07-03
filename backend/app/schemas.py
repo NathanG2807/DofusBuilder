@@ -153,6 +153,7 @@ class ItemOut(BaseModel):
     base_stats: Optional[dict[str, Any]] = None
     description: Optional[str] = None
     weapon_detail: Optional[dict[str, Any]] = None
+    recipe: Optional[list[Any]] = None
     created_at: Optional[datetime] = None
 
 
@@ -254,5 +255,42 @@ class PublicBuildOut(BaseModel):
     slots: Optional[dict[str, Any]] = None
     exo_fm: Optional[dict[str, str]] = None
     username: Optional[str] = None
+    created_at: Optional[datetime] = None
+    updated_at: Optional[datetime] = None
+
+
+class CraftEntry(BaseModel):
+    id: str
+    entry_type: str = Field(description="item | set | build")
+    ref_id: str
+    quantity: int = Field(default=1, ge=1)
+    label: Optional[str] = None
+    slots: Optional[dict[str, Optional[int]]] = None
+
+
+class IngredientProgress(BaseModel):
+    owned: int = Field(default=0, ge=0)
+    validated: int = Field(default=0, ge=0)
+
+
+class CraftListCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=255)
+    entries: list[CraftEntry] = Field(default_factory=list)
+    progress: dict[str, IngredientProgress] = Field(default_factory=dict)
+
+
+class CraftListUpdate(BaseModel):
+    name: Optional[str] = Field(default=None, min_length=1, max_length=255)
+    entries: Optional[list[CraftEntry]] = None
+    progress: Optional[dict[str, IngredientProgress]] = None
+
+
+class CraftListOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: uuid.UUID
+    name: str
+    entries: list[Any]
+    progress: dict[str, Any]
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None

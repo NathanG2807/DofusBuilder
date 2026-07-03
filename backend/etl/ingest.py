@@ -9,6 +9,7 @@ Usage (from backend/):
     python -m etl.ingest --only items
     python -m etl.ingest --only sets
     python -m etl.ingest --only mounts
+    python -m etl.ingest --only resources
 """
 
 from __future__ import annotations
@@ -40,10 +41,11 @@ def _locale() -> str:
     return code if code in ("en", "fr", "de", "es", "pt") else "fr"
 # Detail fields merged into list responses (see OpenAPI fields[item]).
 ITEM_EXTRA_FIELDS = (
-    "effects,is_weapon,pods,conditions,parent_set,description,"
+    "effects,is_weapon,pods,conditions,parent_set,description,recipe,"
     "ap_cost,range,max_cast_per_turn,"
     "critical_hit_probability,critical_hit_bonus"
 )
+RESOURCE_EXTRA_FIELDS = "effects,description,recipe,conditions"
 
 
 def _db_dsn() -> str:
@@ -57,21 +59,42 @@ def _json(data: Any) -> str:
     return json.dumps(data, ensure_ascii=False)
 
 
-async def fetch_equipment_page(
-    client: httpx.AsyncClient, page: int, page_size: int
+async def fetch_item_page(
+    client: httpx.AsyncClient,
+    category: str,
+    page: int,
+    page_size: int,
+    *,
+    extra_fields: str,
 ) -> dict[str, Any]:
     r = await client.get(
-        f"{API_BASE}/{_locale()}/items/equipment",
+        f"{API_BASE}/{_locale()}/items/{category}",
         params={
             "page[number]": page,
             "page[size]": page_size,
-            "fields[item]": ITEM_EXTRA_FIELDS,
+            "fields[item]": extra_fields,
         },
         headers={"Accept-Encoding": "gzip"},
         timeout=120.0,
     )
     r.raise_for_status()
     return r.json()
+
+
+async def fetch_equipment_page(
+    client: httpx.AsyncClient, page: int, page_size: int
+) -> dict[str, Any]:
+    return await fetch_item_page(
+        client, "equipment", page, page_size, extra_fields=ITEM_EXTRA_FIELDS
+    )
+
+
+async def fetch_resources_page(
+    client: httpx.AsyncClient, page: int, page_size: int
+) -> dict[str, Any]:
+    return await fetch_item_page(
+        client, "resources", page, page_size, extra_fields=RESOURCE_EXTRA_FIELDS
+    )
 
 
 async def fetch_all_sets(client: httpx.AsyncClient) -> list[dict[str, Any]]:
@@ -119,6 +142,7 @@ def mount_row_from_api(raw: dict[str, Any]) -> tuple[Any, ...]:
         _json(base_stats),
         None,       # description
         None,       # weapon_detail
+        None,       # recipe
     )
 
 
@@ -141,6 +165,36 @@ def _weapon_detail_from_api(raw: dict[str, Any]) -> Optional[dict[str, Any]]:
     return out or None
 
 
+def resource_row_from_api(raw: dict[str, Any]) -> tuple[Any, ...]:
+    """Ressources de craft (bois, minerais, etc.) — pas de parent_set ni weapon_detail."""
+    effects = raw.get("effects") or []
+    conditions = raw.get("conditions")
+    base_stats = flatten_effects_to_base_stats(effects if isinstance(effects, list) else [])
+    desc = raw.get("description")
+    if isinstance(desc, str) and len(desc) > 12000:
+        desc = desc[:12000]
+    recipe = raw.get("recipe")
+    recipe_json = _json(recipe) if isinstance(recipe, list) and recipe else None
+    level_raw = raw.get("level")
+    level = int(level_raw) if level_raw is not None else 1
+    return (
+        int(raw["ankama_id"]),
+        raw["name"],
+        level,
+        type_name_id_from_item_type(raw.get("type")),
+        False,
+        pick_image_url(raw.get("image_urls")),
+        _json(effects),
+        _json(conditions) if conditions is not None else None,
+        None,
+        raw.get("pods"),
+        _json(base_stats),
+        desc if isinstance(desc, str) else None,
+        None,
+        recipe_json,
+    )
+
+
 def item_row_from_api(raw: dict[str, Any]) -> tuple[Any, ...]:
     effects = raw.get("effects") or []
     conditions = raw.get("conditions")
@@ -155,10 +209,14 @@ def item_row_from_api(raw: dict[str, Any]) -> tuple[Any, ...]:
         desc = desc[:12000]
 
     wd = _weapon_detail_from_api(raw)
+    recipe = raw.get("recipe")
+    recipe_json = _json(recipe) if isinstance(recipe, list) and recipe else None
+    level_raw = raw.get("level")
+    level = int(level_raw) if level_raw is not None else 1
     return (
         int(raw["ankama_id"]),
         raw["name"],
-        int(raw["level"]),
+        level,
         type_name_id_from_item_type(raw.get("type")),
         bool(raw.get("is_weapon")) if raw.get("is_weapon") is not None else False,
         pick_image_url(raw.get("image_urls")),
@@ -169,6 +227,7 @@ def item_row_from_api(raw: dict[str, Any]) -> tuple[Any, ...]:
         _json(base_stats),
         desc if isinstance(desc, str) else None,
         _json(wd) if wd is not None else None,
+        recipe_json,
     )
 
 
@@ -179,9 +238,9 @@ async def upsert_items(conn: asyncpg.Connection, rows: list[tuple[Any, ...]]) ->
         """
         INSERT INTO items (
             ankama_id, name, level, type_name_id, is_weapon, image_url_icon,
-            effects, conditions, parent_set_id, pods, base_stats, description, weapon_detail
+            effects, conditions, parent_set_id, pods, base_stats, description, weapon_detail, recipe
         ) VALUES (
-            $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11::jsonb, $12, $13::jsonb
+            $1, $2, $3, $4, $5, $6, $7::jsonb, $8::jsonb, $9, $10, $11::jsonb, $12, $13::jsonb, $14::jsonb
         )
         ON CONFLICT (ankama_id) DO UPDATE SET
             name = EXCLUDED.name,
@@ -195,7 +254,8 @@ async def upsert_items(conn: asyncpg.Connection, rows: list[tuple[Any, ...]]) ->
             pods = EXCLUDED.pods,
             base_stats = EXCLUDED.base_stats,
             description = EXCLUDED.description,
-            weapon_detail = EXCLUDED.weapon_detail
+            weapon_detail = EXCLUDED.weapon_detail,
+            recipe = EXCLUDED.recipe
         """,
         rows,
     )
@@ -251,6 +311,24 @@ async def run_ingest(*, only: str, page_size: int) -> None:
                     page += 1
                 logger.info("Equipment ingest finished: %s rows", total)
 
+            if only in ("all", "resources"):
+                page = 1
+                total = 0
+                while True:
+                    payload = await fetch_resources_page(client, page, page_size)
+                    items = payload.get("items") or []
+                    if not items:
+                        break
+                    rows = [resource_row_from_api(i) for i in items]
+                    await upsert_items(conn, rows)
+                    total += len(rows)
+                    logger.info("Resources page %s: %s items (total %s)", page, len(rows), total)
+                    links = payload.get("_links") or {}
+                    if not links.get("next"):
+                        break
+                    page += 1
+                logger.info("Resources ingest finished: %s rows", total)
+
             if only in ("all", "sets"):
                 raw_sets = await fetch_all_sets(client)
                 rows = [set_row_from_api(s) for s in raw_sets]
@@ -274,9 +352,9 @@ def main() -> None:
     p = argparse.ArgumentParser(description="DIA ETL — dofusdu.de → PostgreSQL")
     p.add_argument(
         "--only",
-        choices=("all", "items", "sets", "mounts"),
+        choices=("all", "items", "sets", "mounts", "resources"),
         default="all",
-        help="Restrict to equipment, sets or mounts only",
+        help="Restrict to equipment, resources, sets or mounts only",
     )
     p.add_argument(
         "--page-size",
