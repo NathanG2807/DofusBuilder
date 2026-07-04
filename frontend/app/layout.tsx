@@ -39,7 +39,7 @@ export default function RootLayout({
       <body className="dofus-app flex min-h-full flex-col">
         {children}
         <footer className="mt-auto border-t border-white/[0.04] py-3 text-center text-[11px] text-[#444444]">
-          Zaap Builder est un outil communautaire non officiel.
+          Zaap est un fan site communautaire non officiel.
           Dofus, les images et tous les contenus du jeu sont la propriété exclusive d&apos;{" "}
           <span className="text-[#555555]">Ankama Games</span> — tous droits réservés.
           Ce site n&apos;est ni affilié ni approuvé par Ankama.

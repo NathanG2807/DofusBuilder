@@ -644,6 +644,8 @@ function AddToAtelierButton() {
   return (
     <>
       <Button type="button" variant="outline" size="xs" onClick={() => setOpen(true)} title="Ajouter le build à l'atelier">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/assets/global/UI/job.png" width={13} height={13} alt="" className="shrink-0 brightness-0 invert" />
         Atelier
       </Button>
       <AddToAtelierModal open={open} onClose={() => setOpen(false)} />
@@ -754,8 +756,8 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
           </Button>
         )}
 
-        <SaveBuildButton />
         <AddToAtelierButton />
+        <SaveBuildButton />
         <StuffLevelBadge />
       </div>
 

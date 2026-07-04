@@ -29,8 +29,10 @@ import {
 import {
   collectDropObjectIds,
   enrichDungeonsWithBosses,
+  fetchAllArchimonsters,
   fetchAllSubareas,
   fetchAllDungeons,
+  fetchAllWantedMonsters,
   fetchAreas,
   fetchDropItem,
   fetchDropItems,
@@ -40,7 +42,10 @@ import {
   fetchMonstersBySubareas,
   fetchSpells,
   fetchSubareas,
+  filterArchimonsters,
   filterDungeons,
+  filterWantedMonsters,
+  isWantedMonster,
   monsterImgUrl,
   monsterGradeToCombatStats,
   searchMonsters,
@@ -77,6 +82,78 @@ const ELEM_ASSETS = {
   ra:  { src: "/assets/elements/ra.png",  color: "#98c030", label: "Air"    },
 } as const;
 type AssetKey = keyof typeof ELEM_ASSETS;
+
+const ARCHI_ICON = "/assets/global/UI/echanger.png";
+const ARCHI_ACCENT = "#5ec8f0";
+const ARCHI_STYLE = {
+  accent: ARCHI_ACCENT,
+  bg: "rgba(94, 200, 240, 0.06)",
+  bgStrong: "rgba(94, 200, 240, 0.12)",
+  border: "rgba(94, 200, 240, 0.28)",
+  borderSoft: "rgba(94, 200, 240, 0.14)",
+  textMuted: "rgba(94, 200, 240, 0.5)",
+} as const;
+
+function ArchiIcon({ size = 24, className = "" }: { size?: number; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={ARCHI_ICON}
+      alt=""
+      width={size}
+      height={size}
+      className={`object-contain drop-shadow-[0_0_10px_rgba(94,200,240,0.5)] ${className}`}
+    />
+  );
+}
+
+const WANTED_ICON = "/assets/global/UI/quest.png";
+const WANTED_ACCENT = "#e8a040";
+const WANTED_STYLE = {
+  accent: WANTED_ACCENT,
+  bg: "rgba(232, 160, 64, 0.06)",
+  bgStrong: "rgba(232, 160, 64, 0.12)",
+  border: "rgba(232, 160, 64, 0.28)",
+  borderSoft: "rgba(232, 160, 64, 0.14)",
+  textMuted: "rgba(232, 160, 64, 0.5)",
+} as const;
+
+function WantedIcon({ size = 24, className = "" }: { size?: number; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={WANTED_ICON}
+      alt=""
+      width={size}
+      height={size}
+      className={`object-contain opacity-90 ${className}`}
+    />
+  );
+}
+
+const BOSS_ICON = "/assets/global/UI/boss.png";
+const BOSS_ACCENT = "#f87171";
+const BOSS_STYLE = {
+  accent: BOSS_ACCENT,
+  bg: "rgba(248, 113, 113, 0.06)",
+  bgStrong: "rgba(248, 113, 113, 0.15)",
+  border: "rgba(248, 113, 113, 0.28)",
+  borderSoft: "rgba(248, 113, 113, 0.22)",
+  textMuted: "rgba(248, 113, 113, 0.5)",
+} as const;
+
+function BossIcon({ size = 24, className = "" }: { size?: number; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={BOSS_ICON}
+      alt=""
+      width={size}
+      height={size}
+      className={`object-contain drop-shadow-[0_0_10px_rgba(248,113,113,0.45)] ${className}`}
+    />
+  );
+}
 
 const RESISTANCES: { key: keyof MonsterGrade; icon: AssetKey }[] = [
   { key: "neutralResistance", icon: "rn" },
@@ -153,15 +230,28 @@ function SectionTitle({ children, icon }: { children: React.ReactNode; icon?: st
   );
 }
 
-function MonsterBadge({ isBoss, isMiniBoss }: { isBoss: boolean; isMiniBoss: boolean }) {
-  if (isBoss) return (
-    <span className="rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wider"
-      style={{ background:"rgba(220,50,50,0.15)",color:"#f87171",border:"1px solid rgba(220,50,50,0.25)" }}>Boss</span>
+function MonsterBadge({ isBoss, isMiniBoss, isWanted }: { isBoss: boolean; isMiniBoss: boolean; isWanted?: boolean }) {
+  /* if (isBoss) return (
+    <span className="inline-flex items-center gap-1 rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wider"
+      style={{ background: BOSS_STYLE.bgStrong, color: BOSS_ACCENT, border: `1px solid ${BOSS_STYLE.borderSoft}` }}>
+      <BossIcon size={12} className="drop-shadow-none" />
+      Boss
+    </span>
   );
   if (isMiniBoss) return (
-    <span className="rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wider"
-      style={{ background:"rgba(245,158,11,0.12)",color:"#fbbf24",border:"1px solid rgba(245,158,11,0.22)" }}>Archi</span>
+    <span className="inline-flex items-center gap-1 rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wider"
+      style={{ background: ARCHI_STYLE.bgStrong, color: ARCHI_ACCENT, border: `1px solid ${ARCHI_STYLE.borderSoft}` }}>
+      <ArchiIcon size={12} className="drop-shadow-none" />
+      Archi
+    </span>
   );
+  if (isWanted) return (
+    <span className="inline-flex items-center gap-1 rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wider"
+      style={{ background: WANTED_STYLE.bgStrong, color: WANTED_ACCENT, border: `1px solid ${WANTED_STYLE.borderSoft}` }}>
+      <WantedIcon size={12} />
+      Recherche
+    </span>
+  ); */
   return null;
 }
 
@@ -591,15 +681,37 @@ function DropsSection({
 
 /* ── Card monstre ─────────────────────────────────────────────────────────── */
 function MonsterCard({ monster, onClick }: { monster: MonsterBase; onClick: () => void }) {
-  const accent = monster.isBoss ? "#f87171" : monster.isMiniBoss ? "#fbbf24" : "#6db824";
+  const wanted = isWantedMonster(monster);
+  const accent = monster.isBoss ? BOSS_ACCENT : monster.isMiniBoss ? ARCHI_ACCENT : wanted ? WANTED_ACCENT : "#6db824";
   return (
     <button
       type="button"
       onClick={onClick}
       style={{ "--atelier-corner": `${accent}80` } as React.CSSProperties}
-      className="plaque plaque-ornate plaque-interactive flex flex-col items-center gap-2.5 p-4 text-center"
+      className={`plaque plaque-ornate plaque-interactive flex flex-col items-center gap-2.5 p-4 text-center ${
+        monster.isBoss ? "shadow-[inset_0_0_24px_rgba(248,113,113,0.06)]" : ""
+      } ${monster.isMiniBoss ? "shadow-[inset_0_0_24px_rgba(94,200,240,0.06)]" : ""
+      } ${wanted && !monster.isBoss && !monster.isMiniBoss ? "shadow-[inset_0_0_24px_rgba(232,160,64,0.06)]" : ""}`}
     >
       <div className="relative flex h-[72px] w-[72px] items-center justify-center">
+        {monster.isBoss && (
+          <div className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-7 w-7 items-center justify-center rounded-lg border"
+            style={{ borderColor: BOSS_STYLE.borderSoft, background: "rgba(20,8,8,0.92)" }}>
+            <BossIcon size={20} />
+          </div>
+        )}
+        {monster.isMiniBoss && !monster.isBoss && (
+          <div className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-7 w-7 items-center justify-center rounded-lg border"
+            style={{ borderColor: ARCHI_STYLE.borderSoft, background: "rgba(8,16,24,0.92)" }}>
+            <ArchiIcon size={20} />
+          </div>
+        )}
+        {wanted && !monster.isBoss && !monster.isMiniBoss && (
+          <div className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-7 w-7 items-center justify-center rounded-lg border"
+            style={{ borderColor: WANTED_STYLE.borderSoft, background: "rgba(24,16,8,0.92)" }}>
+            <WantedIcon size={18} />
+          </div>
+        )}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={monsterImgUrl(monster)} alt={monster.name.fr} width={72} height={72}
           className="h-[72px] w-[72px] object-contain drop-shadow-[0_2px_12px_rgba(0,0,0,0.8)]"
@@ -608,7 +720,7 @@ function MonsterCard({ monster, onClick }: { monster: MonsterBase; onClick: () =
       <div className="flex flex-col items-center gap-1 w-full min-w-0">
         <div className="flex flex-wrap items-center justify-center gap-1">
           <span className="text-[12px] font-semibold leading-tight text-[#d4c898]">{monster.name.fr}</span>
-          <MonsterBadge isBoss={monster.isBoss} isMiniBoss={monster.isMiniBoss} />
+          <MonsterBadge isBoss={monster.isBoss} isMiniBoss={monster.isMiniBoss} isWanted={wanted} />
         </div>
         <div className="flex items-center gap-1">
           <ElemIcon k="lvl" size={11} />
@@ -816,7 +928,7 @@ function MonsterDetailPanel({ data }: { data: DetailData }) {
   useEffect(() => { setGradeIdx(0); setArchiOpen(false); }, [monster.id]);
 
   const archi  = monster.correspondingMiniBoss;
-  const accent = monster.isBoss ? "#f87171" : "#6db824";
+  const accent = monster.isBoss ? BOSS_ACCENT : monster.isMiniBoss ? ARCHI_ACCENT : isWantedMonster(monster) ? WANTED_ACCENT : "#6db824";
 
   const drops = monster.drops
     .filter((d) => !d.isGlobal && !d.disableDropModificator)
@@ -835,8 +947,26 @@ function MonsterDetailPanel({ data }: { data: DetailData }) {
         <div className="pointer-events-none absolute inset-0"
           style={{ background:`radial-gradient(ellipse at 20% 0%, ${accent}0d 0%, transparent 50%)` }} />
         <div className="relative flex items-start gap-5">
-          <div className="flex h-[90px] w-[90px] shrink-0 items-center justify-center rounded-xl border border-[#282828] bg-[#111]"
+          <div className="relative flex h-[90px] w-[90px] shrink-0 items-center justify-center rounded-xl border border-[#282828] bg-[#111]"
             style={{ boxShadow:`inset 0 0 20px ${accent}10` }}>
+            {monster.isBoss && (
+              <div className="pointer-events-none absolute -right-1.5 -top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-lg border"
+                style={{ borderColor: BOSS_STYLE.borderSoft, background: "rgba(20,8,8,0.95)" }}>
+                <BossIcon size={22} />
+              </div>
+            )}
+            {monster.isMiniBoss && !monster.isBoss && (
+              <div className="pointer-events-none absolute -right-1.5 -top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-lg border"
+                style={{ borderColor: ARCHI_STYLE.borderSoft, background: "rgba(8,16,24,0.95)" }}>
+                <ArchiIcon size={22} />
+              </div>
+            )}
+            {isWantedMonster(monster) && !monster.isBoss && !monster.isMiniBoss && (
+              <div className="pointer-events-none absolute -right-1.5 -top-1.5 z-10 flex h-8 w-8 items-center justify-center rounded-lg border"
+                style={{ borderColor: WANTED_STYLE.borderSoft, background: "rgba(24,16,8,0.95)" }}>
+                <WantedIcon size={20} />
+              </div>
+            )}
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src={monsterImgUrl(monster)} alt={monster.name.fr} width={90} height={90}
               className="h-[90px] w-[90px] object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.8)]"
@@ -845,7 +975,7 @@ function MonsterDetailPanel({ data }: { data: DetailData }) {
           <div className="flex min-w-0 flex-1 flex-col gap-1.5">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-[20px] font-bold leading-tight text-[#f0e0a0]">{monster.name.fr}</h2>
-              <MonsterBadge isBoss={monster.isBoss} isMiniBoss={monster.isMiniBoss} />
+              <MonsterBadge isBoss={monster.isBoss} isMiniBoss={monster.isMiniBoss} isWanted={isWantedMonster(monster)} />
             </div>
             <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
               <span className="flex items-center gap-1 text-[#555]">
@@ -915,36 +1045,36 @@ function MonsterDetailPanel({ data }: { data: DetailData }) {
       {/* ── Archi-monstre ── */}
       {archi && (
         <div className="overflow-hidden rounded-xl border"
-          style={{ borderColor:"rgba(245,158,11,0.2)", background:"rgba(245,158,11,0.03)" }}>
+          style={{ borderColor: ARCHI_STYLE.border, background: ARCHI_STYLE.bg, boxShadow: `inset 0 0 32px ${ARCHI_STYLE.bgStrong}` }}>
           <button type="button" onClick={() => setArchiOpen((v) => !v)}
             className="flex w-full items-center gap-4 px-5 py-4 text-left">
             <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border"
-              style={{ borderColor:"rgba(245,158,11,0.15)", background:"rgba(245,158,11,0.06)" }}>
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={monsterImgUrl(archi)} alt={archi.name.fr} width={48} height={48}
-                className="h-12 w-12 object-contain"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }} />
+              style={{ borderColor: ARCHI_STYLE.borderSoft, background: "rgba(8,16,28,0.85)", boxShadow: `0 0 16px ${ARCHI_STYLE.bgStrong}` }}>
+              <ArchiIcon size={40} />
             </div>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2">
-                <span className="text-[14px] font-bold text-[#fbbf24]">{archi.name.fr}</span>
-                <span className="rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wider"
-                  style={{ background:"rgba(245,158,11,0.12)",color:"#fbbf24",border:"1px solid rgba(245,158,11,0.22)" }}>Archi</span>
+                <span className="text-[14px] font-bold" style={{ color: ARCHI_ACCENT }}>{archi.name.fr}</span>
+                <span className="inline-flex items-center gap-1 rounded px-1.5 py-px text-[9px] font-bold uppercase tracking-wider"
+                  style={{ background: ARCHI_STYLE.bgStrong, color: ARCHI_ACCENT, border: `1px solid ${ARCHI_STYLE.borderSoft}` }}>
+                  <ArchiIcon size={12} className="drop-shadow-none" />
+                  Archi
+                </span>
               </div>
-              <div className="mt-0.5 flex items-center gap-1" style={{ color:"rgba(251,191,36,0.45)" }}>
+              <div className="mt-0.5 flex items-center gap-1" style={{ color: ARCHI_STYLE.textMuted }}>
                 <ElemIcon k="lvl" size={11} />
                 <span className="text-[11px]">Niv. {levelRange(archi.grades)}</span>
               </div>
             </div>
             <svg className="h-4 w-4 shrink-0 transition-transform duration-200"
-              style={{ color:"rgba(251,191,36,0.4)", transform:archiOpen ? "rotate(180deg)" : "none" }}
+              style={{ color: ARCHI_STYLE.textMuted, transform: archiOpen ? "rotate(180deg)" : "none" }}
               viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
               <path d="M6 9l6 6 6-6" />
             </svg>
           </button>
           {archiOpen && (
-            <div className="border-t px-5 pb-6 pt-4" style={{ borderColor:"rgba(245,158,11,0.1)" }}>
-              <GradeSection monster={archi} accent="#fbbf24" />
+            <div className="border-t px-5 pb-6 pt-4" style={{ borderColor: ARCHI_STYLE.borderSoft }}>
+              <GradeSection monster={archi} accent={ARCHI_ACCENT} />
             </div>
           )}
         </div>
@@ -954,7 +1084,7 @@ function MonsterDetailPanel({ data }: { data: DetailData }) {
 }
 
 /* ── Panel principal ─────────────────────────────────────────────────────── */
-type SearchMode = "monster" | "zone" | "dungeon";
+type SearchMode = "monster" | "zone" | "dungeon" | "archi" | "wanted";
 
 type LocationSelection =
   | { mode: "zone"; hit: ZoneSearchHit }
@@ -964,6 +1094,8 @@ const SEARCH_MODES: { id: SearchMode; label: string }[] = [
   { id: "monster", label: "Nom" },
   { id: "zone", label: "Zone" },
   { id: "dungeon", label: "Donjon" },
+  { id: "archi", label: "Archi" },
+  { id: "wanted", label: "Recherche" },
 ];
 
 function locationLabel(selection: LocationSelection): string {
@@ -1031,6 +1163,10 @@ export function BestiaryPanel() {
   const [dungeonCards, setDungeonCards]           = useState<DungeonCardOut[]>([]);
   const [dungeonDataLoading, setDungeonDataLoading] = useState(false);
   const [dungeonLevelFilter, setDungeonLevelFilter] = useState<DungeonLevelRange | null>(null);
+  const [archiMonsters, setArchiMonsters] = useState<MonsterBase[]>([]);
+  const [archiDataLoading, setArchiDataLoading] = useState(false);
+  const [wantedMonsters, setWantedMonsters] = useState<MonsterBase[]>([]);
+  const [wantedDataLoading, setWantedDataLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [areas, setAreas]                   = useState<AreaOut[]>([]);
   const [subareas, setSubareas]             = useState<SubareaOut[]>([]);
@@ -1040,12 +1176,18 @@ export function BestiaryPanel() {
   const searchBoxRef = useRef<HTMLDivElement>(null);
   const zoneDataRequested = useRef(false);
   const dungeonDataRequested = useRef(false);
+  const archiDataRequested = useRef(false);
+  const wantedDataRequested = useRef(false);
 
   const hasMonsterSearch = searchMode === "monster" && debouncedQ.trim().length > 0;
   const hasLocationSearch = locationSelection != null;
   const hasSearched = hasMonsterSearch || hasLocationSearch;
   const filteredDungeonCards = filterDungeons(query, dungeonCards, dungeonLevelFilter);
+  const filteredArchiMonsters = filterArchimonsters(query, archiMonsters);
+  const filteredWantedMonsters = filterWantedMonsters(query, wantedMonsters);
   const showDungeonBrowse = searchMode === "dungeon" && !locationSelection && !detailData;
+  const showArchiBrowse = searchMode === "archi" && !locationSelection && !detailData;
+  const showWantedBrowse = searchMode === "wanted" && !locationSelection && !detailData;
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -1096,6 +1238,42 @@ export function BestiaryPanel() {
       })
       .finally(() => {
         if (!cancelled) setDungeonDataLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [searchMode]);
+
+  useEffect(() => {
+    if (searchMode !== "archi" || archiDataRequested.current) return;
+    archiDataRequested.current = true;
+    let cancelled = false;
+    setArchiDataLoading(true);
+    void fetchAllArchimonsters()
+      .then((monsters) => {
+        if (!cancelled) setArchiMonsters(monsters);
+      })
+      .catch(() => {
+        if (!cancelled) setListError("Impossible de charger les archimonstres");
+      })
+      .finally(() => {
+        if (!cancelled) setArchiDataLoading(false);
+      });
+    return () => { cancelled = true; };
+  }, [searchMode]);
+
+  useEffect(() => {
+    if (searchMode !== "wanted" || wantedDataRequested.current) return;
+    wantedDataRequested.current = true;
+    let cancelled = false;
+    setWantedDataLoading(true);
+    void fetchAllWantedMonsters()
+      .then((monsters) => {
+        if (!cancelled) setWantedMonsters(monsters);
+      })
+      .catch(() => {
+        if (!cancelled) setListError("Impossible de charger les avis de recherche");
+      })
+      .finally(() => {
+        if (!cancelled) setWantedDataLoading(false);
       });
     return () => { cancelled = true; };
   }, [searchMode]);
@@ -1249,6 +1427,8 @@ export function BestiaryPanel() {
 
   const backLabel = (() => {
     if (detailData) {
+      if (searchMode === "archi") return "Retour aux archimonstres";
+      if (searchMode === "wanted") return "Retour aux avis de recherche";
       if (locationSelection?.mode === "dungeon") {
         return `Retour à ${locationSelection.dungeon.name.fr}`;
       }
@@ -1277,7 +1457,11 @@ export function BestiaryPanel() {
       ? "Rechercher une zone ou sous-zone…"
       : searchMode === "dungeon"
         ? "Filtrer les donjons…"
-        : "Rechercher un monstre…";
+        : searchMode === "archi"
+          ? "Filtrer les archimonstres…"
+          : searchMode === "wanted"
+            ? "Filtrer les avis de recherche…"
+            : "Rechercher un monstre…";
 
   const resultLabel = (() => {
     if (!hasSearched || loading) return null;
@@ -1314,22 +1498,53 @@ export function BestiaryPanel() {
     return `${filteredDungeonCards.length} donjon${filteredDungeonCards.length > 1 ? "s" : ""}`;
   })();
 
+  const archiResultLabel = (() => {
+    if (!showArchiBrowse || archiDataLoading) return null;
+    if (query.trim()) {
+      return filteredArchiMonsters.length > 0
+        ? `${filteredArchiMonsters.length} archi${filteredArchiMonsters.length > 1 ? "s" : ""} · « ${query.trim()} »`
+        : `Aucun archi pour « ${query.trim()} »`;
+    }
+    return `${filteredArchiMonsters.length} archimonstre${filteredArchiMonsters.length > 1 ? "s" : ""}`;
+  })();
+
+  const wantedResultLabel = (() => {
+    if (!showWantedBrowse || wantedDataLoading) return null;
+    if (query.trim()) {
+      return filteredWantedMonsters.length > 0
+        ? `${filteredWantedMonsters.length} avis · « ${query.trim()} »`
+        : `Aucun avis pour « ${query.trim()} »`;
+    }
+    return `${filteredWantedMonsters.length} avis de recherche`;
+  })();
+
   return (
     <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">
       {/* Barre de recherche */}
       <div className="sticky top-0 z-10 border-b border-[#1e1e1e] bg-[#0a0a0a]/95 px-6 py-4 backdrop-blur-xl md:px-10">
         <div className="mx-auto max-w-[720px]">
-          <div className="mb-3 flex justify-center gap-1 rounded-xl border border-[#222] bg-[#141414] p-1">
+          <div className="mb-3 flex flex-wrap justify-center gap-1 rounded-xl border border-[#222] bg-[#141414] p-1">
             {SEARCH_MODES.map((mode) => (
               <button
                 key={mode.id}
                 type="button"
                 onClick={() => switchMode(mode.id)}
-                className={`rounded-lg px-3.5 py-1.5 text-[11px] font-semibold uppercase tracking-wider transition ${
+                className={`rounded-lg px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-wider transition sm:px-3.5 sm:text-[11px] ${
                   searchMode === mode.id
-                    ? "bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)] shadow-[inset_0_0_0_1px_var(--dofus-ui-olive-border-60)]"
+                    ? mode.id === "archi"
+                      ? "text-[#5ec8f0] shadow-[inset_0_0_0_1px_rgba(94,200,240,0.35)]"
+                      : mode.id === "wanted"
+                        ? "text-[#e8a040] shadow-[inset_0_0_0_1px_rgba(232,160,64,0.35)]"
+                        : "bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)] shadow-[inset_0_0_0_1px_var(--dofus-ui-olive-border-60)]"
                     : "text-[#555] hover:text-[#999]"
                 }`}
+                style={
+                  searchMode === mode.id && mode.id === "archi"
+                    ? { background: "rgba(94, 200, 240, 0.08)" }
+                    : searchMode === mode.id && mode.id === "wanted"
+                      ? { background: "rgba(232, 160, 64, 0.08)" }
+                      : undefined
+                }
               >
                 {mode.label}
               </button>
@@ -1337,9 +1552,17 @@ export function BestiaryPanel() {
           </div>
 
           <div ref={searchBoxRef} className="relative">
-            {loading ? (
+            {loading || (showArchiBrowse && archiDataLoading) || (showWantedBrowse && wantedDataLoading) ? (
               <div className="absolute left-4 top-1/2 -translate-y-1/2">
                 <div className="h-4 w-4 animate-spin rounded-full border-2 border-[#2a2a2a] border-t-[var(--dofus-green-active)]" />
+              </div>
+            ) : searchMode === "archi" ? (
+              <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                <ArchiIcon size={16} className="drop-shadow-none opacity-70" />
+              </div>
+            ) : searchMode === "wanted" ? (
+              <div className="absolute left-4 top-1/2 -translate-y-1/2">
+                <WantedIcon size={16} className="opacity-70" />
               </div>
             ) : (
               <svg className="absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-[#3a3a3a]"
@@ -1397,7 +1620,13 @@ export function BestiaryPanel() {
           {showDungeonBrowse && dungeonResultLabel && (
             <p className="mt-1.5 text-center text-[11px] text-[#2e2e2e]">{dungeonResultLabel}</p>
           )}
-          {!showDungeonBrowse && resultLabel && (
+          {showArchiBrowse && archiResultLabel && (
+            <p className="mt-1.5 text-center text-[11px]" style={{ color: ARCHI_STYLE.textMuted }}>{archiResultLabel}</p>
+          )}
+          {showWantedBrowse && wantedResultLabel && (
+            <p className="mt-1.5 text-center text-[11px]" style={{ color: WANTED_STYLE.textMuted }}>{wantedResultLabel}</p>
+          )}
+          {!showDungeonBrowse && !showArchiBrowse && !showWantedBrowse && resultLabel && (
             <p className="mt-1.5 text-center text-[11px] text-[#2e2e2e]">{resultLabel}</p>
           )}
 
@@ -1409,7 +1638,7 @@ export function BestiaryPanel() {
 
       <div className="flex-1 px-6 py-8 md:px-10">
         {/* État initial */}
-        {!hasSearched && !detailData && !showDungeonBrowse && (
+        {!hasSearched && !detailData && !showDungeonBrowse && !showArchiBrowse && !showWantedBrowse && (
           <div className="flex flex-col items-center justify-center py-28 text-center">
             <div className="mb-5 flex h-16 w-16 items-center justify-center rounded-xl border border-[#222] bg-[#181818]/95 shadow-[inset_0_1px_0_rgba(255,255,255,0.03)]">
               {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -1418,6 +1647,48 @@ export function BestiaryPanel() {
             </div>
             <p className="text-[15px] font-semibold text-[#2a2a2a]">Bestiaire</p>
             <p className="mt-1.5 text-[11px] text-[#202020]">Par nom, zone ou donjon — stats, résistances, sorts et butin</p>
+          </div>
+        )}
+
+        {showWantedBrowse && wantedDataLoading && (
+          <div className="flex justify-center py-16">
+            <DofusSpinner size={56} label="Chargement des avis de recherche…" />
+          </div>
+        )}
+        {showWantedBrowse && !wantedDataLoading && filteredWantedMonsters.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {filteredWantedMonsters.map((m) => (
+              <MonsterCard key={m.id} monster={m} onClick={() => void openDetail(m.id)} />
+            ))}
+          </div>
+        )}
+        {showWantedBrowse && !wantedDataLoading && filteredWantedMonsters.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <WantedIcon size={48} className="mb-4 opacity-40" />
+            <p className="text-[13px]" style={{ color: WANTED_STYLE.textMuted }}>
+              {query.trim() ? "Aucun avis de recherche trouvé" : "Aucun avis de recherche disponible"}
+            </p>
+          </div>
+        )}
+
+        {showArchiBrowse && archiDataLoading && (
+          <div className="flex justify-center py-16">
+            <DofusSpinner size={56} label="Chargement des archimonstres…" />
+          </div>
+        )}
+        {showArchiBrowse && !archiDataLoading && filteredArchiMonsters.length > 0 && (
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+            {filteredArchiMonsters.map((m) => (
+              <MonsterCard key={m.id} monster={m} onClick={() => void openDetail(m.id)} />
+            ))}
+          </div>
+        )}
+        {showArchiBrowse && !archiDataLoading && filteredArchiMonsters.length === 0 && (
+          <div className="flex flex-col items-center justify-center py-20 text-center">
+            <ArchiIcon size={48} className="mb-4 opacity-40" />
+            <p className="text-[13px]" style={{ color: ARCHI_STYLE.textMuted }}>
+              {query.trim() ? "Aucun archimonstre trouvé" : "Aucun archimonstre disponible"}
+            </p>
           </div>
         )}
 

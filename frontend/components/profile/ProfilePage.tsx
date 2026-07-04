@@ -8,6 +8,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { DofusSpinner } from "@/components/ui/DofusSpinner";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Input } from "@/components/ui/Input";
 import { Plaque } from "@/components/ui/Plaque";
 import {
@@ -441,9 +442,7 @@ export function ProfilePage() {
         {/* ── Profile card ── */}
         <Plaque ornate className="mb-8 flex flex-col gap-6 p-6 sm:flex-row sm:items-start">
           {/* Avatar */}
-          <div className="medallion flex h-20 w-20 shrink-0 text-3xl font-bold uppercase text-[var(--dofus-green-active)]">
-            {user.username[0]}
-          </div>
+          <UserAvatar username={user.username} size="lg" />
 
           {/* Info */}
           <div className="flex flex-1 flex-col gap-3">

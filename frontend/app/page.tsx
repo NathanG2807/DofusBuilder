@@ -1,7 +1,8 @@
 import Link from "next/link";
 
-import { Navbar } from "@/components/layout/Navbar";
+import { HomeBackground } from "@/components/home/HomeBackground";
 import { HomeCards } from "@/components/home/HomeCards";
+import { Navbar } from "@/components/layout/Navbar";
 
 export const metadata = {
   title: "Zaap Builder — Création de stuff Dofus 3",
@@ -82,8 +83,8 @@ const CARDS: NavCard[] = [
     href: "/builder",
     title: "Buildroom",
     description:
-      "Compose ton équipement slot par slot, consulte tes stats en temps réel et optimise ton stuff avec le solveur intelligent.",
-    label: "Ouvrir le builder",
+      "Compose tes builds et optimise ton stuff avec le builder intelligent.",
+    label: "Buildroom",
     accent: "var(--dofus-green-active)",
     icon: <IconBuilder />,
   },
@@ -91,8 +92,8 @@ const CARDS: NavCard[] = [
     href: "/stuffs",
     title: "Stuffs publics",
     description:
-      "Parcours les builds partagés par la communauté, filtre par classe et par tag, et importe directement ceux qui t'inspirent.",
-    label: "Explorer les stuffs",
+      "Parcours les builds partagés par la communauté et importe les builds qui t'inspirent.",
+    label: "Builds",
     accent: "#f0d78c",
     icon: <IconStuffs />,
   },
@@ -100,8 +101,8 @@ const CARDS: NavCard[] = [
     href: "/bestiaire",
     title: "Bestiaire",
     description:
-      "Consulte les stats, les résistances et les archis-monstres de tous les monstres Dofus 3 pour préparer tes combats.",
-    label: "Ouvrir le bestiaire",
+      "Consulte les stats, les sorts et les drops de tous les monstres pour préparer tes combats.",
+    label: "Bestiaire",
     accent: "#e05838",
     icon: <IconBestiary />,
   },
@@ -109,8 +110,8 @@ const CARDS: NavCard[] = [
     href: "/atelier",
     title: "L'Atelier",
     description:
-      "Suis l'avancement de tes crafts : listes d'ingrédients, panoplies, builds complets et validation progressive.",
-    label: "Ouvrir l'atelier",
+      "Suis l'avancement de tes crafts : listes d'ingrédients, builds et validation progressive.",
+    label: "Atelier",
     accent: "#98c030",
     icon: <IconAtelier />,
   },
@@ -118,28 +119,28 @@ const CARDS: NavCard[] = [
 
 export default function HomePage() {
   return (
-    <div className="flex min-h-screen flex-col bg-[#0a0a0a]">
+    <div className="relative flex min-h-screen flex-col">
+      <HomeBackground />
       <Navbar />
 
       {/* ── Hero ── */}
       <div className="flex w-full flex-col items-center px-4 pb-14 pt-20 text-center">
+        
+        <h1 className="font-display text-[38px] font-medium italic tracking-tight text-white sm:text-[52px]">
+          {/* Zaap Builder */}
+        </h1>
+        <p className="mt-4 max-w-[480px] text-[15px] leading-relaxed text-[#6b6b6b]">
+          Bienvenue sur Zaap, votre outil communautaire pour&nbsp;
+          <span className="text-[#8a8a8a]">Dofus&nbsp;3</span>.
+        </p>
         <span className="mb-4 text-[11px] font-semibold uppercase tracking-[0.2em] text-[var(--dofus-green-active)]/80">
           Outil communautaire non officiel
         </span>
-        <h1 className="font-display text-[38px] font-medium italic tracking-tight text-white sm:text-[52px]">
-          Zaap Builder
-        </h1>
-        <p className="mt-4 max-w-[480px] text-[15px] leading-relaxed text-[#6b6b6b]">
-          Forge ton équipement,{" "}
-          <Link href="/builder" className="text-[#8a8a8a] underline decoration-white/15 underline-offset-4 hover:text-white/80">
-            optimise ton stuff
-          </Link>{" "}
-          et partage tes créations pour&nbsp;
-          <span className="text-[#8a8a8a]">Dofus&nbsp;3</span>.
-        </p>
       </div>
 
-      <HomeCards cards={CARDS} />
+      <div className="mt-16 sm:mt-20">
+        <HomeCards cards={CARDS} />
+      </div>
     </div>
   );
 }

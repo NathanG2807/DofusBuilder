@@ -6,6 +6,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { DofusSpinner } from "@/components/ui/DofusSpinner";
+import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Input } from "@/components/ui/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -170,9 +171,7 @@ export function AccountButton() {
       >
         {user ? (
           <>
-            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-[var(--dofus-ui-accent-tint-20)] text-[10px] font-bold uppercase text-[var(--dofus-green-active)]">
-              {user.username[0]}
-            </span>
+            <UserAvatar username={user.username} size="xs" />
             <span className="max-w-[90px] truncate">{user.username}</span>
           </>
         ) : (
@@ -289,9 +288,7 @@ export function AccountButton() {
             {/* En-tête utilisateur */}
             <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
               <div className="flex items-center gap-2">
-                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--dofus-ui-accent-tint-20)] text-sm font-bold uppercase text-[var(--dofus-green-active)]">
-                  {user.username[0]}
-                </span>
+                <UserAvatar username={user.username} size="sm" />
                 <div>
                   <p className="font-medium text-[#f0d78c] leading-none">{user.username}</p>
                   <p className="mt-0.5 text-[10px] text-[#555]">{builds.length} build{builds.length !== 1 ? "s" : ""}</p>

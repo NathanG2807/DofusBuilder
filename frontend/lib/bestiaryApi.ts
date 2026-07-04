@@ -181,7 +181,30 @@ export type ZoneSearchHit =
 export type MonsterRaceOut = {
   id: number;
   name: { fr: string };
+  monsters?: number[];
 };
+
+/** Race DofusDB « Avis de recherche » — liste officielle des mobs recherchés. */
+export const WANTED_MONSTER_RACE_ID = 32;
+
+export function isWantedMonster(m: Pick<MonsterBase, "race">): boolean {
+  return m.race === WANTED_MONSTER_RACE_ID;
+}
+
+function sortMonstersByLevel(monsters: MonsterBase[]): MonsterBase[] {
+  return [...monsters].sort((a, b) => {
+    const levelA = a.grades[0]?.level ?? 0;
+    const levelB = b.grades[0]?.level ?? 0;
+    if (levelA !== levelB) return levelA - levelB;
+    return a.name.fr.localeCompare(b.name.fr, "fr");
+  });
+}
+
+export function filterMonstersByName(query: string, monsters: MonsterBase[]): MonsterBase[] {
+  const needle = normalizeSearchText(query);
+  if (!needle) return monsters;
+  return monsters.filter((m) => normalizeSearchText(m.name.fr).includes(needle));
+}
 
 export type DropItemEffect = {
   effectId: number;
@@ -360,6 +383,37 @@ export async function searchMonsters(params: { q?: string }): Promise<MonsterLis
   const r = await fetch(`${DOFUSDB}/monsters?${parts.join("&")}`, { cache: "no-store" });
   if (!r.ok) throw new Error(`HTTP ${r.status}`);
   return r.json() as Promise<MonsterListResponse>;
+}
+
+export async function fetchAllArchimonsters(): Promise<MonsterBase[]> {
+  const filter = buildQuery({ lang: "fr", isMiniBoss: "true" });
+  const monsters = await fetchMonsterPages(filter);
+  return sortMonstersByLevel(monsters.filter((m) => !m.hideInBestiary));
+}
+
+/** @deprecated Préférer filterMonstersByName */
+export function filterArchimonsters(query: string, monsters: MonsterBase[]): MonsterBase[] {
+  return filterMonstersByName(query, monsters);
+}
+
+export async function fetchMonsterRaceById(id: number): Promise<MonsterRaceOut | null> {
+  const qs = buildQuery({ lang: "fr" }, { id: [id] });
+  const r = await fetch(`${DOFUSDB}/monster-races?${qs}`, { cache: "force-cache" });
+  if (!r.ok) return null;
+  const data = await r.json() as { data: MonsterRaceOut[] };
+  return data.data?.[0] ?? null;
+}
+
+export async function fetchAllWantedMonsters(): Promise<MonsterBase[]> {
+  const race = await fetchMonsterRaceById(WANTED_MONSTER_RACE_ID);
+  const ids = race?.monsters ?? [];
+  if (!ids.length) return [];
+  const monsters = await fetchMonstersByIds(ids);
+  return sortMonstersByLevel(monsters.filter((m) => !m.hideInBestiary));
+}
+
+export function filterWantedMonsters(query: string, monsters: MonsterBase[]): MonsterBase[] {
+  return filterMonstersByName(query, monsters);
 }
 
 export async function fetchAreas(): Promise<AreaOut[]> {
