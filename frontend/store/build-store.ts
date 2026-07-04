@@ -368,7 +368,15 @@ export const useBuildStore = create<BuildState>((set, get) => {
     ];
     const missing = ids.filter((id) => !itemById[id] && !isExcludedItemId(id));
     if (missing.length === 0) return;
-    const loaded = await Promise.all(missing.map((id) => fetchItem(id)));
+
+    // Traitement par batches pour éviter de saturer le backend (free tier Render)
+    const BATCH_SIZE = 4;
+    const loaded: ItemOut[] = [];
+    for (let i = 0; i < missing.length; i += BATCH_SIZE) {
+      const batch = missing.slice(i, i + BATCH_SIZE);
+      const results = await Promise.all(batch.map((id) => fetchItem(id)));
+      loaded.push(...results);
+    }
     cacheItems(loaded);
   },
 
