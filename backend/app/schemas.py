@@ -137,6 +137,19 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class MessageResponse(BaseModel):
+    message: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=20, max_length=256)
+    password: str = Field(min_length=8, max_length=128)
+
+
 class ItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

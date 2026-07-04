@@ -60,6 +60,31 @@ export async function authLogin(body: {
   return r.json() as Promise<{ access_token: string; token_type: string }>;
 }
 
+export async function authForgotPassword(body: {
+  email: string;
+}): Promise<{ message: string }> {
+  const r = await fetch(`${getApiBase()}/api/v1/auth/forgot-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await parseError(r));
+  return r.json() as Promise<{ message: string }>;
+}
+
+export async function authResetPassword(body: {
+  token: string;
+  password: string;
+}): Promise<{ message: string }> {
+  const r = await fetch(`${getApiBase()}/api/v1/auth/reset-password`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await parseError(r));
+  return r.json() as Promise<{ message: string }>;
+}
+
 export async function authMe(): Promise<UserPublic> {
   const r = await fetch(`${getApiBase()}/api/v1/auth/me`, {
     headers: authHeaders(),

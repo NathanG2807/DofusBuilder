@@ -256,10 +256,11 @@ export function listProgressPercent(
   aggregated: AggregatedIngredient[],
 ): number {
   if (aggregated.length === 0) return 100;
-  const totalRequired = aggregated.reduce((s, a) => s + a.required, 0);
-  if (totalRequired === 0) return 100;
-  const totalValidated = aggregated.reduce((s, a) => s + a.validated, 0);
-  return Math.round((totalValidated / totalRequired) * 100);
+  const score = aggregated.reduce((s, row) => {
+    if (row.required <= 0) return s + 1;
+    return s + Math.min(row.validated / row.required, 1);
+  }, 0);
+  return Math.round((score / aggregated.length) * 100);
 }
 
 export type IngredientRowStatus = "complete" | "partial" | "empty";

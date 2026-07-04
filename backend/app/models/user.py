@@ -27,3 +27,6 @@ class User(Base):
     craft_lists: Mapped[list["CraftList"]] = relationship(
         "CraftList", back_populates="user", cascade="all, delete-orphan"
     )
+    password_reset_tokens: Mapped[list["PasswordResetToken"]] = relationship(
+        "PasswordResetToken", back_populates="user", cascade="all, delete-orphan"
+    )

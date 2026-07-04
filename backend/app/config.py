@@ -38,6 +38,21 @@ class Settings(BaseSettings):
     # Regex matching Vercel preview deployments and any *.vercel.app subdomain.
     cors_origin_regex: str = r"https://.*\.vercel\.app$"
 
+    # URL du frontend (liens dans les emails).
+    frontend_url: str = "http://localhost:3000"
+
+    # Réinitialisation mot de passe
+    password_reset_expire_minutes: int = 60
+
+    # SMTP (vide = lien loggé en console, pas d'email envoyé)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from_email: str = "noreply@zaap-builder.local"
+    smtp_from_name: str = "Zaap Builder"
+    smtp_use_tls: bool = True
+
 
 @lru_cache
 def get_settings() -> Settings:

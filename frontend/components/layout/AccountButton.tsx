@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import {
+  authForgotPassword,
   authLogin,
   authLogout,
   authMe,
@@ -20,7 +21,7 @@ import { classHeadUrl } from "@/lib/classImage";
 import { useBuildStore } from "@/store/build-store";
 import type { BuildOut, UserPublic } from "@/types/api";
 
-type AuthMode = "login" | "register";
+type AuthMode = "login" | "register" | "forgot";
 
 /* ── Visibility toggle icon ─────────────────────────────────────────────── */
 function VisibilityIcon({ isPublic }: { isPublic: boolean }) {
@@ -45,6 +46,7 @@ export function AccountButton() {
   const [password, setPassword] = useState("");
   const [user, setUser] = useState<UserPublic | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
+  const [authSuccess, setAuthSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [saveName, setSaveName] = useState("Mon build");
   const [isPublic, setIsPublic] = useState(false);
@@ -111,8 +113,14 @@ export function AccountButton() {
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
     setAuthError(null);
+    setAuthSuccess(null);
     setBusy(true);
     try {
+      if (authMode === "forgot") {
+        const res = await authForgotPassword({ email: email.trim() });
+        setAuthSuccess(res.message);
+        return;
+      }
       if (authMode === "register") {
         await authRegister({ username: username.trim(), email: email.trim(), password });
       }
@@ -273,55 +281,100 @@ export function AccountButton() {
             /* ── Formulaire connexion / inscription ── */
             <div className="p-4">
               <div className="mb-3 flex gap-3 border-b border-[#252525] pb-3">
-                {(["login", "register"] as const).map((m) => (
+                {authMode !== "forgot" ? (
+                  (["login", "register"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setAuthMode(m); setAuthError(null); setAuthSuccess(null); }}
+                      className={`text-sm font-medium transition ${
+                        authMode === m ? "text-[var(--dofus-green-active)]" : "text-[#555555] hover:text-[#aaaaaa]"
+                      }`}
+                    >
+                      {m === "login" ? "Connexion" : "Inscription"}
+                    </button>
+                  ))
+                ) : (
                   <button
-                    key={m}
                     type="button"
-                    onClick={() => { setAuthMode(m); setAuthError(null); }}
-                    className={`text-sm font-medium transition ${
-                      authMode === m ? "text-[var(--dofus-green-active)]" : "text-[#555555] hover:text-[#aaaaaa]"
-                    }`}
+                    onClick={() => { setAuthMode("login"); setAuthError(null); setAuthSuccess(null); }}
+                    className="text-sm font-medium text-[var(--dofus-green-active)]"
                   >
-                    {m === "login" ? "Connexion" : "Inscription"}
+                    ← Retour à la connexion
                   </button>
-                ))}
+                )}
               </div>
               <form className="space-y-2" onSubmit={handleAuth}>
-                <input
-                  className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
-                  placeholder="Nom d'utilisateur"
-                  value={username}
-                  onChange={(e) => setUsername(e.target.value)}
-                  autoComplete="username"
-                  required
-                />
-                {authMode === "register" && (
-                  <input
-                    className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
-                    type="email"
-                    placeholder="Email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    autoComplete="email"
-                    required
-                  />
+                {authMode === "forgot" ? (
+                  <>
+                    <p className="text-xs text-[#888]">
+                      Saisissez l&apos;email de votre compte. Si un compte existe, vous recevrez un lien de réinitialisation.
+                    </p>
+                    <input
+                      className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
+                      type="email"
+                      placeholder="Email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      autoComplete="email"
+                      required
+                    />
+                  </>
+                ) : (
+                  <>
+                    <input
+                      className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
+                      placeholder="Nom d'utilisateur"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      autoComplete="username"
+                      required
+                    />
+                    {authMode === "register" && (
+                      <input
+                        className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
+                        type="email"
+                        placeholder="Email"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        autoComplete="email"
+                        required
+                      />
+                    )}
+                    <input
+                      className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
+                      type="password"
+                      placeholder="Mot de passe"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete={authMode === "register" ? "new-password" : "current-password"}
+                      required
+                    />
+                    {authMode === "login" && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => { setAuthMode("forgot"); setAuthError(null); setAuthSuccess(null); }}
+                          className="text-[11px] text-[#666] transition hover:text-[var(--dofus-green-active)]"
+                        >
+                          Mot de passe oublié ?
+                        </button>
+                      </div>
+                    )}
+                  </>
                 )}
-                <input
-                  className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
-                  type="password"
-                  placeholder="Mot de passe"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete={authMode === "register" ? "new-password" : "current-password"}
-                  required
-                />
                 {authError && <p className="text-xs text-red-400">{authError}</p>}
+                {authSuccess && <p className="text-xs text-emerald-400">{authSuccess}</p>}
                 <button
                   type="submit"
                   disabled={busy}
                   className="btn-dofus-green w-full rounded-lg py-2 text-sm disabled:opacity-50"
                 >
-                  {authMode === "register" ? "Créer le compte" : "Se connecter"}
+                  {authMode === "register"
+                    ? "Créer le compte"
+                    : authMode === "forgot"
+                      ? "Envoyer le lien"
+                      : "Se connecter"}
                 </button>
               </form>
             </div>

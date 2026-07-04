@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 import { useAtelierStore } from "@/store/atelier-store";
 import { useBuildStore } from "@/store/build-store";
@@ -22,6 +23,11 @@ export function AddToAtelierModal({ open, onClose }: AddToAtelierModalProps) {
   const [createNew, setCreateNew] = useState(false);
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const equippedCount = Object.values(currentBuild).filter((id) => id != null).length;
 
@@ -35,7 +41,7 @@ export function AddToAtelierModal({ open, onClose }: AddToAtelierModalProps) {
     }
   }, [open, loadLists, activeListId, buildName]);
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -72,8 +78,8 @@ export function AddToAtelierModal({ open, onClose }: AddToAtelierModalProps) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 p-4">
+  return createPortal(
+    <div className="fixed inset-0 z-[400] flex items-center justify-center bg-black/75 p-4 backdrop-blur-sm">
       <div className="w-full max-w-md rounded-2xl border border-[#383838] bg-[#1a1a1a] p-4 shadow-2xl">
         <div className="mb-3 flex items-center justify-between">
           <h3 className="text-sm font-semibold text-[#f0d78c]">Ajouter à l&apos;atelier</h3>
@@ -147,6 +153,7 @@ export function AddToAtelierModal({ open, onClose }: AddToAtelierModalProps) {
           </div>
         </form>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
