@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
 import { Chip } from "@/components/ui/Chip";
+import { DofusSpinner } from "@/components/ui/DofusSpinner";
 import { resolveDropItemForHover } from "@/lib/dofusDbItemMapper";
 import type { ItemOut } from "@/types/api";
 import {
@@ -1421,8 +1422,8 @@ export function BestiaryPanel() {
         )}
 
         {showDungeonBrowse && dungeonDataLoading && (
-          <div className="flex justify-center py-20">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2a2a2a] border-t-[#c09040]" />
+          <div className="flex justify-center py-16">
+            <DofusSpinner size={56} label="Chargement des donjons…" />
           </div>
         )}
         {showDungeonBrowse && !dungeonDataLoading && (
@@ -1464,14 +1465,14 @@ export function BestiaryPanel() {
         )}
 
         {loading && hasSearched && (
-          <div className="flex justify-center py-20">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2a2a2a] border-t-[var(--dofus-green-active)]" />
+          <div className="flex justify-center py-16">
+            <DofusSpinner size={56} label="Recherche en cours…" />
           </div>
         )}
         {listError && <p className="py-10 text-center text-[13px] text-red-400">{listError}</p>}
         {detailLoading && (
-          <div className="flex justify-center py-20">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#2a2a2a] border-t-[var(--dofus-green-active)]" />
+          <div className="flex justify-center py-16">
+            <DofusSpinner size={56} label="Chargement du monstre…" />
           </div>
         )}
         {!detailLoading && detailData && (

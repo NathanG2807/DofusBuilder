@@ -4,6 +4,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
+import { DofusSpinner } from "@/components/ui/DofusSpinner";
 import { DOFUS_CLASS_OPTIONS } from "@/lib/dofusClasses";
 import { runOptimize } from "@/lib/api";
 import { useBuildStore } from "@/store/build-store";
@@ -94,7 +95,13 @@ function Stepper({
 }
 
 /* ── Panel principal ─────────────────────────────────────────────────────── */
-export function OptimizePanel({ bare = false }: { bare?: boolean }) {
+export function OptimizePanel({
+  bare = false,
+  onSuccess,
+}: {
+  bare?: boolean;
+  onSuccess?: () => void;
+}) {
   const applyFullBuild = useBuildStore((s) => s.applyFullBuild);
   const prefetchEquippedItems = useBuildStore((s) => s.prefetchEquippedItems);
   const resetBuild = useBuildStore((s) => s.resetBuild);
@@ -170,6 +177,7 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
       });
       applyFullBuild(fb);
       await prefetchEquippedItems();
+      onSuccess?.();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     } finally {
@@ -442,14 +450,28 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
     </form>
   );
 
-  if (bare) return <div className="h-full overflow-y-auto">{inner}</div>;
+  if (bare) return (
+    <div className="relative h-full overflow-y-auto">
+      {inner}
+      {loading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center bg-[#0d0d0d]/85 backdrop-blur-sm">
+          <DofusSpinner size={72} label="Optimisation en cours…" />
+        </div>
+      )}
+    </div>
+  );
 
   return (
-    <section className="dofus-panel rounded-xl border border-[#2e2e2e] bg-[#181818]/95 p-4">
+    <section className="dofus-panel relative overflow-hidden rounded-xl border border-[#2e2e2e] bg-[#181818]/95 p-4">
       <h2 className="mb-3 font-serif text-lg font-semibold tracking-wide text-[#f0d78c]">
         Optimisation automatique
       </h2>
       {inner}
+      {loading && (
+        <div className="absolute inset-0 flex flex-col items-center justify-center rounded-xl bg-[#0d0d0d]/85 backdrop-blur-sm">
+          <DofusSpinner size={72} label="Optimisation en cours…" />
+        </div>
+      )}
     </section>
   );
 }

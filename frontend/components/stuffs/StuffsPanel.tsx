@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
 import { SpellsPanel } from "@/components/dashboard/SpellsPanel";
 import { Button } from "@/components/ui/Button";
+import { DofusSpinner } from "@/components/ui/DofusSpinner";
 import { Input } from "@/components/ui/Input";
 import { Plaque } from "@/components/ui/Plaque";
 import { createBuild, fetchItem, getBuildById, listPublicBuilds } from "@/lib/api";
@@ -710,10 +711,9 @@ function FilterSidebar({
 function BuildLoadingOverlay({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <Plaque className="flex flex-col items-center gap-3 px-8 py-6">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#3a3a3a] border-t-[var(--dofus-green-active)]" />
-        <p className="text-sm text-[#aaa]">Chargement du build…</p>
-        <button type="button" onClick={onClose} className="mt-1 text-[11px] text-[#555] hover:text-[#999]">Annuler</button>
+      <Plaque className="flex flex-col items-center gap-4 px-8 py-6">
+        <DofusSpinner size={72} label="Chargement du build…" />
+        <button type="button" onClick={onClose} className="text-[11px] text-[#555] hover:text-[#999]">Annuler</button>
       </Plaque>
     </div>
   );
@@ -791,11 +791,8 @@ export function StuffsPanel() {
         </div>
 
         {loading && (
-          <div className="flex flex-1 items-center justify-center py-20">
-            <div className="flex flex-col items-center gap-3">
-              <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#3a3a3a] border-t-[var(--dofus-green-active)]" />
-              <p className="text-sm text-[#555]">Chargement…</p>
-            </div>
+          <div className="flex flex-1 items-center justify-center py-16">
+            <DofusSpinner size={56} label="Chargement…" />
           </div>
         )}
 

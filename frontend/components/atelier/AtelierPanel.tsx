@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
 import { Button } from "@/components/ui/Button";
+import { DofusSpinner } from "@/components/ui/DofusSpinner";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { Plaque } from "@/components/ui/Plaque";
@@ -638,7 +639,11 @@ export function AtelierPanel() {
 
       {/* Contenu principal */}
       <div className="min-w-0 flex-1 space-y-4">
-        {loading && <p className="text-sm text-white/40">Chargement…</p>}
+        {loading && (
+          <div className="flex justify-center py-12">
+            <DofusSpinner size={56} label="Chargement…" />
+          </div>
+        )}
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         {!loading && !activeList && (

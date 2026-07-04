@@ -3,7 +3,9 @@
 import { ChevronDown, Eye, EyeOff, Pencil, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
+import { DofusSpinner } from "@/components/ui/DofusSpinner";
 import { Input } from "@/components/ui/Input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
@@ -38,6 +40,11 @@ export function AccountButton() {
   const [listError, setListError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [actionMsg, setActionMsg] = useState<string | null>(null);
+  const [mounted, setMounted] = useState(false);
+
+  useEffect(() => { setMounted(true); }, []);
+
+  const authBusy = busy && !user;
 
   const hydrateFromPersistedBuild = useBuildStore((s) => s.hydrateFromPersistedBuild);
   const prefetchEquippedItems = useBuildStore((s) => s.prefetchEquippedItems);
@@ -385,6 +392,22 @@ export function AccountButton() {
           </>
         )}
       </PopoverContent>
+
+      {mounted && authBusy && createPortal(
+        <div className="fixed inset-0 z-[200] flex items-center justify-center bg-black/70 backdrop-blur-sm">
+          <DofusSpinner
+            size={72}
+            label={
+              authMode === "register"
+                ? "Création du compte…"
+                : authMode === "forgot"
+                  ? "Envoi en cours…"
+                  : "Connexion en cours…"
+            }
+          />
+        </div>,
+        document.body,
+      )}
     </Popover>
   );
 }

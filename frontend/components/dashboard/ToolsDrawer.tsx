@@ -102,7 +102,7 @@ export function ToolsDrawer({
         <div className="flex min-h-0 flex-1 flex-col">
           {activeTool === "optimize" ? (
             <div className="flex-1 overflow-y-auto p-4">
-              <OptimizePanel bare />
+              <OptimizePanel bare onSuccess={onClose} />
             </div>
           ) : (
             <ChatPanel bare />

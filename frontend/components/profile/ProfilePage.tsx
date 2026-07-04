@@ -7,6 +7,7 @@ import { useCallback, useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
+import { DofusSpinner } from "@/components/ui/DofusSpinner";
 import { Input } from "@/components/ui/Input";
 import { Plaque } from "@/components/ui/Plaque";
 import {
@@ -395,7 +396,7 @@ export function ProfilePage() {
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#3a3a3a] border-t-[var(--dofus-green-active)]" />
+        <DofusSpinner size={72} label="Chargement du profil…" />
       </div>
     );
   }
