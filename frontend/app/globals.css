@@ -1,4 +1,8 @@
 @import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@custom-variant dark (&:is(.dark *));
 
 :root {
   /* ── Backgrounds ── */
@@ -43,11 +47,83 @@
   /* ── Bordures ── */
   --dofus-border: #2a2a2a;
   --dofus-border-mid: #383838;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --primary: oklch(0.205 0 0);
+  --primary-foreground: oklch(0.985 0 0);
+  --secondary: oklch(0.97 0 0);
+  --secondary-foreground: oklch(0.205 0 0);
+  --muted: oklch(0.97 0 0);
+  --muted-foreground: oklch(0.556 0 0);
+  --accent: oklch(0.97 0 0);
+  --accent-foreground: oklch(0.205 0 0);
+  --destructive: oklch(0.577 0.245 27.325);
+  --border: oklch(0.922 0 0);
+  --input: oklch(0.922 0 0);
+  --ring: oklch(0.708 0 0);
+  --chart-1: oklch(0.87 0 0);
+  --chart-2: oklch(0.556 0 0);
+  --chart-3: oklch(0.439 0 0);
+  --chart-4: oklch(0.371 0 0);
+  --chart-5: oklch(0.269 0 0);
+  --radius: 0.625rem;
+  --sidebar: oklch(0.985 0 0);
+  --sidebar-foreground: oklch(0.145 0 0);
+  --sidebar-primary: oklch(0.205 0 0);
+  --sidebar-primary-foreground: oklch(0.985 0 0);
+  --sidebar-accent: oklch(0.97 0 0);
+  --sidebar-accent-foreground: oklch(0.205 0 0);
+  --sidebar-border: oklch(0.922 0 0);
+  --sidebar-ring: oklch(0.708 0 0);
 }
 
 @theme inline {
-  --font-sans: var(--font-geist-sans);
+  --font-sans: var(--font-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-fraunces);
+  --font-heading: var(--font-sans);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar: var(--sidebar);
+  --color-chart-5: var(--chart-5);
+  --color-chart-4: var(--chart-4);
+  --color-chart-3: var(--chart-3);
+  --color-chart-2: var(--chart-2);
+  --color-chart-1: var(--chart-1);
+  --color-ring: var(--ring);
+  --color-input: var(--input);
+  --color-border: var(--border);
+  --color-destructive: var(--destructive);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-accent: var(--accent);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-muted: var(--muted);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-secondary: var(--secondary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-primary: var(--primary);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-popover: var(--popover);
+  --color-card-foreground: var(--card-foreground);
+  --color-card: var(--card);
+  --color-foreground: var(--foreground);
+  --color-background: var(--background);
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+  --radius-3xl: calc(var(--radius) * 2.2);
+  --radius-4xl: calc(var(--radius) * 2.6);
 }
 
 body.dofus-app {
@@ -124,4 +200,206 @@ body.dofus-app {
 .btn-dofus-gray:disabled {
   opacity: 0.4;
   cursor: not-allowed;
+}
+
+/* ══════════════════════════════════════════════════════════════════════
+   ATELIER D'ARTISAN — design system pour les pages hors Builder.
+   N'affecte jamais .dofus-panel / .btn-dofus-* ci-dessus (utilisés par
+   le Builder), qui restent strictement inchangés.
+   ══════════════════════════════════════════════════════════════════════ */
+
+:root {
+  --atelier-plaque-from: #14150f;
+  --atelier-plaque-to: #0c0d0a;
+  --atelier-plaque-border: rgba(255, 255, 255, 0.09);
+  --atelier-plaque-border-hover: rgb(109 143 84 / 0.55);
+  --atelier-plaque-inset: rgba(255, 255, 255, 0.045);
+  --atelier-corner: rgb(200 217 176 / 0.5);
+  --atelier-grain: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.font-display {
+  font-family: var(--font-display), Georgia, serif;
+}
+
+/* ── Plaque : remplace le pattern "carte + glow radial" ── */
+.plaque {
+  position: relative;
+  border-radius: 16px;
+  background: linear-gradient(180deg, var(--atelier-plaque-from) 0%, var(--atelier-plaque-to) 100%);
+  border: 1px solid var(--atelier-plaque-border);
+  box-shadow:
+    inset 0 1px 0 var(--atelier-plaque-inset),
+    0 1px 2px rgba(0, 0, 0, 0.4),
+    0 14px 30px -16px rgba(0, 0, 0, 0.6);
+  transition: transform 0.18s ease, border-color 0.18s ease, box-shadow 0.18s ease, background-color 0.18s ease;
+}
+
+.plaque-flat {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid var(--atelier-plaque-border);
+}
+
+.plaque-interactive {
+  cursor: pointer;
+}
+.plaque-interactive:hover,
+.plaque-interactive:focus-visible {
+  transform: translateY(-2px);
+  border-color: var(--atelier-plaque-border-hover);
+  box-shadow:
+    inset 0 1px 0 var(--atelier-plaque-inset),
+    0 2px 4px rgba(0, 0, 0, 0.45),
+    0 22px 40px -18px rgba(0, 0, 0, 0.7);
+}
+
+/* Corner brackets + grain — réservé aux plaques "vitrine" (héro, cartes majeures) */
+.plaque-ornate {
+  --corner-size: 13px;
+  --corner-thick: 1.5px;
+  --corner-gap: 11px;
+}
+.plaque-ornate::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  opacity: 0.55;
+  transition: opacity 0.18s ease;
+  background-image:
+    linear-gradient(var(--atelier-corner), var(--atelier-corner)),
+    linear-gradient(var(--atelier-corner), var(--atelier-corner)),
+    linear-gradient(var(--atelier-corner), var(--atelier-corner)),
+    linear-gradient(var(--atelier-corner), var(--atelier-corner)),
+    linear-gradient(var(--atelier-corner), var(--atelier-corner)),
+    linear-gradient(var(--atelier-corner), var(--atelier-corner)),
+    linear-gradient(var(--atelier-corner), var(--atelier-corner)),
+    linear-gradient(var(--atelier-corner), var(--atelier-corner));
+  background-repeat: no-repeat;
+  background-size:
+    var(--corner-size) var(--corner-thick), var(--corner-thick) var(--corner-size),
+    var(--corner-size) var(--corner-thick), var(--corner-thick) var(--corner-size),
+    var(--corner-size) var(--corner-thick), var(--corner-thick) var(--corner-size),
+    var(--corner-size) var(--corner-thick), var(--corner-thick) var(--corner-size);
+  background-position:
+    var(--corner-gap) var(--corner-gap), var(--corner-gap) var(--corner-gap),
+    calc(100% - var(--corner-gap)) var(--corner-gap), calc(100% - var(--corner-gap)) var(--corner-gap),
+    var(--corner-gap) calc(100% - var(--corner-gap)), var(--corner-gap) calc(100% - var(--corner-gap)),
+    calc(100% - var(--corner-gap)) calc(100% - var(--corner-gap)), calc(100% - var(--corner-gap)) calc(100% - var(--corner-gap));
+}
+.plaque-ornate::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background-image: var(--atelier-grain);
+  opacity: 0.035;
+  mix-blend-mode: overlay;
+}
+.plaque-ornate.plaque-interactive:hover::before {
+  opacity: 1;
+}
+
+/* ── Médaillon : remplace la pastille icône "bg-white/[0.03] rounded-xl" ── */
+.medallion {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 50% 35%, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0) 70%),
+    rgba(255, 255, 255, 0.03);
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.08),
+    inset 0 1px 2px rgba(255, 255, 255, 0.06),
+    inset 0 -6px 10px rgba(0, 0, 0, 0.4);
+}
+.medallion::before {
+  content: "";
+  position: absolute;
+  inset: 4px;
+  border-radius: inherit;
+  border: 1px solid currentColor;
+  opacity: 0.25;
+}
+
+/* ── Chip : filtre / tag, alternative aux pastilles rounded-full génériques ── */
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  border-radius: 8px;
+  border: 1px solid var(--atelier-plaque-border);
+  background: rgba(255, 255, 255, 0.02);
+  padding: 0.3rem 0.65rem;
+  font-size: 12px;
+  font-weight: 500;
+  color: #8a8a8a;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+.chip:hover {
+  border-color: rgba(255, 255, 255, 0.18);
+  color: #cfcfcf;
+}
+.chip[data-active="true"] {
+  border-color: var(--atelier-plaque-border-hover);
+  background: var(--dofus-ui-accent-tint-15);
+  color: var(--dofus-green-active);
+}
+
+/* ── Scrollbar fine, cohérente avec le thème sombre ── */
+.scrollbar-thin {
+  scrollbar-width: thin;
+  scrollbar-color: #2c2c2c transparent;
+}
+.scrollbar-thin::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: #2c2c2c;
+  border-radius: 9999px;
+}
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: #3e3e3e;
+}
+
+/* ── Variables CSS shadcn/base-ui — mappées sur les tokens Dofus/Atelier ──
+   L'app est toujours en mode sombre, on pose tout dans :root.            */
+:root {
+  --background: #0e0e0e;
+  --foreground: #e0e0e0;
+  --card: #181818;
+  --card-foreground: #e0e0e0;
+  --popover: #141414;
+  --popover-foreground: #e0e0e0;
+  --primary: #4c6a3a;
+  --primary-foreground: #ecf4e4;
+  --secondary: #222222;
+  --secondary-foreground: #c0c0c0;
+  --muted: #1a1a1a;
+  --muted-foreground: #888888;
+  --accent: #1e2a1a;
+  --accent-foreground: #c8d9b0;
+  --destructive: #e0796a;
+  --border: #2a2a2a;
+  --input: #1e1e1e;
+  --ring: #6d8f54;
+  --radius: 0.625rem;
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+@layer base {
+  body {
+    @apply bg-background text-foreground;
+  }
 }

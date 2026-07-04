@@ -31,6 +31,10 @@ export type BuildState = {
   exoFm: Partial<Record<SlotId, ExoType>>;
   /** Slots verrouillés : l'optimiseur/IA ne modifie pas ces emplacements. */
   lockedSlots: SlotId[];
+  /** ID du build actuellement sauvegardé en base (null si jamais sauvegardé). */
+  savedBuildId: string | null;
+  /** Le build a été modifié depuis la dernière sauvegarde. */
+  isDirty: boolean;
 
   setSelectedSlot: (slot: SlotId | null) => void;
   setClassId: (id: number) => void;
@@ -59,6 +63,8 @@ export type BuildState = {
   hydrateFromPersistedBuild: (b: BuildOut) => void;
   cacheItems: (items: ItemOut[]) => void;
   prefetchEquippedItems: () => Promise<void>;
+  setSavedBuildId: (id: string | null) => void;
+  markClean: () => void;
 };
 
 export const useBuildStore = create<BuildState>((set, get) => {
@@ -95,22 +101,26 @@ export const useBuildStore = create<BuildState>((set, get) => {
   parchoStats: {},
   exoFm: {},
   lockedSlots: [],
+  savedBuildId: null,
+  isDirty: false,
 
   setSelectedSlot: (slot) => set({ selectedSlot: slot }),
-  setClassId: (id) => set({ classId: id }),
-  setSex: (sex) => set({ sex }),
-  setBuildName: (name) => set({ buildName: name }),
+  setClassId: (id) => set({ classId: id, isDirty: true }),
+  setSex: (sex) => set({ sex, isDirty: true }),
+  setBuildName: (name) => set({ buildName: name, isDirty: true }),
   setLevel: (level) => {
-    set({ level });
+    set({ level, isDirty: true });
     void refreshStatsFromSlots();
   },
 
   setCharStat: (key, value) => set((s) => ({
     charStats: { ...s.charStats, [key]: Math.max(0, value) },
+    isDirty: true,
   })),
 
   setParchoStat: (key, value) => set((s) => ({
     parchoStats: { ...s.parchoStats, [key]: Math.min(100, Math.max(0, value)) },
+    isDirty: true,
   })),
 
   setExoFm: (slot, type) =>
@@ -119,23 +129,26 @@ export const useBuildStore = create<BuildState>((set, get) => {
         ...s.exoFm,
         [slot]: s.exoFm[slot] === type ? undefined : type,
       },
+      isDirty: true,
     })),
 
   removeExoFm: (slot) =>
     set((s) => {
       const next = { ...s.exoFm };
       delete next[slot];
-      return { exoFm: next };
+      return { exoFm: next, isDirty: true };
     }),
 
   lockSlot: (slot) =>
     set((s) => ({
       lockedSlots: s.lockedSlots.includes(slot) ? s.lockedSlots : [...s.lockedSlots, slot],
+      isDirty: true,
     })),
 
   unlockSlot: (slot) =>
     set((s) => ({
       lockedSlots: s.lockedSlots.filter((sl) => sl !== slot),
+      isDirty: true,
     })),
 
   toggleLockSlot: (slot) =>
@@ -143,6 +156,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
       lockedSlots: s.lockedSlots.includes(slot)
         ? s.lockedSlots.filter((sl) => sl !== slot)
         : [...s.lockedSlots, slot],
+      isDirty: true,
     })),
 
   equipItemOnSlot: async (slot, ankamaId) => {
@@ -156,7 +170,8 @@ export const useBuildStore = create<BuildState>((set, get) => {
         [slot]: ankamaId,
       } as Record<SlotId, number | null>,
       itemById: { ...s.itemById, [item.ankama_id]: item },
-      selectedSlot: null,   // ferme automatiquement le catalogue
+      selectedSlot: null,
+      isDirty: true,
     }));
     await refreshStatsFromSlots();
   },
@@ -171,6 +186,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
           [slot]: itemId,
         } as Record<SlotId, number | null>,
         exoFm: next,
+        isDirty: true,
       };
     });
     void refreshStatsFromSlots();
@@ -182,6 +198,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
         ...s.currentBuild,
         ...newBuild,
       } as Record<SlotId, number | null>,
+      isDirty: true,
     }));
     void refreshStatsFromSlots();
   },
@@ -208,6 +225,8 @@ export const useBuildStore = create<BuildState>((set, get) => {
       sex: s.sex,
       buildName: "Mon build",
       level: s.level,
+      savedBuildId: null,
+      isDirty: false,
     })),
 
   applyFullBuild: (fb) => {
@@ -250,6 +269,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
       activeSetBonuses: [...fb.active_set_bonuses],
       selectedSlot: null,
       exoFm: newExoFm,
+      isDirty: true,
     });
     // Rafraîchit les détails de panoplies et stats complets via le backend.
     void refreshStatsFromSlots();
@@ -275,6 +295,8 @@ export const useBuildStore = create<BuildState>((set, get) => {
       ...(b.class_id != null ? { classId: b.class_id } : {}),
       ...(b.sex === "male" || b.sex === "female" ? { sex: b.sex } : {}),
       ...(b.name ? { buildName: b.name } : {}),
+      savedBuildId: b.id,
+      isDirty: false,
     });
     // Recalcule les stats complètes (dont activeSetDetails) depuis le backend
     void refreshStatsFromSlots();
@@ -330,7 +352,7 @@ export const useBuildStore = create<BuildState>((set, get) => {
       }
     }
 
-    set({ currentBuild, itemById: newItemById });
+    set({ currentBuild, itemById: newItemById, isDirty: true });
     await refreshStatsFromSlots();
     return placed;
   },
@@ -349,5 +371,8 @@ export const useBuildStore = create<BuildState>((set, get) => {
     const loaded = await Promise.all(missing.map((id) => fetchItem(id)));
     cacheItems(loaded);
   },
+
+  setSavedBuildId: (id) => set({ savedBuildId: id }),
+  markClean: () => set({ isDirty: false }),
   };
 });

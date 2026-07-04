@@ -8,6 +8,9 @@ import {
   useItemHoverCard,
 } from "@/components/items/ItemHoverCard";
 import { AddToAtelierModal } from "@/components/atelier/AddToAtelierModal";
+import { Check } from "lucide-react";
+
+import { Button } from "@/components/ui/Button";
 import {
   BOOK_DOFUS_SLOTS,
   BOOK_LEFT_SLOTS,
@@ -15,7 +18,7 @@ import {
   SLOT_SHORT_LABEL,
 } from "@/components/dashboard/inventoryLayout";
 import { useDisplayStats } from "@/hooks/useDisplayStats";
-import { createBuild } from "@/lib/api";
+import { createBuild, updateBuild } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { SLOT_DEFS } from "@/lib/slots";
 import type { SlotId } from "@/lib/slots";
@@ -544,8 +547,9 @@ function StuffLevelBadge() {
 
 /* ─── Bouton de sauvegarde rapide ─── */
 function SaveBuildButton() {
-  const [msg, setMsg] = useState<string | null>(null);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
   const currentBuild = useBuildStore((s) => s.currentBuild);
   const stats = useBuildStore((s) => s.stats);
   const activeSetBonuses = useBuildStore((s) => s.activeSetBonuses);
@@ -557,62 +561,79 @@ function SaveBuildButton() {
   const classId = useBuildStore((s) => s.classId);
   const sex = useBuildStore((s) => s.sex);
   const buildName = useBuildStore((s) => s.buildName);
+  const savedBuildId = useBuildStore((s) => s.savedBuildId);
+  const isDirty = useBuildStore((s) => s.isDirty);
+  const setSavedBuildId = useBuildStore((s) => s.setSavedBuildId);
+  const markClean = useBuildStore((s) => s.markClean);
+
+  const isSaved = !!savedBuildId && !isDirty;
 
   async function handleSave() {
     if (!getAccessToken()) {
-      setMsg("Connectez-vous pour sauvegarder.");
-      setTimeout(() => setMsg(null), 3000);
+      setErrorMsg("Connectez-vous pour sauvegarder.");
+      setTimeout(() => setErrorMsg(null), 3000);
       return;
     }
+    if (isSaved) return;
+
     setBusy(true);
-    setMsg(null);
-    // Construit la map locked_slots : slotId → ankamaId
+    setErrorMsg(null);
     const lockedSlotsMap: Record<string, number> = {};
     for (const slot of lockedSlots) {
       const id = currentBuild[slot];
       if (id != null) lockedSlotsMap[slot] = id;
     }
+    const payload = {
+      name: buildName.trim() || "Sans titre",
+      slots: { ...currentBuild },
+      total_stats: { ...stats },
+      active_set_bonuses: [...activeSetBonuses],
+      char_stats: Object.keys(charStats).length > 0 ? { ...charStats } : null,
+      parcho_stats: Object.keys(parchoStats).length > 0 ? { ...parchoStats } : null,
+      exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
+      locked_slots: Object.keys(lockedSlotsMap).length > 0 ? lockedSlotsMap : null,
+      level,
+      class_id: classId,
+      sex,
+      is_public: true,
+    };
     try {
-      await createBuild({
-        name: buildName.trim() || "Sans titre",
-        slots: { ...currentBuild },
-        total_stats: { ...stats },
-        active_set_bonuses: [...activeSetBonuses],
-        char_stats: Object.keys(charStats).length > 0 ? { ...charStats } : null,
-        parcho_stats: Object.keys(parchoStats).length > 0 ? { ...parchoStats } : null,
-        exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
-        locked_slots: Object.keys(lockedSlotsMap).length > 0 ? lockedSlotsMap : null,
-        level,
-        class_id: classId,
-        sex,
-        is_public: true,
-      });
-      setMsg("Sauvegardé !");
+      if (savedBuildId) {
+        await updateBuild(savedBuildId, payload);
+      } else {
+        const created = await createBuild(payload);
+        setSavedBuildId(created.id);
+      }
+      markClean();
     } catch {
-      setMsg("Échec de la sauvegarde.");
+      setErrorMsg("Échec de la sauvegarde.");
+      setTimeout(() => setErrorMsg(null), 3000);
     } finally {
       setBusy(false);
-      setTimeout(() => setMsg(null), 3000);
     }
   }
 
   return (
     <div className="flex items-center gap-1.5">
-      <button
+      <Button
         type="button"
+        variant={isSaved ? "ghost" : "outline"}
+        size="xs"
         onClick={() => void handleSave()}
-        disabled={busy}
-        title="Sauvegarder le build"
-        className="btn-dofus-green flex items-center gap-1.5 rounded px-2 py-1 text-[11px] disabled:opacity-50"
+        disabled={busy || isSaved}
+        title={isSaved ? "Build sauvegardé" : "Sauvegarder le build"}
+        className={isSaved ? "cursor-default text-emerald-400 hover:text-emerald-400" : ""}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src="/assets/global/UI/save.png" width={13} height={13} alt="" className="shrink-0" />
-        Sauvegarder
-      </button>
-      {msg && (
-        <span className={`text-[11px] ${msg.includes("Échec") || msg.includes("Connectez") ? "text-red-400" : "text-emerald-400"}`}>
-          {msg}
-        </span>
+        {isSaved ? (
+          <Check size={12} className="shrink-0 text-emerald-400" />
+        ) : (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src="/assets/global/UI/save.png" width={13} height={13} alt="" className="shrink-0" />
+        )}
+        {isSaved ? "Sauvegardé" : "Sauvegarder"}
+      </Button>
+      {errorMsg && (
+        <span className="text-[11px] text-red-400">{errorMsg}</span>
       )}
     </div>
   );
@@ -622,14 +643,9 @@ function AddToAtelierButton() {
   const [open, setOpen] = useState(false);
   return (
     <>
-      <button
-        type="button"
-        onClick={() => setOpen(true)}
-        title="Ajouter le build à l'atelier"
-        className="btn-dofus-gray flex items-center gap-1.5 rounded px-2 py-1 text-[11px]"
-      >
+      <Button type="button" variant="outline" size="xs" onClick={() => setOpen(true)} title="Ajouter le build à l'atelier">
         Atelier
-      </button>
+      </Button>
       <AddToAtelierModal open={open} onClose={() => setOpen(false)} />
     </>
   );
@@ -731,16 +747,11 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
 
         {/* Bouton Optimisation */}
         {onOpenTools && (
-          <button
-            type="button"
-            onClick={onOpenTools}
-            title="Optimisation & Conseiller IA"
-            className="btn-dofus-gray flex items-center gap-1.5 rounded px-2 py-1 text-[11px]"
-          >
+          <Button type="button" variant="outline" size="xs" onClick={onOpenTools} title="Optimisation & Conseiller IA">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/global/UI/optimizer.png" width={13} height={13} alt="" className="shrink-0" />
             Optimiseur
-          </button>
+          </Button>
         )}
 
         <SaveBuildButton />

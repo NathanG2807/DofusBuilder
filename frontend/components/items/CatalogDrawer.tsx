@@ -1,5 +1,6 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -52,7 +53,7 @@ export function CatalogDrawer() {
             className="rounded-lg p-1.5 text-[#666666] transition hover:bg-[#222222] hover:text-[#e0e0e0]"
             aria-label="Fermer"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
 

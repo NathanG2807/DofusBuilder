@@ -156,10 +156,20 @@ export type BuildCreatePayload = {
 
 export type BuildUpdatePayload = {
   name?: string;
+  description?: string | null;
+  class_id?: number | null;
+  level?: number | null;
+  sex?: string | null;
+  slots?: Record<string, number | null> | null;
+  total_stats?: Record<string, number> | null;
+  active_set_bonuses?: string[] | null;
+  char_stats?: Record<string, number> | null;
+  parcho_stats?: Record<string, number> | null;
+  exo_fm?: Record<string, string> | null;
+  locked_slots?: Record<string, number> | null;
   is_public?: boolean;
   tags?: string[] | null;
   slots_preview?: Record<string, string | null> | null;
-  description?: string | null;
 };
 
 export type UserPublic = {

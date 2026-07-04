@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useMemo, useState } from "react";
 
 import { STAT_GROUPS } from "@/lib/statLabels";
@@ -180,7 +181,7 @@ function StatGroup({
               </span>
             </>
           )}
-          <span className="text-[10px] text-[#444444]">{open ? "▲" : "▼"}</span>
+          <span className="text-[#444444]">{open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}</span>
         </div>
       </div>
 

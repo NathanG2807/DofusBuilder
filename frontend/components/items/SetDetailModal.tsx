@@ -1,11 +1,13 @@
 "use client";
 
+import { X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { fetchItemsBySet, fetchItemSet } from "@/lib/api";
 import { typeLabel } from "@/lib/equipmentTypes";
 import { EffectLine } from "@/components/items/EffectLine";
+import { Button } from "@/components/ui/Button";
 import { bonusEffectIcon } from "@/lib/effectFormat";
 import { useBuildStore } from "@/store/build-store";
 import type { ItemOut, ItemSetOut } from "@/types/api";
@@ -68,22 +70,14 @@ function SetItemCard({
           </p>
           <div className="mt-1.5 flex gap-1.5">
             {rawEffects.length > 0 && (
-              <button
-                type="button"
-                onClick={onToggle}
-                className="btn-dofus-gray rounded px-2 py-0.5 text-[10px]"
-              >
+              <Button type="button" variant="outline" size="xs" onClick={onToggle}>
                 {isExpanded ? "▲ Stats" : "▼ Stats"}
-              </button>
+              </Button>
             )}
             {onEquip && (
-              <button
-                type="button"
-                onClick={() => onEquip(item)}
-                className="btn-dofus-green rounded px-2 py-0.5 text-[10px]"
-              >
+              <Button type="button" size="xs" onClick={() => onEquip(item)}>
                 Équiper
-              </button>
+              </Button>
             )}
           </div>
         </div>
@@ -192,7 +186,7 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
             className="ml-4 rounded-lg p-1.5 text-[#666666] transition hover:bg-[#222222] hover:text-[#e0e0e0]"
             aria-label="Fermer"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
 
@@ -219,13 +213,9 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
             <>
               {/* Bouton équiper tout */}
               <div className="mb-4 flex items-center gap-3">
-                <button
-                  type="button"
-                  onClick={() => void handleEquipAll()}
-                  className="btn-dofus-green rounded-lg px-4 py-2 text-sm"
-                >
+                <Button type="button" onClick={() => void handleEquipAll()}>
                   ⚔ Équiper la panoplie entière
-                </button>
+                </Button>
                 {equipMsg && (
                   <span className="text-[12px] text-emerald-400">{equipMsg}</span>
                 )}

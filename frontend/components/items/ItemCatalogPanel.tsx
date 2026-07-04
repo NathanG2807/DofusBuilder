@@ -7,6 +7,9 @@ import {
   useItemHoverCard,
 } from "@/components/items/ItemHoverCard";
 import { SetDetailModal } from "@/components/items/SetDetailModal";
+import { Button } from "@/components/ui/Button";
+import { Chip } from "@/components/ui/Chip";
+import { Input } from "@/components/ui/Input";
 import { searchItems, searchSets } from "@/lib/api";
 import { EQUIPMENT_TYPE_OPTIONS } from "@/lib/equipmentTypes";
 import { effectTypeToStatKey, isWeaponDamagesBucketEffect } from "@/lib/effectFormat";
@@ -139,12 +142,11 @@ function SetsCatalog() {
 
   return (
     <div className="flex flex-col gap-3">
-      <input
+      <Input
         type="search"
         value={q}
         onChange={(e) => { setQ(e.target.value); setPage(1); }}
         placeholder="Nom de panoplie…"
-        className="rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
       />
 
       {err && (
@@ -163,7 +165,7 @@ function SetsCatalog() {
             {sets.map((s) => {
               const count = s.equipment_ids?.length ?? 0;
               return (
-                <li key={s.ankama_id} className="flex items-center justify-between gap-2 rounded-lg border border-[#282828] bg-[#161616] px-3 py-2">
+                <li key={s.ankama_id} className="plaque-flat flex items-center justify-between gap-2 px-3 py-2">
                   <div className="min-w-0">
                     <p className="truncate text-[13px] font-medium text-[#e8c96e]">
                       {s.name ?? `Panoplie #${s.ankama_id}`}
@@ -173,20 +175,12 @@ function SetsCatalog() {
                     )}
                   </div>
                   <div className="flex shrink-0 gap-1.5">
-                    <button
-                      type="button"
-                      onClick={() => setOpenSetId(s.ankama_id)}
-                      className="btn-dofus-gray rounded px-2.5 py-1 text-[11px]"
-                    >
+                    <Button type="button" variant="outline" size="xs" onClick={() => setOpenSetId(s.ankama_id)}>
                       Détail
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => void equipSet(s.ankama_id)}
-                      className="btn-dofus-green rounded px-2.5 py-1 text-[11px]"
-                    >
+                    </Button>
+                    <Button type="button" size="xs" onClick={() => void equipSet(s.ankama_id)}>
                       ⚔ Équiper
-                    </button>
+                    </Button>
                   </div>
                 </li>
               );
@@ -199,8 +193,8 @@ function SetsCatalog() {
         <div className="flex items-center justify-between border-t border-[#222222] pt-2 text-[12px] text-[#888888]">
           <span>{total} panoplies · page {page}/{pages}</span>
           <div className="flex gap-1">
-            <button type="button" disabled={page <= 1} onClick={() => setPage(p => p - 1)} className="btn-dofus-gray rounded px-2 py-0.5 text-[11px] disabled:opacity-40">Préc.</button>
-            <button type="button" disabled={page >= pages} onClick={() => setPage(p => p + 1)} className="btn-dofus-gray rounded px-2 py-0.5 text-[11px] disabled:opacity-40">Suiv.</button>
+            <Button type="button" variant="outline" size="xs" disabled={page <= 1} onClick={() => setPage(p => p - 1)}>Préc.</Button>
+            <Button type="button" variant="outline" size="xs" disabled={page >= pages} onClick={() => setPage(p => p + 1)}>Suiv.</Button>
           </div>
         </div>
       )}
@@ -363,12 +357,11 @@ export function ItemCatalogPanel() {
           <div className="flex flex-col gap-2.5 border-b border-[#222222] pb-3">
 
             {/* Recherche par nom */}
-            <input
+            <Input
               type="search"
               value={q}
               onChange={(e) => { setQ(e.target.value); setPage(1); }}
               placeholder="Nom d'objet…"
-              className="rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
             />
 
             {/* Niveau + Type */}
@@ -415,20 +408,16 @@ export function ItemCatalogPanel() {
                   {WEAPON_ELEMENT_OPTIONS.map((o) => {
                     const active = weaponElements.includes(o.value);
                     return (
-                      <button
+                      <Chip
                         key={o.value}
-                        type="button"
+                        active={active}
+                        accentColor="var(--dofus-green-active)"
                         onClick={() => {
                           setWeaponElements((prev) =>
                             active ? prev.filter((v) => v !== o.value) : [...prev, o.value]
                           );
                           setPage(1);
                         }}
-                        className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
-                          active
-                            ? "border-[var(--dofus-ui-olive-border-70)] bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
-                            : "border-[#252525] bg-[#111111] text-[#777777] hover:border-[#383838] hover:text-[#bbbbbb]"
-                        }`}
                       >
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
@@ -439,7 +428,7 @@ export function ItemCatalogPanel() {
                           className="h-[12px] w-[12px] shrink-0 object-contain"
                         />
                         {o.label}
-                      </button>
+                      </Chip>
                     );
                   })}
                   {weaponElements.length > 0 && (
@@ -480,9 +469,10 @@ export function ItemCatalogPanel() {
                 {STAT_FILTER_OPTIONS.map((o) => {
                   const active = statKeys.includes(o.value);
                   return (
-                    <button
+                    <Chip
                       key={o.value}
-                      type="button"
+                      active={active}
+                      accentColor="var(--dofus-green-active)"
                       onClick={() => {
                         setStatKeys((prev) =>
                           prev.includes(o.value)
@@ -491,11 +481,6 @@ export function ItemCatalogPanel() {
                         );
                         setPage(1);
                       }}
-                      className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
-                        active
-                          ? "border-[var(--dofus-ui-olive-border-70)] bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
-                          : "border-[#252525] bg-[#111111] text-[#777777] hover:border-[#383838] hover:text-[#bbbbbb]"
-                      }`}
                     >
                       {/* eslint-disable-next-line @next/next/no-img-element */}
                       <img
@@ -506,7 +491,7 @@ export function ItemCatalogPanel() {
                         className="h-[12px] w-[12px] shrink-0 object-contain"
                       />
                       {o.label}
-                    </button>
+                    </Chip>
                   );
                 })}
               </div>
@@ -636,22 +621,24 @@ export function ItemCatalogPanel() {
             <div className="mt-2 flex items-center justify-between border-t border-[#222222] pt-2 text-[12px] text-[#888888]">
               <span>{total} résultat{total > 1 ? "s" : ""} · page {page} / {pages}</span>
               <div className="flex gap-1">
-                <button
+                <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
                   disabled={page <= 1}
                   onClick={() => setPage((p) => Math.max(1, p - 1))}
-                  className="btn-dofus-gray rounded px-2 py-0.5 text-[11px] disabled:opacity-40"
                 >
                   Préc.
-                </button>
-                <button
+                </Button>
+                <Button
                   type="button"
+                  variant="outline"
+                  size="xs"
                   disabled={page >= pages}
                   onClick={() => setPage((p) => Math.min(pages, p + 1))}
-                  className="btn-dofus-gray rounded px-2 py-0.5 text-[11px] disabled:opacity-40"
                 >
                   Suiv.
-                </button>
+                </Button>
               </div>
             </div>
           )}

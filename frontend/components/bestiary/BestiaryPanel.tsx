@@ -4,6 +4,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
+import { Chip } from "@/components/ui/Chip";
 import { resolveDropItemForHover } from "@/lib/dofusDbItemMapper";
 import type { ItemOut } from "@/types/api";
 import {
@@ -591,10 +592,12 @@ function DropsSection({
 function MonsterCard({ monster, onClick }: { monster: MonsterBase; onClick: () => void }) {
   const accent = monster.isBoss ? "#f87171" : monster.isMiniBoss ? "#fbbf24" : "#6db824";
   return (
-    <button type="button" onClick={onClick}
-      className="group relative flex flex-col items-center gap-2.5 overflow-hidden rounded-xl border border-[#282828] bg-[#181818]/95 p-4 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all duration-200 hover:border-[#383838] hover:bg-[#1e1e1e]">
-      <div className="pointer-events-none absolute inset-x-0 top-0 h-20 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{ background:`radial-gradient(ellipse at 50% -10%, ${accent}22 0%, transparent 70%)` }} />
+    <button
+      type="button"
+      onClick={onClick}
+      style={{ "--atelier-corner": `${accent}80` } as React.CSSProperties}
+      className="plaque plaque-ornate plaque-interactive flex flex-col items-center gap-2.5 p-4 text-center"
+    >
       <div className="relative flex h-[72px] w-[72px] items-center justify-center">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={monsterImgUrl(monster)} alt={monster.name.fr} width={72} height={72}
@@ -621,8 +624,6 @@ function MonsterCard({ monster, onClick }: { monster: MonsterBase; onClick: () =
           ))}
         </div>
       )}
-      <div className="absolute bottom-0 left-0 h-[2px] w-0 transition-all duration-300 group-hover:w-full"
-        style={{ backgroundColor:accent, opacity:0.5 }} />
     </button>
   );
 }
@@ -644,17 +645,11 @@ function DungeonCard({
     <button
       type="button"
       onClick={onClick}
-      className={`group relative flex flex-col overflow-hidden rounded-xl border bg-[#181818]/95 p-3 text-center shadow-[inset_0_1px_0_rgba(255,255,255,0.03)] transition-all duration-200 hover:bg-[#1e1e1e] ${
-        selected
-          ? "border-[#c09040]/70 shadow-[0_0_24px_rgba(192,144,64,0.12)]"
-          : "border-[#282828] hover:border-[#383838]"
+      style={{ "--atelier-corner": `${accent}80` } as React.CSSProperties}
+      className={`plaque plaque-ornate plaque-interactive group relative flex flex-col p-3 text-center ${
+        selected ? "border-[#c09040]/70" : ""
       }`}
     >
-      <div
-        className="pointer-events-none absolute inset-x-0 top-0 h-28 opacity-0 transition-opacity duration-300 group-hover:opacity-100"
-        style={{ background:`radial-gradient(ellipse at 50% -10%, ${accent}22 0%, transparent 70%)` }}
-      />
-
       {level != null && (
         <span className="absolute right-2 top-2 z-10 flex items-center gap-0.5 rounded-md border border-[#333] bg-[#0f0f0f]/95 px-1.5 py-0.5 text-[10px] font-bold tabular-nums text-[#f0d78c] shadow-sm">
           <ElemIcon k="lvl" size={10} />
@@ -689,11 +684,6 @@ function DungeonCard({
           <span className="truncate text-[10px] text-[#666]">{boss.name.fr}</span>
         )}
       </div>
-
-      <div
-        className={`absolute bottom-0 left-0 h-[2px] transition-all duration-300 ${selected ? "w-full" : "w-0 group-hover:w-full"}`}
-        style={{ backgroundColor: accent, opacity: selected ? 0.8 : 0.5 }}
-      />
     </button>
   );
 }
@@ -1437,30 +1427,22 @@ export function BestiaryPanel() {
         )}
         {showDungeonBrowse && !dungeonDataLoading && (
           <div className="mb-5 flex flex-wrap justify-center gap-1.5">
-            <button
-              type="button"
+            <Chip
+              active={dungeonLevelFilter == null}
+              accentColor="#c09040"
               onClick={() => setDungeonLevelFilter(null)}
-              className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold transition ${
-                dungeonLevelFilter == null
-                  ? "border-[#c09040]/50 bg-[#c09040]/12 text-[#e8c878]"
-                  : "border-[#282828] bg-[#141414] text-[#555] hover:border-[#383838] hover:text-[#999]"
-              }`}
             >
               Tous
-            </button>
+            </Chip>
             {DUNGEON_LEVEL_FILTERS.map((filter) => (
-              <button
+              <Chip
                 key={filter.id}
-                type="button"
+                active={dungeonLevelFilter === filter.id}
+                accentColor="#c09040"
                 onClick={() => setDungeonLevelFilter((prev) => prev === filter.id ? null : filter.id)}
-                className={`rounded-lg border px-2.5 py-1.5 text-[10px] font-semibold transition ${
-                  dungeonLevelFilter === filter.id
-                    ? "border-[#c09040]/50 bg-[#c09040]/12 text-[#e8c878]"
-                    : "border-[#282828] bg-[#141414] text-[#555] hover:border-[#383838] hover:text-[#999]"
-                }`}
               >
                 {filter.label}
-              </button>
+              </Chip>
             ))}
           </div>
         )}

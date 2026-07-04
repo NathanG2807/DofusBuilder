@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronDown, ChevronUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useBuildStore } from "@/store/build-store";
 import { SetDetailModal } from "@/components/items/SetDetailModal";
@@ -144,11 +145,11 @@ export function ActiveSetCards() {
                         [set.set_id]: !itemsOpen,
                       }));
                     }}
-                    className="ml-1 inline-flex rounded p-0.5 text-[10px] text-[#7ea85a] transition hover:bg-[#234010] hover:text-[#d0f0a0]"
+                    className="ml-1 inline-flex rounded p-0.5 text-[#7ea85a] transition hover:bg-[#234010] hover:text-[#d0f0a0]"
                     title={itemsOpen ? "Masquer les items équipés" : "Afficher les items équipés"}
                     aria-label={itemsOpen ? "Masquer les items équipés" : "Afficher les items équipés"}
                   >
-                    {itemsOpen ? "▲" : "▼"}
+                    {itemsOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                   </button>
                 </span>
                 <button
@@ -159,11 +160,11 @@ export function ActiveSetCards() {
                       [set.set_id]: !bonusOpen,
                     }))
                   }
-                  className="shrink-0 rounded p-0.5 text-[10px] text-[#666666] transition hover:bg-[#232323] hover:text-[#aaaaaa]"
+                  className="shrink-0 rounded p-0.5 text-[#666666] transition hover:bg-[#232323] hover:text-[#aaaaaa]"
                   title={bonusOpen ? "Masquer les bonus de panoplie" : "Afficher les bonus de panoplie"}
                   aria-label={bonusOpen ? "Masquer les bonus de panoplie" : "Afficher les bonus de panoplie"}
                 >
-                  {bonusOpen ? "▲" : "▼"}
+                  {bonusOpen ? <ChevronUp size={10} /> : <ChevronDown size={10} />}
                 </button>
               </div>
             </div>

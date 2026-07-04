@@ -1,5 +1,6 @@
 "use client";
 
+import { Sparkles, Wand2, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -66,24 +67,24 @@ export function ToolsDrawer({
             <button
               type="button"
               onClick={() => setActiveTool("optimize")}
-              className={`relative z-10 rounded-md px-2 py-2 text-xs font-medium transition-colors ${
+              className={`relative z-10 flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium transition-colors ${
                 activeTool === "optimize"
                   ? "text-[var(--dofus-green-active)]"
                   : "text-[#888888] hover:text-[#cccccc]"
               }`}
             >
-              ⚙ Optim. auto
+              <Wand2 size={13} /> Optim. auto
             </button>
             <button
               type="button"
               onClick={() => setActiveTool("chat")}
-              className={`relative z-10 rounded-md px-2 py-2 text-xs font-medium transition-colors ${
+              className={`relative z-10 flex items-center justify-center gap-1.5 rounded-md px-2 py-2 text-xs font-medium transition-colors ${
                 activeTool === "chat"
                   ? "text-[var(--dofus-green-active)]"
                   : "text-[#888888] hover:text-[#cccccc]"
               }`}
             >
-              🤖 Conseiller IA
+              <Sparkles size={13} /> Conseiller IA
             </button>
           </div>
 
@@ -93,7 +94,7 @@ export function ToolsDrawer({
             className="shrink-0 rounded-lg p-1.5 text-[#666666] transition hover:bg-[#222222] hover:text-[#e0e0e0]"
             aria-label="Fermer"
           >
-            ✕
+            <X size={16} />
           </button>
         </div>
 

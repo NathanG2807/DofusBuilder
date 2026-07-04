@@ -197,33 +197,42 @@ export const useAtelierStore = create<AtelierState>((set, get) => ({
   },
 
   persistList: async (list) => {
+    // Optimistic local update — visible immédiatement dans l'UI
+    set((s) => ({
+      lists: s.lists.map((l) => (l.id === list.id ? list : l)),
+    }));
+
     if (get().isGuest) {
-      set((s) => {
-        const lists = s.lists.map((l) => (l.id === list.id ? list : l));
-        persistGuestLists(lists);
-        return { lists };
-      });
+      persistGuestLists(get().lists);
       return;
     }
     if (list.id.startsWith("local_")) {
-      const created = await createCraftList({
-        name: list.name,
-        entries: list.entries,
-        progress: list.progress,
-      });
-      set((s) => ({
-        lists: s.lists.map((l) => (l.id === list.id ? created : l)),
-        activeListId: s.activeListId === list.id ? created.id : s.activeListId,
-      }));
+      try {
+        const created = await createCraftList({
+          name: list.name,
+          entries: list.entries,
+          progress: list.progress,
+        });
+        set((s) => ({
+          lists: s.lists.map((l) => (l.id === list.id ? created : l)),
+          activeListId: s.activeListId === list.id ? created.id : s.activeListId,
+        }));
+      } catch (e) {
+        console.error("[Atelier] Failed to create craft list on server:", e);
+      }
       return;
     }
-    const saved = await updateCraftList(list.id, {
-      entries: list.entries,
-      progress: list.progress,
-      name: list.name,
-    });
-    set((s) => ({
-      lists: s.lists.map((l) => (l.id === list.id ? saved : l)),
-    }));
+    try {
+      const saved = await updateCraftList(list.id, {
+        entries: list.entries,
+        progress: list.progress,
+        name: list.name,
+      });
+      set((s) => ({
+        lists: s.lists.map((l) => (l.id === list.id ? saved : l)),
+      }));
+    } catch (e) {
+      console.error("[Atelier] Failed to persist craft list:", e);
+    }
   },
 }));

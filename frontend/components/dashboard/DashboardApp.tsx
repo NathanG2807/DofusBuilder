@@ -1,5 +1,6 @@
 "use client";
 
+import { BarChart3, Shield, Swords, X } from "lucide-react";
 import { useEffect, useState } from "react";
 
 import { ActiveSetCards } from "@/components/dashboard/ActiveSetCards";
@@ -10,6 +11,7 @@ import { ToolsDrawer } from "@/components/dashboard/ToolsDrawer";
 import { CatalogDrawer } from "@/components/items/CatalogDrawer";
 import { Navbar, type AppTab } from "@/components/layout/Navbar";
 import { StuffsPanel } from "@/components/stuffs/StuffsPanel";
+import { Button } from "@/components/ui/Button";
 import { createBuild, listMyBuilds } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { useBuildStore } from "@/store/build-store";
@@ -22,12 +24,12 @@ type ForeignBuild = { id: string; name: string };
 /* ── Bouton de la barre de navigation mobile ─────────────────────────────── */
 function MobileNavBtn({
   label,
-  emoji,
+  icon,
   active,
   onClick,
 }: {
   label: string;
-  emoji: string;
+  icon: React.ReactNode;
   active: boolean;
   onClick: () => void;
 }) {
@@ -41,7 +43,7 @@ function MobileNavBtn({
           : "text-[#666666] hover:text-[#aaaaaa]"
       }`}
     >
-      <span className="text-[18px] leading-none">{emoji}</span>
+      {icon}
       {label}
       {active && (
         <span className="h-0.5 w-8 rounded-full bg-[#6db824]" />
@@ -127,23 +129,23 @@ function ForeignBuildBanner({
         )}
       </div>
       <div className="flex shrink-0 items-center gap-2">
-        <button
+        <Button
           type="button"
+          variant="outline"
+          size="xs"
           disabled={saving}
           onClick={() => void handleCopy()}
-          className="rounded-lg bg-[#f0d78c]/10 px-3 py-1 text-[11px] font-medium text-[#f0d78c] border border-[#f0d78c]/30 transition hover:bg-[#f0d78c]/20 disabled:opacity-50"
+          className="border-[#f0d78c]/30 bg-[#f0d78c]/10 text-[#f0d78c] hover:bg-[#f0d78c]/20"
         >
           {saving ? "Copie…" : "Copier dans mes builds"}
-        </button>
+        </Button>
         <button
           type="button"
           onClick={onDismiss}
           className="rounded p-0.5 text-[#555] transition hover:text-[#999]"
           title="Fermer"
         >
-          <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-            <path d="M18 6L6 18M6 6l12 12" />
-          </svg>
+          <X size={14} />
         </button>
       </div>
     </div>
@@ -238,9 +240,9 @@ export function DashboardApp({ initialTab = "buildroom" }: { initialTab?: AppTab
 
             {/* Barre de navigation bottom */}
             <nav className="sticky bottom-0 z-30 flex border-t border-[#222222] bg-[#141414] pb-safe">
-              <MobileNavBtn emoji="⚔" label="Build"     active={mobileView === "build"} onClick={() => setMobileView("build")} />
-              <MobileNavBtn emoji="📊" label="Stats"     active={mobileView === "stats"} onClick={() => setMobileView("stats")} />
-              <MobileNavBtn emoji="🛡" label="Panoplies" active={mobileView === "sets"}  onClick={() => setMobileView("sets")}  />
+              <MobileNavBtn icon={<Swords size={17} />} label="Build" active={mobileView === "build"} onClick={() => setMobileView("build")} />
+              <MobileNavBtn icon={<BarChart3 size={17} />} label="Stats" active={mobileView === "stats"} onClick={() => setMobileView("stats")} />
+              <MobileNavBtn icon={<Shield size={17} />} label="Panoplies" active={mobileView === "sets"} onClick={() => setMobileView("sets")} />
             </nav>
           </div>
 

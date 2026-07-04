@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+import { Button } from "@/components/ui/Button";
+import { Chip } from "@/components/ui/Chip";
 import { DOFUS_CLASS_OPTIONS } from "@/lib/dofusClasses";
 import { runOptimize } from "@/lib/api";
 import { useBuildStore } from "@/store/build-store";
@@ -214,21 +216,17 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
           {ELEMENT_OPTIONS.map((o) => {
             const active = elements.includes(o.id);
             return (
-              <button
+              <Chip
                 key={o.id}
-                type="button"
+                active={active}
+                accentColor="var(--dofus-green-active)"
                 onClick={() => toggleElement(o.id)}
-                className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-[12px] font-medium transition ${
-                  active
-                    ? "border-[var(--dofus-ui-olive-border-70)] bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
-                    : "border-[#303030] bg-[#181818] text-[#888888] hover:border-[#404040] hover:text-[#cccccc]"
-                }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/assets/elements/${o.icon}.png`} alt="" width={14} height={14}
                   className="h-[14px] w-[14px] shrink-0 object-contain" />
                 {o.label}
-              </button>
+              </Chip>
             );
           })}
         </div>
@@ -247,14 +245,11 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
         {/* Exo FM */}
         <div className="flex gap-2">
           {/* Exo PA */}
-          <button
-            type="button"
+          <Chip
+            active={allowExoPa}
+            accentColor="#4a90d9"
             onClick={() => setAllowExoPa((v) => !v)}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition ${
-              allowExoPa
-                ? "border-[#2a5090]/80 bg-[#061225] text-[#4a90d9]"
-                : "border-[#252525] bg-[#111111] text-[#666666] hover:border-[#383838] hover:text-[#aaaaaa]"
-            }`}
+            className="flex-1 justify-center py-1.5"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/build/pa.png" alt="" width={12} height={12} className="h-[12px] w-[12px] object-contain" />
@@ -262,17 +257,14 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
             <span className={`ml-auto text-[9px] ${allowExoPa ? "text-[#4a90d9]" : "text-[#3a3a3a]"}`}>
               {allowExoPa ? "✓" : "○"}
             </span>
-          </button>
+          </Chip>
 
           {/* Exo PM */}
-          <button
-            type="button"
+          <Chip
+            active={allowExoPm}
+            accentColor="var(--dofus-green-active)"
             onClick={() => setAllowExoPm((v) => !v)}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition ${
-              allowExoPm
-                ? "border-[var(--dofus-ui-exo-pm-border)] bg-[var(--dofus-ui-exo-pm-bg)] text-[var(--dofus-green-active)]"
-                : "border-[#252525] bg-[#111111] text-[#666666] hover:border-[#383838] hover:text-[#aaaaaa]"
-            }`}
+            className="flex-1 justify-center py-1.5"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img src="/assets/build/pm.png" alt="" width={12} height={12} className="h-[12px] w-[12px] object-contain" />
@@ -280,39 +272,33 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
             <span className={`ml-auto text-[9px] ${allowExoPm ? "text-[var(--dofus-green-active)]" : "text-[#3a3a3a]"}`}>
               {allowExoPm ? "✓" : "○"}
             </span>
-          </button>
+          </Chip>
         </div>
 
         {/* Dofus / Prysmaradites */}
         <div className="flex gap-2">
-          <button
-            type="button"
+          <Chip
+            active={allowDofus}
+            accentColor="#e8c96e"
             onClick={() => setAllowDofus((v) => !v)}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition ${
-              allowDofus
-                ? "border-[#6b4a10]/80 bg-[#1a1408] text-[#e8c96e]"
-                : "border-[#252525] bg-[#111111] text-[#666666] hover:border-[#383838] hover:text-[#aaaaaa]"
-            }`}
+            className="flex-1 justify-center py-1.5"
           >
             Dofus
             <span className={`ml-auto text-[9px] ${allowDofus ? "text-[#e8c96e]" : "text-[#3a3a3a]"}`}>
               {allowDofus ? "✓" : "○"}
             </span>
-          </button>
-          <button
-            type="button"
+          </Chip>
+          <Chip
+            active={allowPrysmaradite}
+            accentColor="#c8a0e8"
             onClick={() => setAllowPrysmaradite((v) => !v)}
-            className={`flex flex-1 items-center justify-center gap-1.5 rounded-lg border px-2 py-1.5 text-[11px] font-medium transition ${
-              allowPrysmaradite
-                ? "border-[#4a2a6b]/80 bg-[#12081a] text-[#c8a0e8]"
-                : "border-[#252525] bg-[#111111] text-[#666666] hover:border-[#383838] hover:text-[#aaaaaa]"
-            }`}
+            className="flex-1 justify-center py-1.5"
           >
             Prysmaradite
             <span className={`ml-auto text-[9px] ${allowPrysmaradite ? "text-[#c8a0e8]" : "text-[#3a3a3a]"}`}>
               {allowPrysmaradite ? "✓" : "○"}
             </span>
-          </button>
+          </Chip>
         </div>
       </div>
 
@@ -325,21 +311,17 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
           {FOCUS_OPTIONS.map((o) => {
             const active = focusKeys.includes(o.key);
             return (
-              <button
+              <Chip
                 key={o.key}
-                type="button"
+                active={active}
+                accentColor="var(--dofus-green-active)"
                 onClick={() => toggleFocus(o.key)}
-                className={`flex items-center gap-1 rounded-full border px-2 py-0.5 text-[11px] font-medium transition ${
-                  active
-                    ? "border-[var(--dofus-ui-olive-border-70)] bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
-                    : "border-[#252525] bg-[#111111] text-[#777777] hover:border-[#383838] hover:text-[#bbbbbb]"
-                }`}
               >
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/assets/elements/${o.icon}.png`} alt="" width={12} height={12}
                   className="h-[12px] w-[12px] shrink-0 object-contain" />
                 {o.label}
-              </button>
+              </Chip>
             );
           })}
         </div>
@@ -450,20 +432,12 @@ export function OptimizePanel({ bare = false }: { bare?: boolean }) {
 
       {/* ── Actions ── */}
       <div className="flex flex-wrap gap-2 border-t border-[#1e1e1e] pt-3">
-        <button
-          type="submit"
-          disabled={loading}
-          className="btn-dofus-green flex-1 rounded-lg px-3 py-2 text-[12px]"
-        >
+        <Button type="submit" disabled={loading} className="flex-1">
           {loading ? "Calcul en cours…" : "⚡ Lancer l'optimisation"}
-        </button>
-        <button
-          type="button"
-          onClick={() => { resetBuild(); setError(null); }}
-          className="btn-dofus-gray rounded-lg px-3 py-2 text-[12px]"
-        >
+        </Button>
+        <Button type="button" variant="outline" onClick={() => { resetBuild(); setError(null); }}>
           Vider
-        </button>
+        </Button>
       </div>
     </form>
   );

@@ -1,8 +1,14 @@
 "use client";
 
+import { Check, ChevronDown, ChevronRight, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
+import { Plaque } from "@/components/ui/Plaque";
+import { SectionHeading } from "@/components/ui/SectionHeading";
 import { fetchItem, fetchItemsBySet, searchItems, searchSets } from "@/lib/api";
 import { EQUIPMENT_TYPE_OPTIONS, typeLabel } from "@/lib/equipmentTypes";
 import {
@@ -107,7 +113,7 @@ function IngredientTable({
                             row.required,
                           )
                         }
-                        className="w-16 rounded border border-white/10 bg-black/40 px-1.5 py-0.5 text-right text-white/80"
+                        className="w-16 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-right text-white/80 focus:border-white/25 focus:outline-none"
                       />
                     ) : (
                       <input
@@ -122,7 +128,7 @@ function IngredientTable({
                             row.required,
                           )
                         }
-                        className="w-12 rounded border border-white/10 bg-black/40 px-1.5 py-0.5 text-right text-white/80"
+                        className="w-12 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-right text-white/80 focus:border-white/25 focus:outline-none"
                         title="Quantité possédée"
                       />
                     )}
@@ -135,10 +141,10 @@ function IngredientTable({
                     <button
                       type="button"
                       onClick={() => onValidateRow(row.ingredientId, row.required)}
-                      className="rounded border border-white/10 px-2 py-0.5 text-[10px] text-white/60 transition hover:border-[var(--dofus-ui-selected-border,#98c030)] hover:text-white"
+                      className="rounded-md border border-white/10 p-1 text-white/60 transition hover:border-[var(--dofus-ui-selected-border,#98c030)] hover:text-white"
                       title="Valider cet ingrédient"
                     >
-                      ✓
+                      <Check size={12} />
                     </button>
                   </td>
                 </tr>
@@ -201,47 +207,48 @@ function NestedItemsDetail({
         const hasRecipe = rows.length > 0;
 
         return (
-          <div
-            key={subKey}
-            className="rounded-lg border border-white/[0.06] bg-black/20"
-          >
+            <div
+              key={subKey}
+              className="plaque-flat"
+            >
             <div className="flex items-center gap-2 px-2 py-1.5">
               <button
                 type="button"
                 onClick={() => onToggleSubItem(subKey)}
-                className="text-white/40 hover:text-white"
+                className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                {subExpanded ? "▼" : "▶"}
-              </button>
-              {item?.image_url_icon ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={item.image_url_icon}
-                  alt=""
-                  width={22}
-                  height={22}
-                  className="rounded border border-white/10"
-                />
-              ) : (
-                <div className="h-[22px] w-[22px] rounded bg-white/5" />
-              )}
-              <span className={`text-xs text-white/80 ${itemDone ? "text-emerald-400/90" : ""}`}>
-                {item?.name ?? `Item #${itemId}`}
-                {craftQty > 1 && (
-                  <span className="ml-1 text-white/40">×{craftQty}</span>
+                <span className="shrink-0 text-white/40">
+                  {subExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                </span>
+                {item?.image_url_icon ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={item.image_url_icon}
+                    alt=""
+                    width={22}
+                    height={22}
+                    className="shrink-0 rounded border border-white/10"
+                  />
+                ) : (
+                  <div className="h-[22px] w-[22px] shrink-0 rounded bg-white/5" />
                 )}
-              </span>
-              {!hasRecipe && (
-                <span className="text-[10px] text-white/30">Non craftable</span>
-              )}
-              <div className="flex-1" />
+                <span className={`text-xs text-white/80 ${itemDone ? "text-emerald-400/90" : ""}`}>
+                  {item?.name ?? `Item #${itemId}`}
+                  {craftQty > 1 && (
+                    <span className="ml-1 text-white/40">×{craftQty}</span>
+                  )}
+                </span>
+                {!hasRecipe && (
+                  <span className="text-[10px] text-white/30">Non craftable</span>
+                )}
+              </button>
               {hasRecipe && (
                 <button
                   type="button"
                   onClick={() => onValidateItemRecipe(rows)}
-                  className="rounded border border-white/10 px-2 py-0.5 text-[10px] text-white/60 hover:border-[var(--dofus-ui-selected-border,#98c030)]"
+                  className="flex items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[10px] text-white/60 hover:border-[var(--dofus-ui-selected-border,#98c030)]"
                 >
-                  ✓ Recette
+                  <Check size={11} /> Recette
                 </button>
               )}
             </div>
@@ -309,103 +316,95 @@ function AddEntryModal({
     return () => clearTimeout(t);
   }, [open, q, tab, typeId]);
 
-  if (!open) return null;
-
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-      <div className="w-full max-w-lg rounded-2xl border border-white/10 bg-[#111] p-4 shadow-2xl">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white/90">Ajouter à la liste</h3>
-          <button type="button" onClick={onClose} className="text-white/40 hover:text-white">✕</button>
-        </div>
-        <div className="mb-3 flex gap-2">
-          <button
-            type="button"
-            onClick={() => setTab("item")}
-            className={`rounded-lg px-3 py-1 text-xs ${tab === "item" ? "bg-white/10 text-white" : "text-white/40"}`}
-          >
-            Item
-          </button>
-          <button
-            type="button"
-            onClick={() => setTab("set")}
-            className={`rounded-lg px-3 py-1 text-xs ${tab === "set" ? "bg-white/10 text-white" : "text-white/40"}`}
-          >
-            Panoplie
-          </button>
-          <div className="flex-1" />
-          <label className="flex items-center gap-1 text-xs text-white/50">
-            Qté
-            <input
-              type="number"
-              min={1}
-              value={qty}
-              onChange={(e) => setQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
-              className="w-14 rounded border border-white/10 bg-black/40 px-1.5 py-0.5 text-white/80"
-            />
-          </label>
-        </div>
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder={tab === "item" ? "Rechercher un item…" : "Rechercher une panoplie…"}
-          className="mb-2 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/80"
-        />
-        {tab === "item" && (
-          <select
-            value={typeId}
-            onChange={(e) => setTypeId(e.target.value)}
-            className="mb-3 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/80"
-            aria-label="Catégorie d'item"
-          >
-            {EQUIPMENT_TYPE_OPTIONS.map(({ value, label }) => (
-              <option key={value || "all"} value={value}>
-                {value ? label : "Toutes catégories"}
-              </option>
-            ))}
-          </select>
-        )}
-        {tab === "set" && <div className="mb-3" />}
-        <div className="max-h-64 overflow-y-auto">
-          {loading ? (
-            <p className="py-4 text-center text-xs text-white/30">Chargement…</p>
-          ) : tab === "item" ? (
-            items.map((it) => (
-              <button
-                key={it.ankama_id}
-                type="button"
-                onClick={() => { onAddItem(it, qty); onClose(); }}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
-              >
-                {it.image_url_icon && (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img src={it.image_url_icon} alt="" width={28} height={28} className="rounded" />
-                )}
-                <span className="min-w-0 flex-1 truncate text-xs text-white/80">{it.name}</span>
-                <span className="shrink-0 text-[10px] text-white/30">
-                  {typeLabel(it.type_name_id)}
-                </span>
-                <span className="shrink-0 text-[10px] text-white/30">Niv. {it.level}</span>
-              </button>
-            ))
-          ) : (
-            sets.map((s) => (
-              <button
-                key={s.ankama_id}
-                type="button"
-                onClick={() => { onAddSet(s, qty); onClose(); }}
-                className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
-              >
-                <span className="text-xs text-white/80">{s.name ?? `Panoplie #${s.ankama_id}`}</span>
-                <span className="ml-auto text-[10px] text-white/30">
-                  {(s.equipment_ids?.length ?? 0)} pièces
-                </span>
-              </button>
-            ))
-          )}
-        </div>
+    <Modal open={open} onClose={onClose} title="Ajouter à la liste" widthClassName="max-w-lg">
+      <div className="mb-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => setTab("item")}
+          className={`rounded-lg px-3 py-1 text-xs transition ${tab === "item" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}
+        >
+          Item
+        </button>
+        <button
+          type="button"
+          onClick={() => setTab("set")}
+          className={`rounded-lg px-3 py-1 text-xs transition ${tab === "set" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}
+        >
+          Panoplie
+        </button>
+        <div className="flex-1" />
+        <label className="flex items-center gap-1 text-xs text-white/50">
+          Qté
+          <input
+            type="number"
+            min={1}
+            value={qty}
+            onChange={(e) => setQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
+            className="w-14 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-white/80 focus:border-white/25 focus:outline-none"
+          />
+        </label>
       </div>
-    </div>
+      <Input
+        containerClassName="mb-2"
+        value={q}
+        onChange={(e) => setQ(e.target.value)}
+        placeholder={tab === "item" ? "Rechercher un item…" : "Rechercher une panoplie…"}
+      />
+      {tab === "item" && (
+        <select
+          value={typeId}
+          onChange={(e) => setTypeId(e.target.value)}
+          className="mb-3 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/80 focus:border-white/25 focus:outline-none"
+          aria-label="Catégorie d'item"
+        >
+          {EQUIPMENT_TYPE_OPTIONS.map(({ value, label }) => (
+            <option key={value || "all"} value={value}>
+              {value ? label : "Toutes catégories"}
+            </option>
+          ))}
+        </select>
+      )}
+      {tab === "set" && <div className="mb-3" />}
+      <div className="max-h-64 overflow-y-auto">
+        {loading ? (
+          <p className="py-4 text-center text-xs text-white/30">Chargement…</p>
+        ) : tab === "item" ? (
+          items.map((it) => (
+            <button
+              key={it.ankama_id}
+              type="button"
+              onClick={() => { onAddItem(it, qty); onClose(); }}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
+            >
+              {it.image_url_icon && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={it.image_url_icon} alt="" width={28} height={28} className="rounded" />
+              )}
+              <span className="min-w-0 flex-1 truncate text-xs text-white/80">{it.name}</span>
+              <span className="shrink-0 text-[10px] text-white/30">
+                {typeLabel(it.type_name_id)}
+              </span>
+              <span className="shrink-0 text-[10px] text-white/30">Niv. {it.level}</span>
+            </button>
+          ))
+        ) : (
+          sets.map((s) => (
+            <button
+              key={s.ankama_id}
+              type="button"
+              onClick={() => { onAddSet(s, qty); onClose(); }}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
+            >
+              <span className="text-xs text-white/80">{s.name ?? `Panoplie #${s.ankama_id}`}</span>
+              <span className="ml-auto text-[10px] text-white/30">
+                {(s.equipment_ids?.length ?? 0)} pièces
+              </span>
+            </button>
+          ))
+        )}
+      </div>
+    </Modal>
   );
 }
 
@@ -595,26 +594,28 @@ export function AtelierPanel() {
     <main className="mx-auto flex w-full max-w-[1600px] flex-1 gap-4 p-4 md:p-8">
       {/* Sidebar listes */}
       <aside className="w-56 shrink-0 space-y-3">
-        <h1 className="text-lg font-semibold text-white/90">L&apos;Atelier</h1>
+        <SectionHeading eyebrow="Craft tracking" title="L'Atelier" className="mb-1" />
         {isGuest && (
           <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1.5 text-[10px] text-amber-200/80">
             Connecte-toi pour sauvegarder tes listes.
           </p>
         )}
-        <div className="flex gap-1">
-          <input
+        <div className="flex gap-1.5">
+          <Input
+            containerClassName="min-w-0 flex-1"
             value={newListName}
             onChange={(e) => setNewListName(e.target.value)}
             placeholder="Nouvelle liste…"
-            className="min-w-0 flex-1 rounded-lg border border-white/10 bg-black/40 px-2 py-1.5 text-xs text-white/80"
           />
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
             onClick={() => void handleCreateList()}
-            className="rounded-lg border border-white/10 px-2 text-xs text-white/60 hover:bg-white/5"
+            aria-label="Créer la liste"
           >
-            +
-          </button>
+            <Plus size={14} />
+          </Button>
         </div>
         <ul className="space-y-1">
           {lists.map((list) => (
@@ -641,9 +642,9 @@ export function AtelierPanel() {
         {error && <p className="text-sm text-red-400">{error}</p>}
 
         {!loading && !activeList && (
-          <div className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-8 text-center">
+          <Plaque className="p-8 text-center">
             <p className="text-sm text-white/40">Crée une CraftList pour commencer.</p>
-          </div>
+          </Plaque>
         )}
 
         {activeList && (
@@ -651,10 +652,9 @@ export function AtelierPanel() {
             <div className="flex flex-wrap items-center gap-3">
               {renaming ? (
                 <>
-                  <input
+                  <Input
                     value={renameValue}
                     onChange={(e) => setRenameValue(e.target.value)}
-                    className="rounded-lg border border-white/10 bg-black/40 px-2 py-1 text-sm text-white/80"
                   />
                   <button
                     type="button"
@@ -669,7 +669,7 @@ export function AtelierPanel() {
                 </>
               ) : (
                 <h2
-                  className="cursor-pointer text-xl font-semibold text-white/90"
+                  className="cursor-pointer font-display text-xl font-medium text-white/90"
                   onClick={() => { setRenameValue(activeList.name); setRenaming(true); }}
                   title="Cliquer pour renommer"
                 >
@@ -686,28 +686,25 @@ export function AtelierPanel() {
                 </div>
                 <span className="text-xs text-white/50">{progressPct}%</span>
               </div>
-              <button
+              <Button type="button" variant="outline" size="sm" onClick={() => setAddModalOpen(true)}>
+                <Plus size={13} /> Ajouter
+              </Button>
+              <Button
                 type="button"
-                onClick={() => setAddModalOpen(true)}
-                className="rounded-lg border border-white/10 px-3 py-1.5 text-xs text-white/70 hover:bg-white/5"
-              >
-                + Ajouter
-              </button>
-              <button
-                type="button"
+                variant="danger"
+                size="sm"
                 onClick={() => {
                   if (confirm(`Supprimer « ${activeList.name} » ?`)) {
                     void deleteList(activeList.id);
                   }
                 }}
-                className="rounded-lg border border-red-500/20 px-3 py-1.5 text-xs text-red-400/80 hover:bg-red-500/10"
               >
-                Supprimer
-              </button>
+                <Trash2 size={13} /> Supprimer
+              </Button>
             </div>
 
             {/* Recette globale */}
-            <section className="rounded-2xl border border-white/10 bg-[#0a0a0a] p-4">
+            <Plaque className="p-4">
               <h3 className="mb-3 text-sm font-medium text-white/70">Recette totale</h3>
               <IngredientTable
                 rows={aggregated}
@@ -716,7 +713,7 @@ export function AtelierPanel() {
                 onOwnedChange={handleOwnedChange}
                 onValidateRow={handleValidateRow}
               />
-            </section>
+            </Plaque>
 
             {/* Entrées */}
             <section className="space-y-2">
@@ -748,10 +745,7 @@ export function AtelierPanel() {
                 const expanded = expandedEntries.has(entry.id);
 
                 return (
-                  <div
-                    key={entry.id}
-                    className="rounded-xl border border-white/10 bg-[#0a0a0a]"
-                  >
+                  <Plaque flat key={entry.id}>
                     <div className="flex items-center gap-2 px-3 py-2">
                       <button
                         type="button"
@@ -763,34 +757,36 @@ export function AtelierPanel() {
                             return n;
                           })
                         }
-                        className="text-white/40 hover:text-white"
+                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
                       >
-                        {expanded ? "▼" : "▶"}
+                        <span className="shrink-0 text-white/40">
+                          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </span>
+                        <span className="text-sm text-white/80">
+                          {entryLabel(entry)}
+                          {entry.quantity > 1 && (
+                            <span className="ml-1 text-white/40">×{entry.quantity}</span>
+                          )}
+                        </span>
+                        <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-white/30">
+                          {entry.entry_type}
+                        </span>
                       </button>
-                      <span className="text-sm text-white/80">
-                        {entryLabel(entry)}
-                        {entry.quantity > 1 && (
-                          <span className="ml-1 text-white/40">×{entry.quantity}</span>
-                        )}
-                      </span>
-                      <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-white/30">
-                        {entry.entry_type}
-                      </span>
-                      <div className="flex-1" />
                       <button
                         type="button"
                         disabled={entryDone || entryRows.length === 0}
                         onClick={() => handleValidateEntry(entry.id)}
-                        className="rounded border border-white/10 px-2 py-0.5 text-[10px] text-white/60 hover:border-[var(--dofus-ui-selected-border,#98c030)] disabled:opacity-30"
+                        className="flex items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[10px] text-white/60 hover:border-[var(--dofus-ui-selected-border,#98c030)] disabled:opacity-30"
                       >
-                        ✓ Tout
+                        <Check size={11} /> Tout
                       </button>
                       <button
                         type="button"
                         onClick={() => void removeEntry(activeList.id, entry.id)}
-                        className="text-[10px] text-red-400/60 hover:text-red-400"
+                        className="text-red-400/60 hover:text-red-400"
+                        aria-label="Retirer l'objectif"
                       >
-                        ✕
+                        <X size={13} />
                       </button>
                     </div>
                     {expanded && (
@@ -826,7 +822,7 @@ export function AtelierPanel() {
                         )}
                       </div>
                     )}
-                  </div>
+                  </Plaque>
                 );
               })}
             </section>

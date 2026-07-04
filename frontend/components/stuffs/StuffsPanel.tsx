@@ -1,9 +1,13 @@
 "use client";
 
+import { ArrowRight } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
 import { SpellsPanel } from "@/components/dashboard/SpellsPanel";
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Plaque } from "@/components/ui/Plaque";
 import { createBuild, fetchItem, getBuildById, listPublicBuilds } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { BUILD_TAGS, getBuildTag } from "@/lib/buildTags";
@@ -262,22 +266,20 @@ function BuildCard({
     <button
       type="button"
       onClick={() => onOpen(build)}
-      className="group flex w-full flex-col rounded-xl border border-[#282828] bg-[#141414] text-left transition hover:border-[#3a3a3a] hover:bg-[#1a1a1a]"
+      className="plaque plaque-interactive group flex w-full flex-col text-left"
     >
       {/* Header */}
       <div className="flex items-start justify-between gap-2 px-3 pt-3 pb-2">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-[13px] font-semibold text-[#e0d0a0] group-hover:text-[#f0d78c]">
+          <p className="truncate font-display text-[14px] font-medium text-[#e0d0a0] group-hover:text-[#f0d78c]">
             {build.name}
           </p>
           {build.level != null && (
             <p className="text-[11px] text-[#555]">Niv. {build.level}</p>
           )}
         </div>
-        <div className="shrink-0 rounded-md bg-[#1e1e1e] p-1 opacity-0 transition group-hover:opacity-100">
-          <svg className="h-3 w-3 text-[#666]" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <path d="M5 12h14M12 5l7 7-7 7" />
-          </svg>
+        <div className="shrink-0 rounded-md bg-white/[0.06] p-1 text-[#666] opacity-0 transition group-hover:opacity-100">
+          <ArrowRight size={12} />
         </div>
       </div>
 
@@ -304,8 +306,8 @@ function BuildCard({
         />
       </div>
 
-      {/* Footer: classe + auteur */}
-      <div className="flex items-center justify-between gap-2 border-t border-[#1e1e1e] px-3 py-1.5">
+      {/* Footer: classe + auteur + date */}
+      <div className="flex items-center justify-between gap-2 border-t border-white/[0.06] px-3 py-1.5">
         <div className="flex min-w-0 items-center gap-1.5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
@@ -320,11 +322,18 @@ function BuildCard({
             {DOFUS_CLASS_OPTIONS.find((c) => c.id === classId)?.label ?? `Classe ${classId}`}
           </span>
         </div>
-        {build.username && (
-          <span className="shrink-0 max-w-[80px] truncate text-[10px] text-[#444]">
-            {build.username}
-          </span>
-        )}
+        <div className="flex shrink-0 items-center gap-2">
+          {build.updated_at && (
+            <span className="text-[10px] text-[#3a3a3a]">
+              {new Date(build.updated_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+            </span>
+          )}
+          {build.username && (
+            <span className="max-w-[80px] truncate text-[10px] text-[#444]">
+              {build.username}
+            </span>
+          )}
+        </div>
       </div>
     </button>
   );
@@ -621,13 +630,12 @@ function FilterSidebar({
 
   return (
     <aside className="w-[200px] shrink-0 space-y-5">
-      <div className="rounded-xl border border-[#222] bg-[#141414] p-4 space-y-4">
+      <Plaque className="space-y-4 p-4">
         <p className="text-[11px] font-bold uppercase tracking-widest text-[#555]">Filtres</p>
 
         <div>
           <p className="mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-[#444]">Recherche</p>
-          <input
-            className="w-full rounded-lg border border-[#282828] bg-[#0e0e0e] px-2.5 py-1.5 text-[12px] text-[#d0d0d0] placeholder:text-[#444] focus:border-[#3a3a3a] focus:outline-none"
+          <Input
             placeholder="Nom du build..."
             value={search}
             onChange={(e) => onSearchChange(e.target.value)}
@@ -683,15 +691,17 @@ function FilterSidebar({
         </div>
 
         {(selectedClass !== null || selectedTags.length > 0 || search) && (
-          <button
+          <Button
             type="button"
+            variant="outline"
+            size="sm"
+            className="w-full"
             onClick={() => { onClassChange(null); onTagsChange([]); onSearchChange(""); }}
-            className="w-full rounded-lg border border-[#282828] py-1.5 text-[11px] text-[#666] transition hover:border-[#444] hover:text-[#aaa]"
           >
             Réinitialiser
-          </button>
+          </Button>
         )}
-      </div>
+      </Plaque>
     </aside>
   );
 }
@@ -700,11 +710,11 @@ function FilterSidebar({
 function BuildLoadingOverlay({ onClose }: { onClose: () => void }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <div className="flex flex-col items-center gap-3 rounded-xl border border-[#282828] bg-[#141414] px-8 py-6">
+      <Plaque className="flex flex-col items-center gap-3 px-8 py-6">
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-[#3a3a3a] border-t-[var(--dofus-green-active)]" />
         <p className="text-sm text-[#aaa]">Chargement du build…</p>
         <button type="button" onClick={onClose} className="mt-1 text-[11px] text-[#555] hover:text-[#999]">Annuler</button>
-      </div>
+      </Plaque>
     </div>
   );
 }
@@ -774,7 +784,7 @@ export function StuffsPanel() {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="mb-4 flex items-baseline gap-3">
-          <h2 className="text-[17px] font-bold text-[#e0d0a0]">Stuffs publics</h2>
+          <h2 className="font-display text-[19px] font-medium text-[#e0d0a0]">Stuffs publics</h2>
           {!loading && (
             <span className="text-[12px] text-[#555]">{builds.length} build{builds.length !== 1 ? "s" : ""}</span>
           )}

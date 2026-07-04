@@ -7,6 +7,7 @@ import {
   useRef,
   useState,
 } from "react";
+import { X } from "lucide-react";
 import { createPortal } from "react-dom";
 
 import { useDisplayStats } from "@/hooks/useDisplayStats";
@@ -562,9 +563,9 @@ export function SpellsPanel({ classId: classIdProp }: { classId?: number } = {})
           <button
             type="button"
             onClick={() => setSelectedGroupId(null)}
-            className="text-[10px] text-[#555555] hover:text-[#888888] transition"
+            className="flex items-center gap-1 text-[10px] text-[#555555] hover:text-[#888888] transition"
           >
-            ✕ Déverrouiller
+            <X size={10} /> Déverrouiller
           </button>
         )}
       </div>

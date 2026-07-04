@@ -4,6 +4,7 @@ import { useChat } from "@ai-sdk/react";
 import { DefaultChatTransport, type UIMessage } from "ai";
 import { useEffect, useRef } from "react";
 
+import { Button } from "@/components/ui/Button";
 import { dofusClassLabel } from "@/lib/dofusClasses";
 import { useBuildStore } from "@/store/build-store";
 import type { FullBuild } from "@/types/api";
@@ -218,20 +219,13 @@ function ChatInput({
           disabled={busy}
         />
         {busy ? (
-          <button
-            type="button"
-            onClick={onStop}
-            className="btn-dofus-gray shrink-0 self-end rounded-lg px-3 py-2 text-sm"
-          >
+          <Button type="button" variant="outline" className="shrink-0 self-end" onClick={onStop}>
             Stop
-          </button>
+          </Button>
         ) : (
-          <button
-            type="submit"
-            className="btn-dofus-green shrink-0 self-end rounded-lg px-4 py-2 text-sm"
-          >
+          <Button type="submit" className="shrink-0 self-end">
             Envoyer
-          </button>
+          </Button>
         )}
       </div>
     </form>

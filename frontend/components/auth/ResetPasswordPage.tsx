@@ -4,6 +4,9 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 
+import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
+import { Plaque } from "@/components/ui/Plaque";
 import { authResetPassword } from "@/lib/api";
 
 function ResetPasswordForm() {
@@ -49,8 +52,8 @@ function ResetPasswordForm() {
 
   return (
     <div className="mx-auto flex min-h-[60vh] max-w-md flex-col justify-center px-4 py-12">
-      <div className="rounded-xl border border-[#383838] bg-[#1a1a1a] p-6 shadow-[0_8px_32px_rgba(0,0,0,0.5)]">
-        <h1 className="mb-1 text-xl font-semibold text-[#f0d78c]">Nouveau mot de passe</h1>
+      <Plaque ornate className="p-6">
+        <h1 className="mb-1 font-display text-[22px] font-medium text-[#f0d78c]">Nouveau mot de passe</h1>
         <p className="mb-5 text-sm text-[#888]">
           Choisissez un nouveau mot de passe pour votre compte Zaap Builder.
         </p>
@@ -64,8 +67,7 @@ function ResetPasswordForm() {
           </div>
         ) : (
           <form className="space-y-3" onSubmit={handleSubmit}>
-            <input
-              className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
+            <Input
               type="password"
               placeholder="Nouveau mot de passe"
               value={password}
@@ -74,8 +76,7 @@ function ResetPasswordForm() {
               minLength={8}
               required
             />
-            <input
-              className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
+            <Input
               type="password"
               placeholder="Confirmer le mot de passe"
               value={confirmPassword}
@@ -86,16 +87,12 @@ function ResetPasswordForm() {
             />
             {error && <p className="text-xs text-red-400">{error}</p>}
             {success && <p className="text-xs text-emerald-400">{success}</p>}
-            <button
-              type="submit"
-              disabled={busy || !!success}
-              className="btn-dofus-green w-full rounded-lg py-2 text-sm disabled:opacity-50"
-            >
+            <Button type="submit" disabled={busy || !!success} className="w-full">
               {busy ? "Enregistrement…" : "Enregistrer"}
-            </button>
+            </Button>
           </form>
         )}
-      </div>
+      </Plaque>
     </div>
   );
 }

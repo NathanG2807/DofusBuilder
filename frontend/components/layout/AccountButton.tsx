@@ -1,42 +1,28 @@
 "use client";
 
+import { ChevronDown, Eye, EyeOff, Pencil, User as UserIcon } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
+import { Input } from "@/components/ui/Input";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import {
   authForgotPassword,
   authLogin,
   authLogout,
   authMe,
   authRegister,
-  createBuild,
   deleteBuild,
   getApiBase,
   listMyBuilds,
   updateBuild,
 } from "@/lib/api";
 import { clearAccessToken, getAccessToken, setAccessToken } from "@/lib/auth";
-import { BUILD_TAGS } from "@/lib/buildTags";
 import { classHeadUrl } from "@/lib/classImage";
 import { useBuildStore } from "@/store/build-store";
 import type { BuildOut, UserPublic } from "@/types/api";
 
 type AuthMode = "login" | "register" | "forgot";
-
-/* ── Visibility toggle icon ─────────────────────────────────────────────── */
-function VisibilityIcon({ isPublic }: { isPublic: boolean }) {
-  return isPublic ? (
-    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-      <circle cx="12" cy="12" r="3" />
-    </svg>
-  ) : (
-    <svg className="h-3.5 w-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-      <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19" />
-      <line x1="1" y1="1" x2="23" y2="23" />
-    </svg>
-  );
-}
 
 export function AccountButton() {
   const [open, setOpen] = useState(false);
@@ -48,34 +34,13 @@ export function AccountButton() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
-  const [saveName, setSaveName] = useState("Mon build");
-  const [isPublic, setIsPublic] = useState(false);
-  const [selectedTags, setSelectedTags] = useState<string[]>([]);
-  const [saveMsg, setSaveMsg] = useState<string | null>(null);
   const [builds, setBuilds] = useState<BuildOut[]>([]);
   const [listError, setListError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
+  const [actionMsg, setActionMsg] = useState<string | null>(null);
 
-  const panelRef = useRef<HTMLDivElement>(null);
-
-  const buildName = useBuildStore((s) => s.buildName);
   const hydrateFromPersistedBuild = useBuildStore((s) => s.hydrateFromPersistedBuild);
   const prefetchEquippedItems = useBuildStore((s) => s.prefetchEquippedItems);
-  const currentBuild = useBuildStore((s) => s.currentBuild);
-  const stats = useBuildStore((s) => s.stats);
-  const activeSetBonuses = useBuildStore((s) => s.activeSetBonuses);
-  const charStats = useBuildStore((s) => s.charStats);
-  const parchoStats = useBuildStore((s) => s.parchoStats);
-  const exoFm = useBuildStore((s) => s.exoFm);
-  const lockedSlots = useBuildStore((s) => s.lockedSlots);
-  const level = useBuildStore((s) => s.level);
-  const classId = useBuildStore((s) => s.classId);
-  const sex = useBuildStore((s) => s.sex);
-  const itemById = useBuildStore((s) => s.itemById);
-
-  useEffect(() => {
-    setSaveName(buildName);
-  }, [buildName]);
 
   const refreshBuilds = useCallback(async () => {
     if (!getAccessToken()) { setBuilds([]); return; }
@@ -98,17 +63,6 @@ export function AccountButton() {
     })();
     return () => { cancel = true; };
   }, [refreshBuilds]);
-
-  useEffect(() => {
-    if (!open) return;
-    function handler(e: MouseEvent) {
-      if (panelRef.current && !panelRef.current.contains(e.target as Node)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
 
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
@@ -141,56 +95,6 @@ export function AccountButton() {
     authLogout();
     setUser(null);
     setBuilds([]);
-  }
-
-  function buildSlotsPreview(): Record<string, string | null> {
-    const preview: Record<string, string | null> = {};
-    for (const [slot, itemId] of Object.entries(currentBuild)) {
-      if (itemId == null) continue;
-      const item = itemById[itemId];
-      preview[slot] = item?.image_url_icon ?? null;
-    }
-    return preview;
-  }
-
-  async function handleSave(e: React.FormEvent) {
-    e.preventDefault();
-    setSaveMsg(null);
-    if (!getAccessToken()) return;
-    if (isPublic && selectedTags.length === 0) {
-      setSaveMsg("Choisissez au moins un tag pour publier.");
-      return;
-    }
-    setBusy(true);
-    try {
-      const lockedSlotsMap: Record<string, number> = {};
-      for (const slot of lockedSlots) {
-        const id = currentBuild[slot];
-        if (id != null) lockedSlotsMap[slot] = id;
-      }
-      await createBuild({
-        name: saveName.trim() || "Sans titre",
-        slots: { ...currentBuild },
-        total_stats: { ...stats },
-        active_set_bonuses: [...activeSetBonuses],
-        char_stats: Object.keys(charStats).length > 0 ? { ...charStats } : null,
-        parcho_stats: Object.keys(parchoStats).length > 0 ? { ...parchoStats } : null,
-        exo_fm: Object.keys(exoFm).length > 0 ? (exoFm as Record<string, string>) : null,
-        locked_slots: Object.keys(lockedSlotsMap).length > 0 ? lockedSlotsMap : null,
-        level,
-        class_id: classId,
-        sex,
-        is_public: isPublic,
-        tags: isPublic ? selectedTags : [],
-        slots_preview: buildSlotsPreview(),
-      });
-      setSaveMsg("Build sauvegardé !");
-      await refreshBuilds();
-    } catch (err) {
-      setSaveMsg(err instanceof Error ? err.message : "Échec");
-    } finally {
-      setBusy(false);
-    }
   }
 
   async function handleLoad(b: BuildOut) {
@@ -237,23 +141,25 @@ export function AccountButton() {
 
   async function copyLink(buildId: string) {
     const url = shareUrl(buildId);
-    try { await navigator.clipboard.writeText(url); setSaveMsg("Lien copié !"); }
-    catch { setSaveMsg(url); }
-  }
-
-  function toggleTag(id: string) {
-    setSelectedTags((prev) =>
-      prev.includes(id) ? prev.filter((t) => t !== id) : [...prev, id],
-    );
+    try {
+      await navigator.clipboard.writeText(url);
+      setActionMsg("Lien copié !");
+      setTimeout(() => setActionMsg(null), 2000);
+    } catch {
+      setActionMsg(url);
+    }
   }
 
   return (
-    <div className="relative" ref={panelRef}>
-      {/* ─── Bouton principal ─── */}
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="btn-dofus-gray flex items-center gap-1.5 rounded px-2 py-1 text-[11px]"
+    <Popover open={open} onOpenChange={setOpen}>
+      {/* ─── Bouton déclencheur ─── */}
+      <PopoverTrigger
+        render={
+          <button
+            type="button"
+            className="plaque-flat flex items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[11px] font-medium text-[#c9c9c9] transition hover:border-white/20"
+          />
+        }
       >
         {user ? (
           <>
@@ -264,54 +170,68 @@ export function AccountButton() {
           </>
         ) : (
           <>
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/global/UI/player.png" width={13} height={13} alt="" className="shrink-0" />
+            <UserIcon size={13} className="shrink-0 text-[#888]" />
             Connexion
           </>
         )}
-        <svg className={`h-2.5 w-2.5 shrink-0 opacity-60 transition-transform ${open ? "rotate-180" : ""}`} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
+        <ChevronDown size={11} className={`shrink-0 opacity-60 transition-transform ${open ? "rotate-180" : ""}`} />
+      </PopoverTrigger>
 
-      {/* ─── Dropdown ─── */}
-      {open && (
-        <div className="absolute right-0 top-full z-50 mt-2 w-[340px] overflow-hidden rounded-xl border border-[#383838] bg-[#1a1a1a] shadow-[0_8px_32px_rgba(0,0,0,0.7)]">
-          {!user ? (
-            /* ── Formulaire connexion / inscription ── */
-            <div className="p-4">
-              <div className="mb-3 flex gap-3 border-b border-[#252525] pb-3">
-                {authMode !== "forgot" ? (
-                  (["login", "register"] as const).map((m) => (
-                    <button
-                      key={m}
-                      type="button"
-                      onClick={() => { setAuthMode(m); setAuthError(null); setAuthSuccess(null); }}
-                      className={`text-sm font-medium transition ${
-                        authMode === m ? "text-[var(--dofus-green-active)]" : "text-[#555555] hover:text-[#aaaaaa]"
-                      }`}
-                    >
-                      {m === "login" ? "Connexion" : "Inscription"}
-                    </button>
-                  ))
-                ) : (
+      {/* ─── Panneau ─── positionné automatiquement sous le bouton par Base UI */}
+      <PopoverContent side="bottom" align="end" className="w-[340px]">
+        {!user ? (
+          /* ── Formulaire connexion / inscription ── */
+          <div className="p-4">
+            <div className="mb-3 flex gap-3 border-b border-white/[0.06] pb-3">
+              {authMode !== "forgot" ? (
+                (["login", "register"] as const).map((m) => (
                   <button
+                    key={m}
                     type="button"
-                    onClick={() => { setAuthMode("login"); setAuthError(null); setAuthSuccess(null); }}
-                    className="text-sm font-medium text-[var(--dofus-green-active)]"
+                    onClick={() => { setAuthMode(m); setAuthError(null); setAuthSuccess(null); }}
+                    className={`text-sm font-medium transition ${
+                      authMode === m ? "text-[var(--dofus-green-active)]" : "text-[#555555] hover:text-[#aaaaaa]"
+                    }`}
                   >
-                    ← Retour à la connexion
+                    {m === "login" ? "Connexion" : "Inscription"}
                   </button>
-                )}
-              </div>
-              <form className="space-y-2" onSubmit={handleAuth}>
-                {authMode === "forgot" ? (
-                  <>
-                    <p className="text-xs text-[#888]">
-                      Saisissez l&apos;email de votre compte. Si un compte existe, vous recevrez un lien de réinitialisation.
-                    </p>
-                    <input
-                      className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
+                ))
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => { setAuthMode("login"); setAuthError(null); setAuthSuccess(null); }}
+                  className="text-sm font-medium text-[var(--dofus-green-active)]"
+                >
+                  ← Retour à la connexion
+                </button>
+              )}
+            </div>
+            <form className="space-y-2" onSubmit={handleAuth}>
+              {authMode === "forgot" ? (
+                <>
+                  <p className="text-xs text-[#888]">
+                    Saisissez l&apos;email de votre compte. Si un compte existe, vous recevrez un lien de réinitialisation.
+                  </p>
+                  <Input
+                    type="email"
+                    placeholder="Email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    autoComplete="email"
+                    required
+                  />
+                </>
+              ) : (
+                <>
+                  <Input
+                    placeholder="Nom d'utilisateur"
+                    value={username}
+                    onChange={(e) => setUsername(e.target.value)}
+                    autoComplete="username"
+                    required
+                  />
+                  {authMode === "register" && (
+                    <Input
                       type="email"
                       placeholder="Email"
                       value={email}
@@ -319,248 +239,152 @@ export function AccountButton() {
                       autoComplete="email"
                       required
                     />
-                  </>
-                ) : (
-                  <>
-                    <input
-                      className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
-                      placeholder="Nom d'utilisateur"
-                      value={username}
-                      onChange={(e) => setUsername(e.target.value)}
-                      autoComplete="username"
-                      required
-                    />
-                    {authMode === "register" && (
-                      <input
-                        className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
-                        type="email"
-                        placeholder="Email"
-                        value={email}
-                        onChange={(e) => setEmail(e.target.value)}
-                        autoComplete="email"
-                        required
-                      />
-                    )}
-                    <input
-                      className="w-full rounded-lg border border-[#383838] bg-[#111111] px-3 py-2 text-sm text-[#e0e0e0] placeholder:text-[#555555] focus:border-[#4a4a4a] focus:outline-none"
-                      type="password"
-                      placeholder="Mot de passe"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      autoComplete={authMode === "register" ? "new-password" : "current-password"}
-                      required
-                    />
-                    {authMode === "login" && (
-                      <div className="flex justify-end">
-                        <button
-                          type="button"
-                          onClick={() => { setAuthMode("forgot"); setAuthError(null); setAuthSuccess(null); }}
-                          className="text-[11px] text-[#666] transition hover:text-[var(--dofus-green-active)]"
-                        >
-                          Mot de passe oublié ?
-                        </button>
-                      </div>
-                    )}
-                  </>
-                )}
-                {authError && <p className="text-xs text-red-400">{authError}</p>}
-                {authSuccess && <p className="text-xs text-emerald-400">{authSuccess}</p>}
-                <button
-                  type="submit"
-                  disabled={busy}
-                  className="btn-dofus-green w-full rounded-lg py-2 text-sm disabled:opacity-50"
-                >
-                  {authMode === "register"
-                    ? "Créer le compte"
-                    : authMode === "forgot"
-                      ? "Envoyer le lien"
-                      : "Se connecter"}
-                </button>
-              </form>
-            </div>
-          ) : (
-            /* ── Panel connecté ── */
-            <div>
-              {/* En-tête utilisateur */}
-              <div className="flex items-center justify-between border-b border-[#252525] px-4 py-3">
-                <div className="flex items-center gap-2">
-                  <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--dofus-ui-accent-tint-20)] text-sm font-bold uppercase text-[var(--dofus-green-active)]">
-                    {user.username[0]}
-                  </span>
-                  <div>
-                    <p className="font-medium text-[#f0d78c] leading-none">{user.username}</p>
-                    <p className="mt-0.5 text-[10px] text-[#555]">{builds.length} build{builds.length !== 1 ? "s" : ""}</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Link
-                    href="/profile"
-                    onClick={() => setOpen(false)}
-                    className="text-[11px] text-[#555] transition hover:text-[var(--dofus-green-active)]"
-                  >
-                    Mon profil
-                  </Link>
-                  <span className="text-[#333]">|</span>
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="text-xs text-[#666666] hover:text-[#aaaaaa]"
-                  >
-                    Déco
-                  </button>
-                </div>
-              </div>
-
-              {/* ── Builds section ── */}
-              <>
-                  {/* Sauvegarder */}
-                  <form className="border-b border-[#252525] px-4 py-3" onSubmit={handleSave}>
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#666666]">
-                      Sauvegarder le build actuel
-                    </p>
-                    <div className="flex gap-2">
-                      <input
-                        className="min-w-0 flex-1 rounded-lg border border-[#383838] bg-[#111111] px-2 py-1.5 text-sm text-[#e0e0e0] focus:outline-none"
-                        value={saveName}
-                        onChange={(e) => setSaveName(e.target.value)}
-                        placeholder="Nom du build"
-                      />
+                  )}
+                  <Input
+                    type="password"
+                    placeholder="Mot de passe"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    autoComplete={authMode === "register" ? "new-password" : "current-password"}
+                    required
+                  />
+                  {authMode === "login" && (
+                    <div className="flex justify-end">
                       <button
-                        type="submit"
-                        disabled={busy}
-                        className="btn-dofus-green shrink-0 rounded-lg px-3 py-1.5 text-sm disabled:opacity-50"
+                        type="button"
+                        onClick={() => { setAuthMode("forgot"); setAuthError(null); setAuthSuccess(null); }}
+                        className="text-[11px] text-[#666] transition hover:text-[var(--dofus-green-active)]"
                       >
-                        Sauver
+                        Mot de passe oublié ?
                       </button>
                     </div>
-
-                    {/* Public toggle */}
-                    <label className="mt-2 flex cursor-pointer items-center gap-2 text-[12px] text-[#888888]">
-                      <div
-                        onClick={() => setIsPublic((v) => !v)}
-                        className={`relative h-4 w-7 cursor-pointer rounded-full transition-colors ${isPublic ? "bg-[var(--dofus-green-active)]" : "bg-[#333]"}`}
-                      >
-                        <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-transform ${isPublic ? "translate-x-3" : "translate-x-0.5"}`} />
-                      </div>
-                      <span className={isPublic ? "text-[#d0d0d0]" : ""}>
-                        {isPublic ? "Public (visible dans Stuffs)" : "Privé"}
-                      </span>
-                    </label>
-
-                    {/* Tags selector (only when public) */}
-                    {isPublic && (
-                      <div className="mt-2">
-                        <p className="mb-1 text-[10px] text-[#555]">Tags <span className="text-[#888]">(requis)</span></p>
-                        <div className="flex flex-wrap gap-1.5">
-                          {BUILD_TAGS.map((tag) => {
-                            const active = selectedTags.includes(tag.id);
-                            return (
-                              <button
-                                key={tag.id}
-                                type="button"
-                                onClick={() => toggleTag(tag.id)}
-                                className={`flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-medium border transition ${
-                                  active
-                                    ? ""
-                                    : "border-[#333] bg-[#0e0e0e] text-[#666] hover:border-[#555]"
-                                }`}
-                                style={active ? { backgroundColor: `${tag.color}33`, borderColor: `${tag.color}88`, color: tag.color } : {}}
-                              >
-                                {/* eslint-disable-next-line @next/next/no-img-element */}
-                                <img src={tag.icon} alt="" width={11} height={11} className="shrink-0" />
-                                {tag.label}
-                              </button>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    )}
-
-                    {saveMsg && (
-                      <p className={`mt-1.5 text-xs ${saveMsg.startsWith("Choisissez") || saveMsg === "Échec" ? "text-amber-400" : "text-emerald-400"}`}>
-                        {saveMsg}
-                      </p>
-                    )}
-                  </form>
-
-                  {/* Liste des builds */}
-                  <div className="px-4 py-3">
-                    <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#666666]">
-                      Mes builds
-                    </p>
-                    {listError && <p className="mb-1 text-xs text-red-400">{listError}</p>}
-                    <ul className="max-h-56 space-y-1.5 overflow-y-auto pr-0.5">
-                      {builds.length === 0 && (
-                        <li className="text-xs text-[#444444]">Aucun build enregistré.</li>
-                      )}
-                      {builds.map((b) => (
-                        <li
-                          key={b.id}
-                          className="rounded-lg border border-[#282828] bg-[#111111]/80 px-2 py-1.5"
-                        >
-                          <div className="flex items-center gap-1.5">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img
-                              src={classHeadUrl(b.class_id ?? 8, (b.sex === "female" ? "female" : "male"))}
-                              alt=""
-                              width={28}
-                              height={28}
-                              className="h-7 w-7 shrink-0 rounded-md object-cover"
-                              onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                            />
-                            <span className="min-w-0 flex-1 truncate text-xs font-medium text-[#d0d0d0]">
-                              {b.name}
-                            </span>
-                            {/* Visibility toggle */}
-                            <button
-                              type="button"
-                              title={b.is_public ? "Rendre privé" : "Rendre public"}
-                              disabled={togglingId === b.id}
-                              onClick={() => void handleToggleVisibility(b)}
-                              className={`shrink-0 rounded p-0.5 transition ${
-                                b.is_public ? "text-[var(--dofus-green-active)] hover:text-[#aaa]" : "text-[#555] hover:text-[var(--dofus-green-active)]"
-                              } ${togglingId === b.id ? "opacity-40" : ""}`}
-                            >
-                              <VisibilityIcon isPublic={b.is_public} />
-                            </button>
-                            <button type="button" onClick={() => void handleLoad(b)} className="shrink-0 text-[11px] text-[var(--dofus-green-active)] hover:underline">
-                              Charger
-                            </button>
-                            <button type="button" onClick={() => void copyLink(b.id)} className="shrink-0 text-[11px] text-[#888888] hover:underline">
-                              Lien
-                            </button>
-                            <button type="button" onClick={() => void handleDelete(b.id)} className="shrink-0 text-[11px] text-red-400/80 hover:underline">
-                              ×
-                            </button>
-                          </div>
-                          {/* Tags of the build */}
-                          {(b.tags?.length ?? 0) > 0 && (
-                            <div className="mt-1 flex flex-wrap gap-1 pl-[34px]">
-                              {(b.tags ?? []).map((t) => {
-                                const tag = BUILD_TAGS.find((tg) => tg.id === t);
-                                return tag ? (
-                                  <span
-                                    key={t}
-                                    className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px]"
-                                    style={{ backgroundColor: `${tag.color}22`, color: tag.color }}
-                                  >
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={tag.icon} alt="" width={8} height={8} />
-                                    {tag.label}
-                                  </span>
-                                ) : null;
-                              })}
-                            </div>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-              </>
+                  )}
+                </>
+              )}
+              {authError && <p className="text-xs text-red-400">{authError}</p>}
+              {authSuccess && <p className="text-xs text-emerald-400">{authSuccess}</p>}
+              <button
+                type="submit"
+                disabled={busy}
+                className="w-full rounded-[10px] bg-gradient-to-b from-[var(--dofus-color-ref-end)] to-[var(--dofus-color-ref-start)] py-2 text-sm font-semibold text-[#ecf4e4] transition hover:brightness-110 disabled:opacity-50"
+              >
+                {authMode === "register"
+                  ? "Créer le compte"
+                  : authMode === "forgot"
+                    ? "Envoyer le lien"
+                    : "Se connecter"}
+              </button>
+            </form>
+          </div>
+        ) : (
+          /* ── Panel connecté ── */
+          <>
+            {/* En-tête utilisateur */}
+            <div className="flex items-center justify-between border-b border-white/[0.06] px-4 py-3">
+              <div className="flex items-center gap-2">
+                <span className="flex h-8 w-8 items-center justify-center rounded-full bg-[var(--dofus-ui-accent-tint-20)] text-sm font-bold uppercase text-[var(--dofus-green-active)]">
+                  {user.username[0]}
+                </span>
+                <div>
+                  <p className="font-medium text-[#f0d78c] leading-none">{user.username}</p>
+                  <p className="mt-0.5 text-[10px] text-[#555]">{builds.length} build{builds.length !== 1 ? "s" : ""}</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <Link
+                  href="/profile"
+                  onClick={() => setOpen(false)}
+                  className="text-[11px] text-[#555] transition hover:text-[var(--dofus-green-active)]"
+                >
+                  Mon profil
+                </Link>
+                <span className="text-[#333]">|</span>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  className="text-xs text-[#666666] hover:text-[#aaaaaa]"
+                >
+                  Déco
+                </button>
+              </div>
             </div>
-          )}
-        </div>
-      )}
-    </div>
+
+            {/* Liste des builds */}
+            <div className="px-4 py-3">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-[#666666]">
+                Mes builds
+              </p>
+              {listError && <p className="mb-1 text-xs text-red-400">{listError}</p>}
+              {actionMsg && <p className="mb-1 text-xs text-emerald-400">{actionMsg}</p>}
+              <div className="max-h-[300px] overflow-y-auto [scrollbar-color:#2c2c2c_transparent] [scrollbar-width:thin]">
+                <ul className="space-y-1.5 pr-1">
+                  {builds.length === 0 && (
+                    <li className="text-xs text-[#444444]">Aucun build enregistré.</li>
+                  )}
+                  {builds.map((b) => (
+                    <li key={b.id} className="plaque-flat px-2 py-1.5">
+                      <div className="flex items-center gap-1.5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={classHeadUrl(b.class_id ?? 8, (b.sex === "female" ? "female" : "male"))}
+                          alt=""
+                          width={28}
+                          height={28}
+                          className="h-7 w-7 shrink-0 rounded-md object-cover"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                        />
+                        <div className="flex min-w-0 flex-1 flex-col">
+                          <span className="truncate text-xs font-medium text-[#d0d0d0]">
+                            {b.name}
+                          </span>
+                          {b.updated_at && (
+                            <span className="text-[9px] text-[#3a3a3a]">
+                              {new Date(b.updated_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                            </span>
+                          )}
+                        </div>
+                        <button
+                          type="button"
+                          title={b.is_public ? "Rendre privé" : "Rendre public"}
+                          disabled={togglingId === b.id}
+                          onClick={() => void handleToggleVisibility(b)}
+                          className={`shrink-0 rounded p-0.5 transition ${
+                            b.is_public ? "text-[var(--dofus-green-active)] hover:text-[#aaa]" : "text-[#555] hover:text-[var(--dofus-green-active)]"
+                          } ${togglingId === b.id ? "opacity-40" : ""}`}
+                        >
+                          {b.is_public ? <Eye size={14} /> : <EyeOff size={14} />}
+                        </button>
+                        <button type="button" onClick={() => void handleLoad(b)} title="Éditer ce build dans le builder" className="flex shrink-0 items-center gap-1 text-[11px] text-[var(--dofus-green-active)] hover:underline">
+                          <Pencil size={10} />
+                          Éditer
+                        </button>
+                        <button type="button" onClick={() => void copyLink(b.id)} className="shrink-0 text-[11px] text-[#888888] hover:underline">
+                          Lien
+                        </button>
+                        <button type="button" onClick={() => void handleDelete(b.id)} className="shrink-0 text-[11px] text-red-400/80 hover:underline">
+                          ×
+                        </button>
+                      </div>
+                      {(b.tags?.length ?? 0) > 0 && (
+                        <div className="mt-1 flex flex-wrap gap-1 pl-[34px]">
+                          {(b.tags ?? []).map((t) => (
+                            <span
+                              key={t}
+                              className="rounded-full bg-white/[0.04] px-1.5 py-0.5 text-[9px] text-[#666]"
+                            >
+                              {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -1,5 +1,6 @@
 "use client";
 
+import { motion } from "framer-motion";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 
@@ -55,7 +56,7 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
         <div className="h-5 w-px shrink-0 bg-white/10" />
 
         {/* Navigation */}
-        <nav className="hidden items-center gap-0.5 sm:flex">
+        <nav className="hidden items-center gap-1 sm:flex">
           {NAV_TABS.map(({ label, href, tab }) => {
             const isActive = resolveActive(tab);
             return (
@@ -63,13 +64,19 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
                 key={tab}
                 href={href}
                 onClick={() => onTabChange?.(tab)}
-                className={`rounded-lg px-4 py-1.5 text-[13px] font-medium transition ${
-                  isActive
-                    ? "bg-white/[0.07] text-white/80"
-                    : "text-white/30 hover:bg-white/[0.05] hover:text-white/60"
+                className={`relative rounded-lg px-4 py-1.5 text-[13px] font-medium transition-colors ${
+                  isActive ? "text-white/90" : "text-white/35 hover:text-white/65"
                 }`}
               >
                 {label}
+                {isActive && (
+                  <motion.span
+                    layoutId="navbar-active-underline"
+                    className="absolute inset-x-3 -bottom-[1px] h-[2px] rounded-full"
+                    style={{ backgroundColor: "var(--dofus-green-active)" }}
+                    transition={{ type: "spring", stiffness: 420, damping: 34 }}
+                  />
+                )}
               </Link>
             );
           })}
