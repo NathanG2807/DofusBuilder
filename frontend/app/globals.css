@@ -370,6 +370,87 @@ body.dofus-app {
   background: #3e3e3e;
 }
 
+/* ── Homepage : pulsations runes du zaap ── */
+@keyframes zaap-rune-twinkle {
+  0%,
+  100% {
+    opacity: 0.05;
+    transform: scale(0.6);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.25);
+  }
+}
+
+@keyframes zaap-rune-pulse-core {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: translate(-50%, -50%) scale(0.75);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.45);
+  }
+}
+
+@keyframes zaap-rune-pulse-outer {
+  0%,
+  100% {
+    opacity: 0.15;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  50% {
+    opacity: 0.75;
+    transform: translate(-50%, -50%) scale(1.35);
+  }
+}
+
+@keyframes zaap-rune-pulse-dot {
+  0%,
+  100% {
+    opacity: 0.4;
+    transform: translate(-50%, -50%) scale(0.8);
+  }
+  50% {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1.6);
+  }
+}
+
+@keyframes zaap-portal-breathe {
+  0%,
+  100% {
+    opacity: 0.25;
+    transform: translate(-50%, -50%) scale(0.92);
+  }
+  50% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+}
+
+.zaap-rune-twinkle {
+  animation: zaap-rune-twinkle ease-in-out infinite;
+}
+
+.zaap-rune-pulse-core {
+  animation: zaap-rune-pulse-core 2.4s ease-in-out infinite;
+}
+
+.zaap-rune-pulse-outer {
+  animation: zaap-rune-pulse-outer 2.4s ease-in-out infinite;
+}
+
+.zaap-rune-pulse-dot {
+  animation: zaap-rune-pulse-dot 2.4s ease-in-out infinite;
+}
+
+.zaap-portal-breathe {
+  animation: zaap-portal-breathe 3.6s ease-in-out infinite;
+}
+
 /* ── Variables CSS shadcn/base-ui — mappées sur les tokens Dofus/Atelier ──
    L'app est toujours en mode sombre, on pose tout dans :root.            */
 :root {
