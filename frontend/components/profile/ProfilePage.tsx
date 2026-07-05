@@ -1,15 +1,17 @@
 "use client";
 
-import { ArrowLeft, Calendar, Eye, EyeOff, Mail, Pencil, Trash2, X } from "lucide-react";
+import { ArrowLeft, Calendar, ChevronDown, Eye, EyeOff, Mail, Pencil, Trash2, X } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 
+import { InventoryPreview } from "@/components/build/InventoryPreview";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { DofusSpinner } from "@/components/ui/DofusSpinner";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Input } from "@/components/ui/Input";
+import { Modal } from "@/components/ui/Modal";
 import { Plaque } from "@/components/ui/Plaque";
 import {
   authLogout,
@@ -40,15 +42,19 @@ function StatCard({ label, value, color }: { label: string; value: number; color
 /* ── Build row ──────────────────────────────────────────────────────────── */
 function BuildRow({
   build,
+  expanded,
+  onToggleExpand,
   onEdit,
-  onDelete,
+  onRequestDelete,
   onToggleVisibility,
   onUpdateTags,
   toggling,
 }: {
   build: BuildOut;
+  expanded: boolean;
+  onToggleExpand: () => void;
   onEdit: (b: BuildOut) => void;
-  onDelete: (id: string) => void;
+  onRequestDelete: (b: BuildOut) => void;
   onToggleVisibility: (b: BuildOut) => void;
   onUpdateTags: (id: string, tags: string[]) => Promise<void>;
   toggling: boolean;
@@ -82,57 +88,69 @@ function BuildRow({
   return (
     <Plaque flat interactive>
       <div className="flex items-center gap-3 px-4 py-3">
-        {/* Class icon */}
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
-          src={classHeadUrl(classId, sex)}
-          alt={className}
-          width={36}
-          height={36}
-          className="h-9 w-9 shrink-0 rounded-lg object-cover"
-          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-        />
+        <button
+          type="button"
+          onClick={onToggleExpand}
+          className="flex min-w-0 flex-1 items-center gap-3 text-left transition hover:opacity-90"
+          aria-expanded={expanded}
+        >
+          {/* Class icon */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={classHeadUrl(classId, sex)}
+            alt={className}
+            width={36}
+            height={36}
+            className="h-9 w-9 shrink-0 rounded-lg object-cover"
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+          />
 
-        {/* Info */}
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <p className="truncate text-[13px] font-semibold text-[#e0d0a0]">{build.name}</p>
-            {build.level != null && (
-              <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-[#666]">
-                Niv. {build.level}
-              </span>
-            )}
-            <span className="shrink-0 text-[11px] text-[#4a4a4a]">{className}</span>
-          </div>
-          {/* Tags display + date */}
-          {!editingTags && (
-            <div className="mt-1 flex flex-wrap items-center gap-1">
-              {(build.tags?.length ?? 0) > 0 ? (
-                (build.tags ?? []).map((tagId) => {
-                  const tag = BUILD_TAGS.find((t) => t.id === tagId);
-                  return tag ? (
-                    <span
-                      key={tagId}
-                      className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
-                      style={{ backgroundColor: `${tag.color}22`, color: tag.color }}
-                    >
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img src={tag.icon} alt="" width={9} height={9} className="shrink-0" />
-                      {tag.label}
-                    </span>
-                  ) : null;
-                })
-              ) : (
-                <span className="text-[10px] text-[#333]">Aucun tag</span>
-              )}
-              {build.updated_at && (
-                <span className="ml-1 text-[10px] text-[#3a3a3a]">
-                  · Du {new Date(build.updated_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+          {/* Info */}
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <p className="truncate text-[13px] font-semibold text-[#e0d0a0]">{build.name}</p>
+              {build.level != null && (
+                <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-[#666]">
+                  Niv. {build.level}
                 </span>
               )}
+              <span className="shrink-0 text-[11px] text-[#4a4a4a]">{className}</span>
             </div>
-          )}
-        </div>
+            {/* Tags display + date */}
+            {!editingTags && (
+              <div className="mt-1 flex flex-wrap items-center gap-1">
+                {(build.tags?.length ?? 0) > 0 ? (
+                  (build.tags ?? []).map((tagId) => {
+                    const tag = BUILD_TAGS.find((t) => t.id === tagId);
+                    return tag ? (
+                      <span
+                        key={tagId}
+                        className="flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-[9px] font-medium"
+                        style={{ backgroundColor: `${tag.color}22`, color: tag.color }}
+                      >
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={tag.icon} alt="" width={9} height={9} className="shrink-0" />
+                        {tag.label}
+                      </span>
+                    ) : null;
+                  })
+                ) : (
+                  <span className="text-[10px] text-[#333]">Aucun tag</span>
+                )}
+                {build.updated_at && (
+                  <span className="ml-1 text-[10px] text-[#3a3a3a]">
+                    · Du {new Date(build.updated_at).toLocaleDateString("fr-FR", { day: "2-digit", month: "2-digit", year: "numeric" })}
+                  </span>
+                )}
+              </div>
+            )}
+          </div>
+
+          <ChevronDown
+            size={16}
+            className={`shrink-0 text-[#555] transition-transform duration-200 ${expanded ? "rotate-180" : ""}`}
+          />
+        </button>
 
         {/* Actions */}
         <div className="flex shrink-0 items-center gap-1.5">
@@ -177,7 +195,7 @@ function BuildRow({
           {/* Delete */}
           <button
             type="button"
-            onClick={() => onDelete(build.id)}
+            onClick={() => onRequestDelete(build)}
             className="rounded-[8px] border border-transparent px-2 py-1 text-[11px] text-red-500/50 transition hover:border-red-500/20 hover:bg-red-500/5 hover:text-red-400"
             title="Supprimer"
           >
@@ -185,6 +203,30 @@ function BuildRow({
           </button>
         </div>
       </div>
+
+      {/* Build preview accordion */}
+      {expanded && (
+        <div className="border-t border-white/[0.06] px-4 py-5">
+          <InventoryPreview
+            slotsPreview={build.slots_preview}
+            slots={build.slots}
+            exoFm={build.exo_fm}
+            classId={classId}
+            sex={sex}
+            slotSize={40}
+            dofusSlotSize={32}
+            centerWidth={70}
+          />
+          <div className="mt-4 flex justify-center">
+            <Link
+              href={`/build/${build.id}`}
+              className="text-[11px] text-[var(--dofus-green-active)] transition hover:underline"
+            >
+              Voir le build complet →
+            </Link>
+          </div>
+        </div>
+      )}
 
       {/* Inline tag editor */}
       {editingTags && (
@@ -313,6 +355,9 @@ export function ProfilePage() {
   const [error, setError] = useState<string | null>(null);
   const [togglingId, setTogglingId] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const [expandedBuildId, setExpandedBuildId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<BuildOut | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const hydrateFromPersistedBuild = useBuildStore((s) => s.hydrateFromPersistedBuild);
   const prefetchEquippedItems = useBuildStore((s) => s.prefetchEquippedItems);
@@ -350,13 +395,19 @@ export function ProfilePage() {
     }
   }
 
-  async function handleDelete(id: string) {
-    if (!confirm("Supprimer ce build définitivement ?")) return;
+  async function confirmDelete() {
+    if (!deleteTarget) return;
+    setDeleting(true);
+    setActionError(null);
     try {
-      await deleteBuild(id);
-      setBuilds((prev) => prev.filter((b) => b.id !== id));
+      await deleteBuild(deleteTarget.id);
+      setBuilds((prev) => prev.filter((b) => b.id !== deleteTarget.id));
+      if (expandedBuildId === deleteTarget.id) setExpandedBuildId(null);
+      setDeleteTarget(null);
     } catch (e) {
       setActionError(e instanceof Error ? e.message : "Impossible de supprimer.");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -504,8 +555,10 @@ export function ProfilePage() {
                 <BuildRow
                   key={b.id}
                   build={b}
+                  expanded={expandedBuildId === b.id}
+                  onToggleExpand={() => setExpandedBuildId((prev) => (prev === b.id ? null : b.id))}
                   onEdit={(build) => void handleEdit(build)}
-                  onDelete={(id) => void handleDelete(id)}
+                  onRequestDelete={setDeleteTarget}
                   onToggleVisibility={(build) => void handleToggleVisibility(build)}
                   onUpdateTags={handleUpdateTags}
                   toggling={togglingId === b.id}
@@ -515,6 +568,39 @@ export function ProfilePage() {
           )}
         </div>
       </main>
+
+      <Modal
+        open={deleteTarget != null}
+        onClose={() => { if (!deleting) setDeleteTarget(null); }}
+        title="Supprimer le build"
+        widthClassName="max-w-sm"
+      >
+        <p className="text-[13px] leading-relaxed text-[#999]">
+          Êtes-vous sûr de vouloir supprimer{" "}
+          <span className="font-medium text-[#e0d0a0]">« {deleteTarget?.name} »</span> ?
+          Cette action est définitive et ne peut pas être annulée.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            disabled={deleting}
+            onClick={() => setDeleteTarget(null)}
+          >
+            Annuler
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            disabled={deleting}
+            onClick={() => void confirmDelete()}
+          >
+            {deleting ? "Suppression…" : "Supprimer"}
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }
