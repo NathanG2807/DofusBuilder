@@ -64,11 +64,11 @@ export default function HomePage() {
       <Navbar />
 
       {/* ── Hero ── */}
-      <div className="flex w-full flex-col items-center px-4 pb-14 pt-20 text-center">
+      <div className="flex w-full flex-col items-center px-4 pt-20 text-center mt-30 sm:mt-34">
         <h1 className="font-display text-[38px] font-medium italic tracking-tight text-white sm:text-[52px]">
           {/* Zaap Builder */}
         </h1>
-        <p className="mt-4 max-w-[480px] text-[15px] leading-relaxed text-[#6b6b6b]">
+        <p className="mt-4 max-w-[480px] text-[18px] leading-relaxed text-[#6b6b6b]">
           Bienvenue sur Zaap, votre outil communautaire pour&nbsp;
           <span className="text-[#8a8a8a]">Dofus&nbsp;3</span>.
         </p>
@@ -77,7 +77,7 @@ export default function HomePage() {
         </span>
       </div>
 
-      <div className="mt-20 sm:mt-24">
+      <div className="mt-28 sm:mt-32">
         <HomeCards cards={CARDS} />
       </div>
     </div>

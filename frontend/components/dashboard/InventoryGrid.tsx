@@ -8,7 +8,7 @@ import {
   useItemHoverCard,
 } from "@/components/items/ItemHoverCard";
 import { AddToAtelierModal } from "@/components/atelier/AddToAtelierModal";
-import { Check } from "lucide-react";
+import { Check, FilePlus } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import {
@@ -565,6 +565,7 @@ function SaveBuildButton() {
   const isDirty = useBuildStore((s) => s.isDirty);
   const setSavedBuildId = useBuildStore((s) => s.setSavedBuildId);
   const markClean = useBuildStore((s) => s.markClean);
+  const itemById = useBuildStore((s) => s.itemById);
 
   const isSaved = !!savedBuildId && !isDirty;
 
@@ -583,6 +584,11 @@ function SaveBuildButton() {
       const id = currentBuild[slot];
       if (id != null) lockedSlotsMap[slot] = id;
     }
+    const slotsPreview: Record<string, string | null> = {};
+    for (const [slot, itemId] of Object.entries(currentBuild)) {
+      if (itemId == null) continue;
+      slotsPreview[slot] = itemById[itemId]?.image_url_icon ?? null;
+    }
     const payload = {
       name: buildName.trim() || "Sans titre",
       slots: { ...currentBuild },
@@ -596,6 +602,7 @@ function SaveBuildButton() {
       class_id: classId,
       sex,
       is_public: true,
+      slots_preview: slotsPreview,
     };
     try {
       if (savedBuildId) {
@@ -636,6 +643,25 @@ function SaveBuildButton() {
         <span className="text-[11px] text-red-400">{errorMsg}</span>
       )}
     </div>
+  );
+}
+
+function NewBuildButton() {
+  const isDirty = useBuildStore((s) => s.isDirty);
+  const savedBuildId = useBuildStore((s) => s.savedBuildId);
+  const resetBuild = useBuildStore((s) => s.resetBuild);
+
+  function handleNew() {
+    const hasUnsaved = isDirty || savedBuildId != null;
+    if (hasUnsaved && !confirm("Créer un nouveau build ? Les modifications non sauvegardées seront perdues.")) return;
+    resetBuild();
+  }
+
+  return (
+    <Button type="button" variant="outline" size="xs" onClick={handleNew} title="Nouveau build vide">
+      <FilePlus size={12} className="shrink-0" />
+      Nouveau
+    </Button>
   );
 }
 
@@ -758,6 +784,7 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
 
         <AddToAtelierButton />
         <SaveBuildButton />
+        <NewBuildButton />
         <StuffLevelBadge />
       </div>
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { ChevronDown, Eye, EyeOff, Pencil, User as UserIcon } from "lucide-react";
+import { ArrowLeft, ChevronDown, Eye, EyeOff, Pencil, User as UserIcon } from "lucide-react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -20,6 +21,7 @@ import {
   listMyBuilds,
   updateBuild,
 } from "@/lib/api";
+import { cn } from "@/lib/cn";
 import { clearAccessToken, getAccessToken, setAccessToken } from "@/lib/auth";
 import { classHeadUrl } from "@/lib/classImage";
 import { useBuildStore } from "@/store/build-store";
@@ -28,6 +30,7 @@ import type { BuildOut, UserPublic } from "@/types/api";
 type AuthMode = "login" | "register" | "forgot";
 
 export function AccountButton() {
+  const router = useRouter();
   const [open, setOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
   const [username, setUsername] = useState("");
@@ -111,6 +114,7 @@ export function AccountButton() {
       hydrateFromPersistedBuild(b);
       await prefetchEquippedItems();
       setOpen(false);
+      router.push("/builder");
     } catch (err) {
       setListError(err instanceof Error ? err.message : "Impossible");
     }
@@ -165,7 +169,12 @@ export function AccountButton() {
         render={
           <button
             type="button"
-            className="plaque-flat flex items-center gap-1.5 rounded-[10px] px-2.5 py-1.5 text-[11px] font-medium text-[#c9c9c9] transition hover:border-white/20"
+            className={cn(
+              "flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-1.5 text-[13px] font-medium transition-all duration-150",
+              open
+                ? "border-[color:var(--atelier-plaque-border-hover)] bg-white/[0.07] text-white/90 shadow-[0_0_0_1px_rgba(200,217,176,0.08)]"
+                : "border-white/[0.08] bg-white/[0.03] text-white/55 hover:border-white/15 hover:bg-white/[0.06] hover:text-white/80",
+            )}
           />
         }
       >
@@ -176,111 +185,161 @@ export function AccountButton() {
           </>
         ) : (
           <>
-            <UserIcon size={13} className="shrink-0 text-[#888]" />
+            <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/[0.05] ring-1 ring-white/[0.06]">
+              <UserIcon size={13} className="text-[var(--dofus-green-active)]/80" />
+            </span>
             Connexion
           </>
         )}
-        <ChevronDown size={11} className={`shrink-0 opacity-60 transition-transform ${open ? "rotate-180" : ""}`} />
+        <ChevronDown
+          size={12}
+          className={cn(
+            "shrink-0 text-white/35 transition-transform duration-200",
+            open && "rotate-180 text-white/55",
+          )}
+        />
       </PopoverTrigger>
 
       {/* ─── Panneau ─── positionné automatiquement sous le bouton par Base UI */}
-      <PopoverContent side="bottom" align="end" className="w-[340px]">
+      <PopoverContent side="bottom" align="end" className="w-[360px]">
         {!user ? (
           /* ── Formulaire connexion / inscription ── */
-          <div className="p-4">
-            <div className="mb-3 flex gap-3 border-b border-white/[0.06] pb-3">
+          <div>
+            <div className="border-b border-white/[0.06] px-5 pb-4 pt-5">
+              <p className="font-display text-[18px] font-medium text-white/92">
+                {authMode === "forgot"
+                  ? "Mot de passe oublié"
+                  : authMode === "register"
+                    ? "Créer un compte"
+                    : "Bon retour"}
+              </p>
+              <p className="mt-1 text-[12px] leading-relaxed text-white/40">
+                {authMode === "forgot"
+                  ? "Un lien de réinitialisation vous sera envoyé par email si le compte existe."
+                  : authMode === "register"
+                    ? "Rejoignez Zaap pour sauvegarder et partager vos builds."
+                    : "Connectez-vous pour accéder à vos builds sauvegardés."}
+              </p>
+            </div>
+
+            <div className="p-5">
               {authMode !== "forgot" ? (
-                (["login", "register"] as const).map((m) => (
-                  <button
-                    key={m}
-                    type="button"
-                    onClick={() => { setAuthMode(m); setAuthError(null); setAuthSuccess(null); }}
-                    className={`text-sm font-medium transition ${
-                      authMode === m ? "text-[var(--dofus-green-active)]" : "text-[#555555] hover:text-[#aaaaaa]"
-                    }`}
-                  >
-                    {m === "login" ? "Connexion" : "Inscription"}
-                  </button>
-                ))
+                <div className="mb-4 flex rounded-lg border border-white/[0.06] bg-black/25 p-1">
+                  {(["login", "register"] as const).map((m) => (
+                    <button
+                      key={m}
+                      type="button"
+                      onClick={() => { setAuthMode(m); setAuthError(null); setAuthSuccess(null); }}
+                      className={cn(
+                        "flex-1 cursor-pointer rounded-md py-1.5 text-[12px] font-semibold transition-all duration-150",
+                        authMode === m
+                          ? "bg-white/[0.08] text-[var(--dofus-green-active)] shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]"
+                          : "text-white/38 hover:text-white/65",
+                      )}
+                    >
+                      {m === "login" ? "Connexion" : "Inscription"}
+                    </button>
+                  ))}
+                </div>
               ) : (
                 <button
                   type="button"
                   onClick={() => { setAuthMode("login"); setAuthError(null); setAuthSuccess(null); }}
-                  className="text-sm font-medium text-[var(--dofus-green-active)]"
+                  className="mb-4 flex cursor-pointer items-center gap-1.5 text-[12px] font-medium text-white/45 transition hover:text-[var(--dofus-green-active)]"
                 >
-                  ← Retour à la connexion
+                  <ArrowLeft size={14} />
+                  Retour à la connexion
                 </button>
               )}
-            </div>
-            <form className="space-y-2" onSubmit={handleAuth}>
-              {authMode === "forgot" ? (
-                <>
-                  <p className="text-xs text-[#888]">
-                    Saisissez l&apos;email de votre compte. Si un compte existe, vous recevrez un lien de réinitialisation.
-                  </p>
+
+              <form className="space-y-3" onSubmit={handleAuth}>
+                {authMode === "forgot" ? (
                   <Input
                     type="email"
-                    placeholder="Email"
+                    label="Email"
+                    placeholder="votre@email.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     autoComplete="email"
                     required
                   />
-                </>
-              ) : (
-                <>
-                  <Input
-                    placeholder="Nom d'utilisateur"
-                    value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    autoComplete="username"
-                    required
-                  />
-                  {authMode === "register" && (
+                ) : (
+                  <>
                     <Input
-                      type="email"
-                      placeholder="Email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      autoComplete="email"
+                      label="Nom d'utilisateur"
+                      placeholder="Votre pseudo"
+                      value={username}
+                      onChange={(e) => setUsername(e.target.value)}
+                      autoComplete="username"
                       required
                     />
+                    {authMode === "register" && (
+                      <Input
+                        type="email"
+                        label="Email"
+                        placeholder="votre@email.com"
+                        value={email}
+                        onChange={(e) => setEmail(e.target.value)}
+                        autoComplete="email"
+                        required
+                      />
+                    )}
+                    <Input
+                      type="password"
+                      label="Mot de passe"
+                      placeholder="••••••••"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      autoComplete={authMode === "register" ? "new-password" : "current-password"}
+                      required
+                    />
+                    {authMode === "login" && (
+                      <div className="flex justify-end">
+                        <button
+                          type="button"
+                          onClick={() => { setAuthMode("forgot"); setAuthError(null); setAuthSuccess(null); }}
+                          className="cursor-pointer text-[11px] text-white/38 transition hover:text-[var(--dofus-green-active)]"
+                        >
+                          Mot de passe oublié ?
+                        </button>
+                      </div>
+                    )}
+                  </>
+                )}
+                {authError && (
+                  <p className="rounded-lg border border-red-500/20 bg-red-500/10 px-3 py-2 text-xs text-red-300">
+                    {authError}
+                  </p>
+                )}
+                {authSuccess && (
+                  <p className="rounded-lg border border-emerald-500/20 bg-emerald-500/10 px-3 py-2 text-xs text-emerald-300">
+                    {authSuccess}
+                  </p>
+                )}
+                <button
+                  type="submit"
+                  disabled={busy}
+                  className={cn(
+                    "mt-2 w-full cursor-pointer rounded-[10px] border border-[color:var(--atelier-plaque-border)] bg-white/[0.02] px-4 py-2 text-[13px] font-semibold text-[#d0d0d0]",
+                    "transition-[border-color,color,background-color] duration-150",
+                    "hover:border-[color:var(--atelier-plaque-border-hover)] hover:bg-white/[0.04] hover:text-[var(--dofus-green-active)]",
+                    "disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:border-[color:var(--atelier-plaque-border)] disabled:hover:bg-white/[0.02] disabled:hover:text-[#d0d0d0]",
                   )}
-                  <Input
-                    type="password"
-                    placeholder="Mot de passe"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    autoComplete={authMode === "register" ? "new-password" : "current-password"}
-                    required
-                  />
-                  {authMode === "login" && (
-                    <div className="flex justify-end">
-                      <button
-                        type="button"
-                        onClick={() => { setAuthMode("forgot"); setAuthError(null); setAuthSuccess(null); }}
-                        className="text-[11px] text-[#666] transition hover:text-[var(--dofus-green-active)]"
-                      >
-                        Mot de passe oublié ?
-                      </button>
-                    </div>
-                  )}
-                </>
-              )}
-              {authError && <p className="text-xs text-red-400">{authError}</p>}
-              {authSuccess && <p className="text-xs text-emerald-400">{authSuccess}</p>}
-              <button
-                type="submit"
-                disabled={busy}
-                className="w-full rounded-[10px] bg-gradient-to-b from-[var(--dofus-color-ref-end)] to-[var(--dofus-color-ref-start)] py-2 text-sm font-semibold text-[#ecf4e4] transition hover:brightness-110 disabled:opacity-50"
-              >
-                {authMode === "register"
-                  ? "Créer le compte"
-                  : authMode === "forgot"
-                    ? "Envoyer le lien"
-                    : "Se connecter"}
-              </button>
-            </form>
+                >
+                  {busy
+                    ? authMode === "register"
+                      ? "Création…"
+                      : authMode === "forgot"
+                        ? "Envoi…"
+                        : "Connexion…"
+                    : authMode === "register"
+                      ? "Créer le compte"
+                      : authMode === "forgot"
+                        ? "Envoyer le lien"
+                        : "Se connecter"}
+                </button>
+              </form>
+            </div>
           </div>
         ) : (
           /* ── Panel connecté ── */

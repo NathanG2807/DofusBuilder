@@ -1,15 +1,13 @@
 "use client";
 
-import { Check, ChevronDown, ChevronRight, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronRight, ListChecks, Pencil, Plus, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
 import { Button } from "@/components/ui/Button";
-import { DofusSpinner } from "@/components/ui/DofusSpinner";
+import { AtelierPanelSkeleton, LoadingShell } from "@/components/ui/loading-skeletons";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
-import { Plaque } from "@/components/ui/Plaque";
-import { SectionHeading } from "@/components/ui/SectionHeading";
 import { fetchItem, fetchItemsBySet, searchItems, searchSets } from "@/lib/api";
 import { EQUIPMENT_TYPE_OPTIONS, typeLabel } from "@/lib/equipmentTypes";
 import {
@@ -27,9 +25,50 @@ import {
   validateIngredientFully,
   type EntryIngredientRow,
 } from "@/lib/craftRecipe";
+import { cn } from "@/lib/cn";
 import { useAtelierStore } from "@/store/atelier-store";
 import type { CraftEntry, CraftListOut, ItemOut, ItemSetOut } from "@/types/api";
 
+function AtelierIcon({ size = 13, className = "shrink-0 brightness-0 invert" }: { size?: number; className?: string }) {
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src="/assets/global/UI/job.png" width={size} height={size} alt="" className={className} />
+  );
+}
+
+/* ─── Type badge ─────────────────────────────────────────────────────────── */
+function EntryTypeBadge({ type }: { type: string }) {
+  const styles: Record<string, string> = {
+    item:  "bg-sky-500/10 text-sky-400/80 border-sky-500/20",
+    set:   "bg-amber-500/10 text-amber-400/80 border-amber-500/20",
+    build: "bg-violet-500/10 text-violet-400/80 border-violet-500/20",
+  };
+  return (
+    <span className={cn(
+      "shrink-0 rounded-[5px] border px-1.5 py-0.5 text-[10px] font-medium",
+      styles[type] ?? "bg-white/5 text-white/30 border-white/10",
+    )}>
+      {type}
+    </span>
+  );
+}
+
+/* ─── Mini progress bar ──────────────────────────────────────────────────── */
+function MiniProgress({ pct, done }: { pct: number; done: boolean }) {
+  return (
+    <div className="flex items-center gap-1.5">
+      <div className="h-1 w-16 overflow-hidden rounded-full bg-white/[0.06]">
+        <div
+          className={cn("h-full rounded-full transition-all", done ? "bg-emerald-400/80" : "bg-[var(--dofus-ui-selected-border,#98c030)]/70")}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
+      {done && <Check size={11} className="shrink-0 text-emerald-400" />}
+    </div>
+  );
+}
+
+/* ─── Ingredient table ───────────────────────────────────────────────────── */
 function IngredientTable({
   rows,
   itemCache,
@@ -48,25 +87,21 @@ function IngredientTable({
   const { hover, show, move, scheduleHide, cancelHide, hide } = useItemHoverCard();
 
   if (rows.length === 0) {
-    return (
-      <p className="py-3 text-center text-xs text-white/30">
-        Aucun ingrédient craftable.
-      </p>
-    );
+    return <p className="py-3 text-center text-xs text-white/30">Aucun ingrédient craftable.</p>;
   }
 
   return (
     <>
       <div className="overflow-x-auto">
-        <table className={`w-full text-left ${compact ? "text-[11px]" : "text-xs"}`}>
+        <table className={cn("w-full text-left", compact ? "text-[11px]" : "text-xs")}>
           <thead>
-            <tr className="border-b border-white/10 text-white/40">
-              <th className="px-2 py-1.5 font-medium">Ingrédient</th>
-              <th className="px-2 py-1.5 font-medium text-right">Requis</th>
-              <th className="px-2 py-1.5 font-medium text-right">Possédé</th>
-              <th className="px-2 py-1.5 font-medium text-right">Validé</th>
-              <th className="px-2 py-1.5 font-medium text-right">Reste</th>
-              <th className="px-2 py-1.5" />
+            <tr className="border-b border-white/[0.07] text-white/35">
+              <th className="py-1.5 pl-2 pr-2 font-medium">Ingrédient</th>
+              <th className="py-1.5 pr-2 text-right font-medium">Requis</th>
+              <th className="py-1.5 pr-2 text-right font-medium">Possédé</th>
+              <th className="py-1.5 pr-2 text-right font-medium">Validé</th>
+              <th className="py-1.5 pr-2 text-right font-medium">Reste</th>
+              <th className="py-1.5 pr-1" />
             </tr>
           </thead>
           <tbody>
@@ -76,9 +111,9 @@ function IngredientTable({
               return (
                 <tr
                   key={row.ingredientId}
-                  className={`border-b border-white/[0.04] ${ingredientRowClassName(status)}`}
+                  className={cn("border-b border-white/[0.04]", ingredientRowClassName(status))}
                 >
-                  <td className="px-2 py-1.5">
+                  <td className="py-1.5 pl-2 pr-2">
                     <div
                       className="flex items-center gap-2"
                       onMouseEnter={item ? (e) => show(item, e) : undefined}
@@ -87,65 +122,48 @@ function IngredientTable({
                     >
                       {item?.image_url_icon ? (
                         // eslint-disable-next-line @next/next/no-img-element
-                        <img
-                          src={item.image_url_icon}
-                          alt=""
-                          width={24}
-                          height={24}
-                          className="rounded border border-white/10"
-                        />
+                        <img src={item.image_url_icon} alt="" width={22} height={22}
+                          className="shrink-0 rounded border border-white/10" />
                       ) : (
-                        <div className="h-6 w-6 rounded bg-white/5" />
+                        <div className="h-[22px] w-[22px] shrink-0 rounded bg-white/5" />
                       )}
                       <span className="text-white/80">{item?.name ?? `#${row.ingredientId}`}</span>
                     </div>
                   </td>
-                  <td className="px-2 py-1.5 text-right text-white/60">{row.required}</td>
-                  <td className="px-2 py-1.5 text-right">
-                    {row.required > 1 ? (
-                      <input
-                        type="number"
-                        min={0}
-                        value={progress[String(row.ingredientId)]?.owned ?? 0}
-                        onChange={(e) =>
-                          onOwnedChange(
-                            row.ingredientId,
-                            parseInt(e.target.value, 10) || 0,
-                            row.required,
-                          )
-                        }
-                        className="w-16 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-right text-white/80 focus:border-white/25 focus:outline-none"
-                      />
-                    ) : (
-                      <input
-                        type="number"
-                        min={0}
-                        max={1}
-                        value={progress[String(row.ingredientId)]?.owned ?? 0}
-                        onChange={(e) =>
-                          onOwnedChange(
-                            row.ingredientId,
-                            Math.min(1, parseInt(e.target.value, 10) || 0),
-                            row.required,
-                          )
-                        }
-                        className="w-12 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-right text-white/80 focus:border-white/25 focus:outline-none"
-                        title="Quantité possédée"
-                      />
-                    )}
+                  <td className="py-1.5 pr-2 text-right text-white/50">{row.required}</td>
+                  <td className="py-1.5 pr-2 text-right">
+                    <input
+                      type="number"
+                      min={0}
+                      max={row.required > 1 ? undefined : 1}
+                      value={progress[String(row.ingredientId)]?.owned ?? 0}
+                      onChange={(e) =>
+                        onOwnedChange(
+                          row.ingredientId,
+                          row.required > 1
+                            ? (parseInt(e.target.value, 10) || 0)
+                            : Math.min(1, parseInt(e.target.value, 10) || 0),
+                          row.required,
+                        )
+                      }
+                      className={cn(
+                        "rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-right text-white/80 focus:border-white/25 focus:outline-none",
+                        row.required > 1 ? "w-16" : "w-12",
+                      )}
+                    />
                   </td>
-                  <td className="px-2 py-1.5 text-right text-[var(--dofus-ui-selected-border,#98c030)]">
+                  <td className="py-1.5 pr-2 text-right text-[var(--dofus-ui-selected-border,#98c030)]">
                     {row.validated}/{row.required}
                   </td>
-                  <td className="px-2 py-1.5 text-right text-white/60">{row.remaining}</td>
-                  <td className="px-2 py-1.5 text-right">
+                  <td className="py-1.5 pr-2 text-right text-white/50">{row.remaining}</td>
+                  <td className="py-1.5 pr-1 text-right">
                     <button
                       type="button"
                       onClick={() => onValidateRow(row.ingredientId, row.required)}
-                      className="rounded-md border border-white/10 p-1 text-white/60 transition hover:border-[var(--dofus-ui-selected-border,#98c030)] hover:text-white"
-                      title="Valider cet ingrédient"
+                      className="rounded-md border border-white/10 p-1 text-white/50 transition hover:border-[var(--dofus-ui-selected-border,#98c030)] hover:text-white"
+                      title="Valider"
                     >
-                      <Check size={12} />
+                      <Check size={11} />
                     </button>
                   </td>
                 </tr>
@@ -155,28 +173,14 @@ function IngredientTable({
         </table>
       </div>
       {hover && (
-        <ItemHoverCard
-          item={hover.item}
-          anchor={{ x: hover.x, y: hover.y }}
-          onMouseEnter={cancelHide}
-          onMouseLeave={scheduleHide}
-          onForceHide={hide}
-        />
+        <ItemHoverCard item={hover.item} anchor={{ x: hover.x, y: hover.y }}
+          onMouseEnter={cancelHide} onMouseLeave={scheduleHide} onForceHide={hide} />
       )}
     </>
   );
 }
 
-function toggleInSet(
-  set: Set<string>,
-  key: string,
-): Set<string> {
-  const next = new Set(set);
-  if (next.has(key)) next.delete(key);
-  else next.add(key);
-  return next;
-}
-
+/* ─── Nested items (panoplie / build) ───────────────────────────────────── */
 function NestedItemsDetail({
   entryId,
   itemBreakdown,
@@ -199,7 +203,7 @@ function NestedItemsDetail({
   onValidateItemRecipe: (rows: EntryIngredientRow[]) => void;
 }) {
   return (
-    <div className="space-y-1.5">
+    <div className="space-y-1">
       {itemBreakdown.map(({ itemId, craftQty, rows }) => {
         const item = itemCache[itemId];
         const subKey = `${entryId}:${itemId}`;
@@ -208,63 +212,53 @@ function NestedItemsDetail({
         const hasRecipe = rows.length > 0;
 
         return (
-            <div
-              key={subKey}
-              className="plaque-flat"
-            >
-            <div className="flex items-center gap-2 px-2 py-1.5">
+          <div key={subKey} className="overflow-hidden rounded-lg border border-white/[0.07] bg-white/[0.015]">
+            <div className="flex items-center gap-2 px-3 py-2">
               <button
                 type="button"
                 onClick={() => onToggleSubItem(subKey)}
                 className="flex min-w-0 flex-1 items-center gap-2 text-left"
               >
-                <span className="shrink-0 text-white/40">
-                  {subExpanded ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                <span className={cn("shrink-0 transition-transform", subExpanded && "rotate-90")}>
+                  <ChevronRight size={13} className="text-white/30" />
                 </span>
                 {item?.image_url_icon ? (
                   // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={item.image_url_icon}
-                    alt=""
-                    width={22}
-                    height={22}
-                    className="shrink-0 rounded border border-white/10"
-                  />
+                  <img src={item.image_url_icon} alt="" width={20} height={20}
+                    className="shrink-0 rounded border border-white/10" />
                 ) : (
-                  <div className="h-[22px] w-[22px] shrink-0 rounded bg-white/5" />
+                  <div className="h-5 w-5 shrink-0 rounded bg-white/5" />
                 )}
-                <span className={`text-xs text-white/80 ${itemDone ? "text-emerald-400/90" : ""}`}>
+                <span className={cn("text-xs", itemDone ? "text-emerald-400/90" : "text-white/75")}>
                   {item?.name ?? `Item #${itemId}`}
-                  {craftQty > 1 && (
-                    <span className="ml-1 text-white/40">×{craftQty}</span>
-                  )}
+                  {craftQty > 1 && <span className="ml-1 text-white/35">×{craftQty}</span>}
                 </span>
-                {!hasRecipe && (
-                  <span className="text-[10px] text-white/30">Non craftable</span>
-                )}
+                {!hasRecipe && <span className="text-[10px] text-white/25">Non craftable</span>}
               </button>
-              {hasRecipe && (
+              {itemDone && <Check size={12} className="shrink-0 text-emerald-400" />}
+              {hasRecipe && !itemDone && (
                 <button
                   type="button"
                   onClick={() => onValidateItemRecipe(rows)}
-                  className="flex items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[10px] text-white/60 hover:border-[var(--dofus-ui-selected-border,#98c030)]"
+                  className="flex shrink-0 items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[10px] text-white/50 transition hover:border-[color:var(--atelier-plaque-border-hover)] hover:text-[var(--dofus-green-active)]"
                 >
-                  <Check size={11} /> Recette
+                  <Check size={10} /> Recette
                 </button>
               )}
             </div>
-            {subExpanded && hasRecipe && (
-              <div className="border-t border-white/[0.04] px-1 pb-2">
-                <IngredientTable
-                  rows={rows}
-                  itemCache={itemCache}
-                  progress={progress}
-                  onOwnedChange={onOwnedChange}
-                  onValidateRow={onValidateRow}
-                  compact
-                />
+            {/* Smooth accordion via grid */}
+            <div className={cn("grid transition-[grid-template-rows] duration-200", subExpanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+              <div className="overflow-hidden">
+                {hasRecipe && (
+                  <div className="border-t border-white/[0.05] px-2 pb-2 pt-1">
+                    <IngredientTable
+                      rows={rows} itemCache={itemCache} progress={progress}
+                      onOwnedChange={onOwnedChange} onValidateRow={onValidateRow} compact
+                    />
+                  </div>
+                )}
               </div>
-            )}
+            </div>
           </div>
         );
       })}
@@ -272,11 +266,9 @@ function NestedItemsDetail({
   );
 }
 
+/* ─── Add entry modal ────────────────────────────────────────────────────── */
 function AddEntryModal({
-  open,
-  onClose,
-  onAddItem,
-  onAddSet,
+  open, onClose, onAddItem, onAddSet,
 }: {
   open: boolean;
   onClose: () => void;
@@ -297,19 +289,14 @@ function AddEntryModal({
       setLoading(true);
       try {
         if (tab === "item") {
-          const res = await searchItems({
-            q: q || undefined,
-            page_size: 20,
-            type_name_id: typeId || undefined,
-          });
+          const res = await searchItems({ q: q || undefined, page_size: 20, type_name_id: typeId || undefined });
           setItems(res.items);
         } else {
           const res = await searchSets(q, 1, 20);
           setSets(res.sets);
         }
       } catch {
-        setItems([]);
-        setSets([]);
+        setItems([]); setSets([]);
       } finally {
         setLoading(false);
       }
@@ -319,50 +306,38 @@ function AddEntryModal({
 
   return (
     <Modal open={open} onClose={onClose} title="Ajouter à la liste" widthClassName="max-w-lg">
-      <div className="mb-3 flex gap-2">
-        <button
-          type="button"
-          onClick={() => setTab("item")}
-          className={`rounded-lg px-3 py-1 text-xs transition ${tab === "item" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}
-        >
-          Item
-        </button>
-        <button
-          type="button"
-          onClick={() => setTab("set")}
-          className={`rounded-lg px-3 py-1 text-xs transition ${tab === "set" ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70"}`}
-        >
-          Panoplie
-        </button>
+      <div className="mb-3 flex items-center gap-2">
+        {(["item", "set"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setTab(t)}
+            className={cn(
+              "rounded-lg px-3 py-1 text-xs transition",
+              tab === t ? "bg-white/10 text-white" : "text-white/40 hover:text-white/70",
+            )}
+          >
+            {t === "item" ? "Item" : "Panoplie"}
+          </button>
+        ))}
         <div className="flex-1" />
-        <label className="flex items-center gap-1 text-xs text-white/50">
+        <label className="flex items-center gap-1.5 text-xs text-white/50">
           Qté
           <input
-            type="number"
-            min={1}
-            value={qty}
+            type="number" min={1} value={qty}
             onChange={(e) => setQty(Math.max(1, parseInt(e.target.value, 10) || 1))}
-            className="w-14 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-white/80 focus:border-white/25 focus:outline-none"
+            className="w-14 rounded-md border border-white/10 bg-black/40 px-1.5 py-0.5 text-right text-white/80 focus:border-white/25 focus:outline-none"
           />
         </label>
       </div>
-      <Input
-        containerClassName="mb-2"
-        value={q}
-        onChange={(e) => setQ(e.target.value)}
-        placeholder={tab === "item" ? "Rechercher un item…" : "Rechercher une panoplie…"}
-      />
+      <Input containerClassName="mb-2" value={q} onChange={(e) => setQ(e.target.value)}
+        placeholder={tab === "item" ? "Rechercher un item…" : "Rechercher une panoplie…"} />
       {tab === "item" && (
-        <select
-          value={typeId}
-          onChange={(e) => setTypeId(e.target.value)}
+        <select value={typeId} onChange={(e) => setTypeId(e.target.value)}
           className="mb-3 w-full rounded-lg border border-white/10 bg-black/40 px-3 py-2 text-sm text-white/80 focus:border-white/25 focus:outline-none"
-          aria-label="Catégorie d'item"
-        >
+          aria-label="Catégorie d'item">
           {EQUIPMENT_TYPE_OPTIONS.map(({ value, label }) => (
-            <option key={value || "all"} value={value}>
-              {value ? label : "Toutes catégories"}
-            </option>
+            <option key={value || "all"} value={value}>{value ? label : "Toutes catégories"}</option>
           ))}
         </select>
       )}
@@ -372,35 +347,23 @@ function AddEntryModal({
           <p className="py-4 text-center text-xs text-white/30">Chargement…</p>
         ) : tab === "item" ? (
           items.map((it) => (
-            <button
-              key={it.ankama_id}
-              type="button"
-              onClick={() => { onAddItem(it, qty); onClose(); }}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
-            >
+            <button key={it.ankama_id} type="button" onClick={() => { onAddItem(it, qty); onClose(); }}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/5">
               {it.image_url_icon && (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={it.image_url_icon} alt="" width={28} height={28} className="rounded" />
               )}
               <span className="min-w-0 flex-1 truncate text-xs text-white/80">{it.name}</span>
-              <span className="shrink-0 text-[10px] text-white/30">
-                {typeLabel(it.type_name_id)}
-              </span>
+              <span className="shrink-0 text-[10px] text-white/30">{typeLabel(it.type_name_id)}</span>
               <span className="shrink-0 text-[10px] text-white/30">Niv. {it.level}</span>
             </button>
           ))
         ) : (
           sets.map((s) => (
-            <button
-              key={s.ankama_id}
-              type="button"
-              onClick={() => { onAddSet(s, qty); onClose(); }}
-              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/5"
-            >
+            <button key={s.ankama_id} type="button" onClick={() => { onAddSet(s, qty); onClose(); }}
+              className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left hover:bg-white/5">
               <span className="text-xs text-white/80">{s.name ?? `Panoplie #${s.ankama_id}`}</span>
-              <span className="ml-auto text-[10px] text-white/30">
-                {(s.equipment_ids?.length ?? 0)} pièces
-              </span>
+              <span className="ml-auto text-[10px] text-white/30">{(s.equipment_ids?.length ?? 0)} pièces</span>
             </button>
           ))
         )}
@@ -409,21 +372,12 @@ function AddEntryModal({
   );
 }
 
+/* ─── Main panel ─────────────────────────────────────────────────────────── */
 export function AtelierPanel() {
   const {
-    lists,
-    activeListId,
-    loading,
-    error,
-    isGuest,
-    loadLists,
-    setActiveList,
-    createList,
-    renameList,
-    deleteList,
-    addEntry,
-    removeEntry,
-    setProgress,
+    lists, activeListId, loading, error, isGuest,
+    loadLists, setActiveList, createList, renameList, deleteList,
+    addEntry, removeEntry, setProgress,
   } = useAtelierStore();
 
   const activeList = lists.find((l) => l.id === activeListId) ?? null;
@@ -441,9 +395,7 @@ export function AtelierPanel() {
     return items.map((i) => i.ankama_id);
   }, []);
 
-  useEffect(() => {
-    void loadLists();
-  }, [loadLists]);
+  useEffect(() => { void loadLists(); }, [loadLists]);
 
   useEffect(() => {
     if (!activeList) return;
@@ -458,13 +410,10 @@ export function AtelierPanel() {
       }
       if (cancelled) return;
       setEntryItemCounts(countsMap);
-
       const toFetch = [...craftItemIds];
       if (toFetch.length === 0) return;
-
       const fetched = await Promise.all(toFetch.map((id) => fetchItem(id).catch(() => null)));
       if (cancelled) return;
-
       const ingIds = new Set<number>();
       const craftItems: ItemOut[] = [];
       for (const item of fetched) {
@@ -472,21 +421,16 @@ export function AtelierPanel() {
         craftItems.push(item);
         for (const line of item.recipe ?? []) ingIds.add(line.item_ankama_id);
       }
-
       const knownIds = new Set(craftItems.map((i) => i.ankama_id));
       const missingIng = [...ingIds].filter((id) => !knownIds.has(id));
-      const ingFetched =
-        missingIng.length > 0
-          ? await Promise.all(missingIng.map((id) => fetchItem(id).catch(() => null)))
-          : [];
+      const ingFetched = missingIng.length > 0
+        ? await Promise.all(missingIng.map((id) => fetchItem(id).catch(() => null)))
+        : [];
       if (cancelled) return;
-
       setItemCache((prev) => {
         const next = { ...prev };
         for (const item of craftItems) next[item.ankama_id] = item;
-        for (const item of ingFetched) {
-          if (item) next[item.ankama_id] = item;
-        }
+        for (const item of ingFetched) { if (item) next[item.ankama_id] = item; }
         return next;
       });
     })();
@@ -504,12 +448,12 @@ export function AtelierPanel() {
   }, [activeList, globalNeeds]);
 
   const progressPct = listProgressPercent(aggregated);
+  const listDone = progressPct >= 100;
 
   const handleOwnedChange = useCallback(
     (ingredientId: number, owned: number, required: number) => {
       if (!activeList) return;
-      const next = setIngredientOwned(activeList.progress, ingredientId, owned, required);
-      void setProgress(activeList.id, next);
+      void setProgress(activeList.id, setIngredientOwned(activeList.progress, ingredientId, owned, required));
     },
     [activeList, setProgress],
   );
@@ -517,8 +461,7 @@ export function AtelierPanel() {
   const handleValidateRow = useCallback(
     (ingredientId: number, required: number) => {
       if (!activeList) return;
-      const next = validateIngredientFully(activeList.progress, ingredientId, required);
-      void setProgress(activeList.id, next);
+      void setProgress(activeList.id, validateIngredientFully(activeList.progress, ingredientId, required));
     },
     [activeList, setProgress],
   );
@@ -529,7 +472,6 @@ export function AtelierPanel() {
       const entry = activeList.entries.find((e) => e.id === entryId);
       const counts = entryItemCounts.get(entryId);
       if (!entry || !counts) return;
-
       let prior = new Map<number, number>();
       for (const e of activeList.entries) {
         if (e.id === entryId) break;
@@ -539,8 +481,7 @@ export function AtelierPanel() {
         prior = consumeValidatedForEntry(rows, prior);
       }
       const rows = computeEntryIngredientRows(entry, counts, itemCache, activeList.progress, prior);
-      const next = validateEntryRecipe(activeList.progress, rows, globalNeeds);
-      void setProgress(activeList.id, next);
+      void setProgress(activeList.id, validateEntryRecipe(activeList.progress, rows, globalNeeds));
     },
     [activeList, entryItemCounts, itemCache, globalNeeds, setProgress],
   );
@@ -548,38 +489,10 @@ export function AtelierPanel() {
   const handleValidateItemRecipe = useCallback(
     (rows: EntryIngredientRow[]) => {
       if (!activeList) return;
-      const next = validateEntryRecipe(activeList.progress, rows, globalNeeds);
-      void setProgress(activeList.id, next);
+      void setProgress(activeList.id, validateEntryRecipe(activeList.progress, rows, globalNeeds));
     },
     [activeList, globalNeeds, setProgress],
   );
-
-  async function handleCreateList() {
-    const name = newListName.trim() || "Nouvelle liste";
-    await createList(name);
-    setNewListName("");
-  }
-
-  async function handleAddItem(item: ItemOut, qty: number) {
-    if (!activeList) return;
-    setItemCache((prev) => ({ ...prev, [item.ankama_id]: item }));
-    await addEntry(activeList.id, {
-      entry_type: "item",
-      ref_id: String(item.ankama_id),
-      quantity: qty,
-      label: item.name,
-    });
-  }
-
-  async function handleAddSet(set: ItemSetOut, qty: number) {
-    if (!activeList) return;
-    await addEntry(activeList.id, {
-      entry_type: "set",
-      ref_id: String(set.ankama_id),
-      quantity: qty,
-      label: set.name ?? undefined,
-    });
-  }
 
   function entryLabel(entry: CraftEntry): string {
     if (entry.label) return entry.label;
@@ -591,246 +504,305 @@ export function AtelierPanel() {
     return entry.label ?? "Build";
   }
 
+  function entryProgress(entry: CraftEntry, idx: number): number {
+    const counts = entryItemCounts.get(entry.id);
+    if (!counts) return 0;
+    let prior = new Map<number, number>();
+    for (let i = 0; i < idx; i++) {
+      const e = activeList!.entries[i];
+      const c = entryItemCounts.get(e.id);
+      if (!c) continue;
+      const rows = computeEntryIngredientRows(e, c, itemCache, activeList!.progress, prior);
+      prior = consumeValidatedForEntry(rows, prior);
+    }
+    const rows = computeEntryIngredientRows(entry, counts, itemCache, activeList!.progress, prior);
+    if (rows.length === 0) return 100;
+    const done = rows.filter((r) => r.remaining === 0).length;
+    return Math.round((done / rows.length) * 100);
+  }
+
   return (
-    <main className="mx-auto flex w-full max-w-[1600px] flex-1 gap-4 p-4 md:p-8">
-      {/* Sidebar listes */}
-      <aside className="w-56 shrink-0 space-y-3">
-        <SectionHeading eyebrow="Craft tracking" title="L'Atelier" className="mb-1" />
-        {isGuest && (
-          <p className="rounded-lg border border-amber-500/20 bg-amber-500/10 px-2 py-1.5 text-[10px] text-amber-200/80">
-            Connecte-toi pour sauvegarder tes listes.
-          </p>
-        )}
-        <div className="flex gap-1.5">
-          <Input
-            containerClassName="min-w-0 flex-1"
-            value={newListName}
-            onChange={(e) => setNewListName(e.target.value)}
-            placeholder="Nouvelle liste…"
-          />
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() => void handleCreateList()}
-            aria-label="Créer la liste"
-          >
-            <Plus size={14} />
-          </Button>
+    /* ── Contrainte à la hauteur disponible = pas de débordement footer ── */
+    <main className="flex min-h-0 flex-1 overflow-hidden">
+      {/* ── Sidebar ───────────────────────────────────────────────────── */}
+      <aside className="flex w-60 shrink-0 flex-col border-r border-white/[0.06] bg-[#0a0a08]">
+        {/* Header sidebar */}
+        <div className="border-b border-white/[0.06] px-4 py-4">
+          <div className="flex items-center gap-2">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-[var(--dofus-green-active)]/10 ring-1 ring-[var(--dofus-green-active)]/20">
+              <AtelierIcon size={14} className="shrink-0 brightness-0 invert opacity-90" />
+            </span>
+            <div>
+               
+              <p className="font-display text-[17px] font-medium leading-tight text-white/90">
+                L&apos;Atelier
+              </p>
+            </div>
+          </div>
+          {isGuest && (
+            <p className="mt-3 rounded-lg border border-amber-500/20 bg-amber-500/10 px-2.5 py-1.5 text-[10px] leading-relaxed text-amber-200/70">
+              Connecte-toi pour sauvegarder tes listes de craft.
+            </p>
+          )}
         </div>
-        <ul className="space-y-1">
+
+        {/* List of craft lists */}
+        <nav className="scrollbar-thin flex-1 overflow-y-auto px-2 py-2">
+          {lists.length === 0 && !loading && (
+            <p className="px-2 py-3 text-[11px] text-white/25">Aucune liste — crée-en une ci-dessous.</p>
+          )}
           {lists.map((list) => (
-            <li key={list.id}>
-              <button
-                type="button"
-                onClick={() => setActiveList(list.id)}
-                className={`w-full rounded-lg px-3 py-2 text-left text-xs transition ${
-                  list.id === activeListId
-                    ? "bg-white/10 text-white"
-                    : "text-white/40 hover:bg-white/5 hover:text-white/70"
-                }`}
-              >
-                {list.name}
-              </button>
-            </li>
+            <button
+              key={list.id}
+              type="button"
+              onClick={() => setActiveList(list.id)}
+              className={cn(
+                "group flex w-full items-center gap-2 rounded-lg px-3 py-2 text-left text-[13px] transition",
+                list.id === activeListId
+                  ? "bg-white/[0.08] text-white"
+                  : "text-white/45 hover:bg-white/[0.04] hover:text-white/75",
+              )}
+            >
+              <ListChecks size={13} className={list.id === activeListId ? "text-[var(--dofus-green-active)]" : "text-white/20"} />
+              <span className="min-w-0 flex-1 truncate">{list.name}</span>
+            </button>
           ))}
-        </ul>
+        </nav>
+
+        {/* New list form */}
+        <div className="border-t border-white/[0.06] p-3">
+          <div className="flex gap-1.5">
+            <Input
+              containerClassName="min-w-0 flex-1"
+              value={newListName}
+              onChange={(e) => setNewListName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === "Enter") void createList(newListName.trim() || "Nouvelle liste").then(() => setNewListName("")); }}
+              placeholder="Nouvelle liste…"
+            />
+            <Button type="button" variant="outline" size="sm"
+              onClick={() => void createList(newListName.trim() || "Nouvelle liste").then(() => setNewListName(""))}
+              aria-label="Créer">
+              <Plus size={14} />
+            </Button>
+          </div>
+        </div>
       </aside>
 
-      {/* Contenu principal */}
-      <div className="min-w-0 flex-1 space-y-4">
+      {/* ── Contenu principal ─────────────────────────────────────────── */}
+      <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
         {loading && (
-          <div className="flex justify-center py-12">
-            <DofusSpinner size={56} label="Chargement…" />
-          </div>
+          <LoadingShell spinnerSize={48} label="Chargement…" minHeight="min-h-[320px]" className="flex-1">
+            <AtelierPanelSkeleton />
+          </LoadingShell>
         )}
-        {error && <p className="text-sm text-red-400">{error}</p>}
+        {error && <p className="p-6 text-sm text-red-400">{error}</p>}
 
         {!loading && !activeList && (
-          <Plaque className="p-8 text-center">
-            <p className="text-sm text-white/40">Crée une CraftList pour commencer.</p>
-          </Plaque>
+          <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center">
+            <span className="flex h-14 w-14 items-center justify-center rounded-2xl border border-white/[0.08] bg-white/[0.03]">
+              <AtelierIcon size={28} className="shrink-0 brightness-0 invert opacity-20" />
+            </span>
+            <p className="text-sm text-white/35">Sélectionne ou crée une liste de craft pour commencer.</p>
+          </div>
         )}
 
         {activeList && (
           <>
-            <div className="flex flex-wrap items-center gap-3">
+            {/* ── Barre titre liste ── */}
+            <div className="flex shrink-0 items-center gap-3 border-b border-white/[0.06] bg-[#0b0c09] px-6 py-3">
               {renaming ? (
                 <>
-                  <Input
-                    value={renameValue}
-                    onChange={(e) => setRenameValue(e.target.value)}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => {
-                      void renameList(activeList.id, renameValue);
-                      setRenaming(false);
-                    }}
-                    className="text-xs text-[var(--dofus-ui-selected-border,#98c030)]"
-                  >
-                    OK
-                  </button>
+                  <Input value={renameValue} onChange={(e) => setRenameValue(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") { void renameList(activeList.id, renameValue); setRenaming(false); } if (e.key === "Escape") setRenaming(false); }}
+                    autoFocus />
+                  <button type="button" onClick={() => { void renameList(activeList.id, renameValue); setRenaming(false); }}
+                    className="shrink-0 text-xs text-[var(--dofus-green-active)]">OK</button>
+                  <button type="button" onClick={() => setRenaming(false)} className="shrink-0 text-xs text-white/30">Annuler</button>
                 </>
               ) : (
-                <h2
-                  className="cursor-pointer font-display text-xl font-medium text-white/90"
+                <button
+                  type="button"
                   onClick={() => { setRenameValue(activeList.name); setRenaming(true); }}
-                  title="Cliquer pour renommer"
+                  className="group flex items-center gap-1.5"
+                  title="Renommer"
                 >
-                  {activeList.name}
-                </h2>
+                  <h2 className="font-display text-[20px] font-medium text-white/90">{activeList.name}</h2>
+                  <Pencil size={12} className="shrink-0 text-white/20 transition group-hover:text-white/50" />
+                </button>
               )}
+
               <div className="flex-1" />
+
+              {/* Progress */}
               <div className="flex items-center gap-2">
-                <div className="h-2 w-32 overflow-hidden rounded-full bg-white/10">
+                <div className="h-1.5 w-28 overflow-hidden rounded-full bg-white/[0.07]">
                   <div
-                    className="h-full bg-[var(--dofus-ui-selected-border,#98c030)] transition-all"
+                    className={cn("h-full rounded-full transition-all duration-500", listDone ? "bg-emerald-400/80" : "bg-[var(--dofus-ui-selected-border,#98c030)]")}
                     style={{ width: `${progressPct}%` }}
                   />
                 </div>
-                <span className="text-xs text-white/50">{progressPct}%</span>
+                <span className={cn("text-[11px] tabular-nums", listDone ? "text-emerald-400" : "text-white/40")}>
+                  {progressPct}%
+                </span>
+                {listDone && <Check size={13} className="shrink-0 text-emerald-400" />}
               </div>
+
               <Button type="button" variant="outline" size="sm" onClick={() => setAddModalOpen(true)}>
                 <Plus size={13} /> Ajouter
               </Button>
-              <Button
-                type="button"
-                variant="danger"
-                size="sm"
-                onClick={() => {
-                  if (confirm(`Supprimer « ${activeList.name} » ?`)) {
-                    void deleteList(activeList.id);
-                  }
-                }}
-              >
-                <Trash2 size={13} /> Supprimer
+              <Button type="button" variant="danger" size="sm"
+                onClick={() => { if (confirm(`Supprimer « ${activeList.name} » ?`)) void deleteList(activeList.id); }}>
+                <Trash2 size={13} />
               </Button>
             </div>
 
-            {/* Recette globale */}
-            <Plaque className="p-4">
-              <h3 className="mb-3 text-sm font-medium text-white/70">Recette totale</h3>
-              <IngredientTable
-                rows={aggregated}
-                itemCache={itemCache}
-                progress={activeList.progress}
-                onOwnedChange={handleOwnedChange}
-                onValidateRow={handleValidateRow}
-              />
-            </Plaque>
+            {/* ── Body en deux zones scrollables ── */}
+            <div className="scrollbar-thin flex-1 overflow-y-auto px-6 py-5 space-y-6">
 
-            {/* Entrées */}
-            <section className="space-y-2">
-              <h3 className="text-sm font-medium text-white/70">Détail par objectif</h3>
-              {activeList.entries.length === 0 && (
-                <p className="text-xs text-white/30">Aucun objectif — ajoute un item, une panoplie ou un build.</p>
-              )}
-              {activeList.entries.map((entry, idx) => {
-                const counts = entryItemCounts.get(entry.id);
-                let prior = new Map<number, number>();
-                for (let i = 0; i < idx; i++) {
-                  const e = activeList.entries[i];
-                  const c = entryItemCounts.get(e.id);
-                  if (!c) continue;
-                  const rows = computeEntryIngredientRows(
-                    e, c, itemCache, activeList.progress, prior,
-                  );
-                  prior = consumeValidatedForEntry(rows, prior);
-                }
-                const entryRows = counts
-                  ? computeEntryIngredientRows(entry, counts, itemCache, activeList.progress, prior)
-                  : [];
-                const perItemBreakdown = counts
-                  ? computePerItemIngredientRows(counts, itemCache, activeList.progress, prior)
-                  : [];
-                const isMultiItem =
-                  entry.entry_type === "set" || entry.entry_type === "build";
-                const entryDone = entryRows.length > 0 && entryRows.every((r) => r.remaining === 0);
-                const expanded = expandedEntries.has(entry.id);
+              {/* Recette totale */}
+              <section>
+                <div className="mb-2 flex items-center gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/35">
+                    Recette totale
+                  </p>
+                  <div className="flex-1 border-t border-white/[0.06]" />
+                  <span className="text-[10px] text-white/25">{aggregated.length} ingrédient{aggregated.length !== 1 ? "s" : ""}</span>
+                </div>
+                <div className="overflow-hidden rounded-xl border border-white/[0.07] bg-[#0c0d0a]">
+                  <IngredientTable
+                    rows={aggregated}
+                    itemCache={itemCache}
+                    progress={activeList.progress}
+                    onOwnedChange={handleOwnedChange}
+                    onValidateRow={handleValidateRow}
+                  />
+                </div>
+              </section>
 
-                return (
-                  <Plaque flat key={entry.id}>
-                    <div className="flex items-center gap-2 px-3 py-2">
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setExpandedEntries((s) => {
-                            const n = new Set(s);
-                            if (n.has(entry.id)) n.delete(entry.id);
-                            else n.add(entry.id);
-                            return n;
-                          })
-                        }
-                        className="flex min-w-0 flex-1 items-center gap-2 text-left"
+              {/* Détail par objectif */}
+              <section>
+                <div className="mb-2 flex items-center gap-2">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-white/35">
+                    Détail par objectif
+                  </p>
+                  <div className="flex-1 border-t border-white/[0.06]" />
+                  <span className="text-[10px] text-white/25">{activeList.entries.length} objectif{activeList.entries.length !== 1 ? "s" : ""}</span>
+                </div>
+
+                {activeList.entries.length === 0 && (
+                  <p className="text-xs text-white/25">Aucun objectif — ajoute un item ou une panoplie.</p>
+                )}
+
+                <div className="space-y-2">
+                  {activeList.entries.map((entry, idx) => {
+                    const counts = entryItemCounts.get(entry.id);
+                    let prior = new Map<number, number>();
+                    for (let i = 0; i < idx; i++) {
+                      const e = activeList.entries[i];
+                      const c = entryItemCounts.get(e.id);
+                      if (!c) continue;
+                      const rows = computeEntryIngredientRows(e, c, itemCache, activeList.progress, prior);
+                      prior = consumeValidatedForEntry(rows, prior);
+                    }
+                    const entryRows = counts
+                      ? computeEntryIngredientRows(entry, counts, itemCache, activeList.progress, prior)
+                      : [];
+                    const perItemBreakdown = counts
+                      ? computePerItemIngredientRows(counts, itemCache, activeList.progress, prior)
+                      : [];
+                    const isMultiItem = entry.entry_type === "set" || entry.entry_type === "build";
+                    const entryDone = entryRows.length > 0 && entryRows.every((r) => r.remaining === 0);
+                    const expanded = expandedEntries.has(entry.id);
+                    const pct = activeList ? entryProgress(entry, idx) : 0;
+
+                    return (
+                      <div
+                        key={entry.id}
+                        className="overflow-hidden rounded-xl border border-white/[0.08] bg-[#0c0d0a]"
                       >
-                        <span className="shrink-0 text-white/40">
-                          {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
-                        </span>
-                        <span className="text-sm text-white/80">
-                          {entryLabel(entry)}
-                          {entry.quantity > 1 && (
-                            <span className="ml-1 text-white/40">×{entry.quantity}</span>
+                        {/* Header de l'entrée */}
+                        <div className="flex items-center gap-2 px-4 py-2.5">
+                          <button
+                            type="button"
+                            onClick={() => setExpandedEntries((s) => { const n = new Set(s); n.has(entry.id) ? n.delete(entry.id) : n.add(entry.id); return n; })}
+                            className="flex min-w-0 flex-1 items-center gap-2.5 text-left"
+                          >
+                            <span className={cn("shrink-0 transition-transform duration-200", expanded && "rotate-90")}>
+                              <ChevronRight size={14} className="text-white/30" />
+                            </span>
+                            <span className={cn("truncate text-[13px] font-medium", entryDone ? "text-emerald-400/90" : "text-white/80")}>
+                              {entryLabel(entry)}
+                              {entry.quantity > 1 && <span className="ml-1.5 text-white/35">×{entry.quantity}</span>}
+                            </span>
+                            <EntryTypeBadge type={entry.entry_type} />
+                          </button>
+
+                          {/* Mini progress */}
+                          <MiniProgress pct={pct} done={entryDone} />
+
+                          {/* Actions */}
+                          {!entryDone && entryRows.length > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleValidateEntry(entry.id)}
+                              className="flex shrink-0 items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[10px] text-white/50 transition hover:border-[color:var(--atelier-plaque-border-hover)] hover:text-[var(--dofus-green-active)]"
+                            >
+                              <Check size={10} /> Tout
+                            </button>
                           )}
-                        </span>
-                        <span className="rounded bg-white/5 px-1.5 py-0.5 text-[10px] text-white/30">
-                          {entry.entry_type}
-                        </span>
-                      </button>
-                      <button
-                        type="button"
-                        disabled={entryDone || entryRows.length === 0}
-                        onClick={() => handleValidateEntry(entry.id)}
-                        className="flex items-center gap-1 rounded-md border border-white/10 px-2 py-0.5 text-[10px] text-white/60 hover:border-[var(--dofus-ui-selected-border,#98c030)] disabled:opacity-30"
-                      >
-                        <Check size={11} /> Tout
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => void removeEntry(activeList.id, entry.id)}
-                        className="text-red-400/60 hover:text-red-400"
-                        aria-label="Retirer l'objectif"
-                      >
-                        <X size={13} />
-                      </button>
-                    </div>
-                    {expanded && (
-                      <div className="border-t border-white/[0.06] px-3 pb-3">
-                        {isMultiItem ? (
-                          <>
-                            <p className="py-2 text-[10px] text-white/35">
-                              {perItemBreakdown.length} pièce{perItemBreakdown.length !== 1 ? "s" : ""} — recette par item ci-dessous, total agrégé en haut.
-                            </p>
-                            <NestedItemsDetail
-                              entryId={entry.id}
-                              itemBreakdown={perItemBreakdown}
-                              itemCache={itemCache}
-                              progress={activeList.progress}
-                              expandedSubItems={expandedSubItems}
-                              onToggleSubItem={(key) =>
-                                setExpandedSubItems((s) => toggleInSet(s, key))
-                              }
-                              onOwnedChange={handleOwnedChange}
-                              onValidateRow={handleValidateRow}
-                              onValidateItemRecipe={handleValidateItemRecipe}
-                            />
-                          </>
-                        ) : (
-                          <IngredientTable
-                            rows={entryRows}
-                            itemCache={itemCache}
-                            progress={activeList.progress}
-                            onOwnedChange={handleOwnedChange}
-                            onValidateRow={handleValidateRow}
-                            compact
-                          />
-                        )}
+                          <button
+                            type="button"
+                            onClick={() => void removeEntry(activeList.id, entry.id)}
+                            className="shrink-0 rounded-md p-1 text-white/25 transition hover:bg-red-500/10 hover:text-red-400"
+                            aria-label="Retirer"
+                          >
+                            <X size={13} />
+                          </button>
+                        </div>
+
+                        {/* Contenu accordéon — animation CSS grid */}
+                        <div className={cn(
+                          "grid transition-[grid-template-rows] duration-200 ease-out",
+                          expanded ? "grid-rows-[1fr]" : "grid-rows-[0fr]",
+                        )}>
+                          <div className="overflow-hidden">
+                            <div className="border-t border-white/[0.06] px-4 pb-4 pt-3">
+                              {isMultiItem ? (
+                                <>
+                                  <p className="mb-2 text-[10px] text-white/30">
+                                    {perItemBreakdown.length} pièce{perItemBreakdown.length !== 1 ? "s" : ""} — recette par item, total agrégé en haut.
+                                  </p>
+                                  <NestedItemsDetail
+                                    entryId={entry.id}
+                                    itemBreakdown={perItemBreakdown}
+                                    itemCache={itemCache}
+                                    progress={activeList.progress}
+                                    expandedSubItems={expandedSubItems}
+                                    onToggleSubItem={(key) => setExpandedSubItems((s) => { const n = new Set(s); n.has(key) ? n.delete(key) : n.add(key); return n; })}
+                                    onOwnedChange={handleOwnedChange}
+                                    onValidateRow={handleValidateRow}
+                                    onValidateItemRecipe={handleValidateItemRecipe}
+                                  />
+                                </>
+                              ) : (
+                                <IngredientTable
+                                  rows={entryRows}
+                                  itemCache={itemCache}
+                                  progress={activeList.progress}
+                                  onOwnedChange={handleOwnedChange}
+                                  onValidateRow={handleValidateRow}
+                                  compact
+                                />
+                              )}
+                            </div>
+                          </div>
+                        </div>
                       </div>
-                    )}
-                  </Plaque>
-                );
-              })}
-            </section>
+                    );
+                  })}
+                </div>
+              </section>
+            </div>
           </>
         )}
       </div>
@@ -843,4 +815,15 @@ export function AtelierPanel() {
       />
     </main>
   );
+
+  async function handleAddItem(item: ItemOut, qty: number) {
+    if (!activeList) return;
+    setItemCache((prev) => ({ ...prev, [item.ankama_id]: item }));
+    await addEntry(activeList.id, { entry_type: "item", ref_id: String(item.ankama_id), quantity: qty, label: item.name });
+  }
+
+  async function handleAddSet(set: ItemSetOut, qty: number) {
+    if (!activeList) return;
+    await addEntry(activeList.id, { entry_type: "set", ref_id: String(set.ankama_id), quantity: qty, label: set.name ?? undefined });
+  }
 }

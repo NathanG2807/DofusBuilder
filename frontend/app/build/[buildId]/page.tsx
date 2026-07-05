@@ -4,7 +4,7 @@ import { useParams } from "next/navigation";
 import { useEffect, useState } from "react";
 
 import { DashboardApp } from "@/components/dashboard/DashboardApp";
-import { DofusSpinner } from "@/components/ui/DofusSpinner";
+import { BuilderPageSkeleton, LoadingShell } from "@/components/ui/loading-skeletons";
 import { getBuildById } from "@/lib/api";
 import { useBuildStore } from "@/store/build-store";
 
@@ -53,9 +53,9 @@ export default function SharedBuildPage() {
 
   if (phase === "loading") {
     return (
-      <div className="flex min-h-[40vh] items-center justify-center p-8">
-        <DofusSpinner size={72} label="Chargement du build partagé…" />
-      </div>
+      <LoadingShell spinnerSize={56} label="Chargement du build partagé…" minHeight="min-h-screen">
+        <BuilderPageSkeleton />
+      </LoadingShell>
     );
   }
 

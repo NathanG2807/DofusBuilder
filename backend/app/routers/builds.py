@@ -11,10 +11,44 @@ from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.deps import get_current_user, get_optional_user
-from app.models import Build, User
+from app.models import Build, Item, User
 from app.schemas import BuildCreate, BuildOut, BuildUpdate, PublicBuildOut
 
 router = APIRouter(prefix="/builds", tags=["builds"])
+
+
+async def _slots_preview_from_slots(
+    db: AsyncSession,
+    slots: dict | None,
+) -> dict[str, str | None]:
+    """Rebuild slot → icon URL map from equipped item IDs."""
+    if not slots:
+        return {}
+
+    item_ids: list[int] = []
+    for raw in slots.values():
+        if raw is None:
+            continue
+        try:
+            item_ids.append(int(raw))
+        except (TypeError, ValueError):
+            continue
+
+    icons_by_id: dict[int, str | None] = {}
+    if item_ids:
+        result = await db.execute(select(Item.ankama_id, Item.image_url_icon).where(Item.ankama_id.in_(item_ids)))
+        icons_by_id = {row[0]: row[1] for row in result.all()}
+
+    preview: dict[str, str | None] = {}
+    for slot_key, raw in slots.items():
+        if raw is None:
+            preview[slot_key] = None
+            continue
+        try:
+            preview[slot_key] = icons_by_id.get(int(raw))
+        except (TypeError, ValueError):
+            preview[slot_key] = None
+    return preview
 
 
 @router.get("/public", response_model=list[PublicBuildOut])
@@ -85,6 +119,7 @@ async def create_build(
     db: AsyncSession = Depends(get_db),
     current: User = Depends(get_current_user),
 ) -> Build:
+    slots = body.slots or {}
     b = Build(
         user_id=current.id,
         name=body.name.strip(),
@@ -92,7 +127,7 @@ async def create_build(
         class_id=body.class_id,
         level=body.level,
         sex=body.sex,
-        slots=body.slots or {},
+        slots=slots,
         total_stats=body.total_stats,
         active_set_bonuses=body.active_set_bonuses,
         char_stats=body.char_stats,
@@ -101,7 +136,7 @@ async def create_build(
         locked_slots=body.locked_slots,
         is_public=body.is_public,
         tags=body.tags or [],
-        slots_preview=body.slots_preview or {},
+        slots_preview=await _slots_preview_from_slots(db, slots),
     )
     db.add(b)
     await db.commit()
@@ -142,6 +177,8 @@ async def update_build(
     if not _can_edit(b, current):
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Not allowed")
     data = body.model_dump(exclude_unset=True)
+    if "slots" in data:
+        data["slots_preview"] = await _slots_preview_from_slots(db, data.get("slots"))
     for k, v in data.items():
         setattr(b, k, v)
     if data:

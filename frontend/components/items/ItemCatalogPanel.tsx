@@ -8,7 +8,11 @@ import {
 } from "@/components/items/ItemHoverCard";
 import { SetDetailModal } from "@/components/items/SetDetailModal";
 import { Button } from "@/components/ui/Button";
-import { DofusSpinner } from "@/components/ui/DofusSpinner";
+import {
+  ItemCatalogSkeletonGrid,
+  LoadingShell,
+  SetListSkeleton,
+} from "@/components/ui/loading-skeletons";
 import { Chip } from "@/components/ui/Chip";
 import { Input } from "@/components/ui/Input";
 import { searchItems, searchSets } from "@/lib/api";
@@ -158,9 +162,9 @@ function SetsCatalog() {
 
       <div className="flex-1 overflow-y-auto">
         {loading ? (
-          <div className="flex justify-center py-10">
-            <DofusSpinner size={48} label="Chargement…" />
-          </div>
+          <LoadingShell spinnerSize={40} label="Chargement…" minHeight="min-h-[240px]">
+            <SetListSkeleton count={6} />
+          </LoadingShell>
         ) : sets.length === 0 ? (
           <p className="py-8 text-center text-sm text-[#666666]">Aucune panoplie trouvée.</p>
         ) : (
@@ -547,9 +551,9 @@ export function ItemCatalogPanel() {
           {/* ── Liste d'objets ── */}
           <div className="mt-2 flex-1 overflow-y-auto">
             {loading ? (
-              <div className="flex justify-center py-10">
-                <DofusSpinner size={48} label="Chargement…" />
-              </div>
+              <LoadingShell spinnerSize={40} label="Chargement…" minHeight="min-h-[280px]">
+                <ItemCatalogSkeletonGrid count={12} />
+              </LoadingShell>
             ) : items.length === 0 ? (
               <p className="py-8 text-center text-sm text-[#666666]">Aucun objet trouvé.</p>
             ) : (

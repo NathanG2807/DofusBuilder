@@ -5,7 +5,7 @@ export const metadata = { title: "L'Atelier — Zaap Builder" };
 
 export default function AtelierPage() {
   return (
-    <div className="flex min-h-screen flex-col">
+    <div className="flex h-screen flex-col overflow-hidden">
       <Navbar />
       <AtelierPanel />
     </div>

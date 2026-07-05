@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
 import { SpellsPanel } from "@/components/dashboard/SpellsPanel";
 import { Button } from "@/components/ui/Button";
-import { DofusSpinner } from "@/components/ui/DofusSpinner";
+import { BuildCardsSkeletonGrid, InventoryGridSkeleton, LoadingShell } from "@/components/ui/loading-skeletons";
 import { Input } from "@/components/ui/Input";
 import { Plaque } from "@/components/ui/Plaque";
 import { createBuild, fetchItem, getBuildById, listPublicBuilds } from "@/lib/api";
@@ -81,8 +81,51 @@ function InventoryPreview({
 
   const { hover, show, move, scheduleHide, cancelHide, hide } = useItemHoverCard();
   const localItemCacheRef = useRef<Record<number, ItemOut>>({});
+  const [iconBySlot, setIconBySlot] = useState<Record<string, string | null>>({});
   const pendingSlotRef = useRef<string | null>(null);
   const pendingPosRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+
+  useEffect(() => {
+    if (!slots) return;
+    let cancelled = false;
+
+    void (async () => {
+      const next: Record<string, string | null> = {};
+      const entries = Object.entries(slots).filter((entry): entry is [string, number] => entry[1] != null);
+
+      await Promise.all(
+        entries.map(async ([slotKey, itemId]) => {
+          const cached = useBuildStore.getState().itemById[itemId] ?? localItemCacheRef.current[itemId];
+          if (cached) {
+            next[slotKey] = cached.image_url_icon ?? null;
+            return;
+          }
+          try {
+            const item = await fetchItem(itemId);
+            localItemCacheRef.current[itemId] = item;
+            next[slotKey] = item.image_url_icon ?? null;
+          } catch {
+            next[slotKey] = slotsPreview?.[slotKey] ?? null;
+          }
+        }),
+      );
+
+      if (!cancelled) setIconBySlot(next);
+    })();
+
+    return () => { cancelled = true; };
+  }, [slots, slotsPreview]);
+
+  function resolveIconUrl(slotKey: string): string | null {
+    const itemId = slots?.[slotKey];
+    if (itemId != null) {
+      if (Object.prototype.hasOwnProperty.call(iconBySlot, slotKey)) {
+        return iconBySlot[slotKey];
+      }
+      return null;
+    }
+    return slotsPreview?.[slotKey] ?? null;
+  }
 
   function handleHoverEnter(slotKey: string, e: React.MouseEvent) {
     if (!slots) return;
@@ -107,7 +150,7 @@ function InventoryPreview({
 
   /** Un slot avec optionnellement le label de type en-dessous du titre */
   function SlotTile({ slotKey, size }: { slotKey: string; size: number }) {
-    const url = slotsPreview?.[slotKey] ?? null;
+    const url = resolveIconUrl(slotKey);
     const exoType = exoFm?.[slotKey];
     const hasItem = !!(slots?.[slotKey]);
     const tileImgSize = Math.round(size * 0.75);
@@ -216,7 +259,7 @@ function InventoryPreview({
           {/* Rangée Dofus / Trophées */}
           <div className="mt-2 flex items-center" style={{ gap }}>
             {BOOK_DOFUS_SLOTS.map((s) => {
-              const url = slotsPreview?.[s] ?? null;
+              const url = resolveIconUrl(s);
               const dofusImgSize = Math.round(dofusSize * 0.75);
               const hasItem = !!(slots?.[s]);
               return (
@@ -710,11 +753,17 @@ function FilterSidebar({
 /* ── Loading overlay ────────────────────────────────────────────────────── */
 function BuildLoadingOverlay({ onClose }: { onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm">
-      <Plaque className="flex flex-col items-center gap-4 px-8 py-6">
-        <DofusSpinner size={72} label="Chargement du build…" />
-        <button type="button" onClick={onClose} className="text-[11px] text-[#555] hover:text-[#999]">Annuler</button>
-      </Plaque>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+      <div className="w-full max-w-lg overflow-hidden rounded-2xl border border-white/[0.08] bg-[#0c0d0a] p-4">
+        <LoadingShell spinnerSize={56} label="Chargement du build…" minHeight="min-h-[360px]">
+          <InventoryGridSkeleton />
+        </LoadingShell>
+        <div className="mt-3 flex justify-center border-t border-white/[0.06] pt-3">
+          <button type="button" onClick={onClose} className="text-[11px] text-[#555] hover:text-[#999]">
+            Annuler
+          </button>
+        </div>
+      </div>
     </div>
   );
 }
@@ -791,9 +840,9 @@ export function StuffsPanel() {
         </div>
 
         {loading && (
-          <div className="flex flex-1 items-center justify-center py-16">
-            <DofusSpinner size={56} label="Chargement…" />
-          </div>
+          <LoadingShell spinnerSize={48} label="Chargement…" minHeight="min-h-[420px]">
+            <BuildCardsSkeletonGrid count={8} />
+          </LoadingShell>
         )}
 
         {!loading && error && (

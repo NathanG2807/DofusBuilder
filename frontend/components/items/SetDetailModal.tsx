@@ -8,6 +8,7 @@ import { fetchItemsBySet, fetchItemSet } from "@/lib/api";
 import { typeLabel } from "@/lib/equipmentTypes";
 import { EffectLine } from "@/components/items/EffectLine";
 import { Button } from "@/components/ui/Button";
+import { Skeleton } from "@/components/ui/skeleton";
 import { bonusEffectIcon } from "@/lib/effectFormat";
 import { useBuildStore } from "@/store/build-store";
 import type { ItemOut, ItemSetOut } from "@/types/api";
@@ -168,7 +169,7 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
         <div className="flex items-start justify-between border-b border-[#222222] bg-[#1a1a1a] px-5 py-4">
           <div>
             {loading ? (
-              <div className="h-5 w-40 animate-pulse rounded bg-[#282828]" />
+              <Skeleton className="h-5 w-40" />
             ) : (
               <h2 className="font-serif text-xl font-bold text-[#f0d78c]">
                 {setInfo?.name ?? `Panoplie #${setId}`}
@@ -194,11 +195,8 @@ export function SetDetailModal({ setId, onClose }: SetDetailModalProps) {
         <div className="flex-1 overflow-y-auto px-5 py-4">
           {loading && (
             <div className="space-y-2">
-              {[1, 2, 3].map((i) => (
-                <div
-                  key={i}
-                  className="h-16 animate-pulse rounded-lg bg-[#222222]"
-                />
+              {Array.from({ length: 3 }).map((_, i) => (
+                <Skeleton key={i} className="h-16 w-full rounded-lg" />
               ))}
             </div>
           )}
