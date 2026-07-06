@@ -215,3 +215,19 @@ export type CraftListUpdatePayload = {
   entries?: CraftEntry[];
   progress?: Record<string, IngredientProgress>;
 };
+
+export type CommunityStats = {
+  members: number;
+  online_users: number;
+  builds_total: number;
+  builds_public: number;
+  craft_lists: number;
+  items: number;
+  item_sets: number;
+  game_data: DofusduGameMeta | null;
+};
+
+export type DofusduGameMeta = {
+  game_version: string;
+  data_updated_at: string | null;
+};

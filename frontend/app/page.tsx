@@ -1,5 +1,6 @@
 import { HomeBackground } from "@/components/home/HomeBackground";
 import { HomeCards } from "@/components/home/HomeCards";
+import { HomeLiveStats } from "@/components/home/HomeLiveStats";
 import { Navbar } from "@/components/layout/Navbar";
 
 export const metadata = {
@@ -80,6 +81,8 @@ export default function HomePage() {
       <div className="mt-28 sm:mt-32">
         <HomeCards cards={CARDS} />
       </div>
+
+      <HomeLiveStats />
     </div>
   );
 }

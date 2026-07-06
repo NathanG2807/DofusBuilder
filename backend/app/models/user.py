@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
+from typing import Optional
 
 from sqlalchemy import String, Text
 from sqlalchemy.dialects.postgresql import UUID
@@ -20,6 +21,7 @@ class User(Base):
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
     password_hash: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
+    last_seen_at: Mapped[Optional[datetime]] = mapped_column(nullable=True, default=None)
 
     builds: Mapped[list["Build"]] = relationship(
         "Build", back_populates="user", cascade="all, delete-orphan"

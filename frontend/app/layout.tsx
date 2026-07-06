@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Fraunces, Geist, Geist_Mono } from "next/font/google";
+
+import { HeartbeatProvider } from "@/components/layout/HeartbeatProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -37,6 +39,7 @@ export default function RootLayout({
       className={`${geistSans.variable} ${geistMono.variable} ${fraunces.variable} h-full antialiased`}
     >
       <body className="dofus-app flex min-h-full flex-col">
+        <HeartbeatProvider />
         {children}
         <footer className="mt-auto border-t border-white/[0.04] py-3 text-center text-[11px] text-[#444444]">
           Zaap est un fan site communautaire non officiel.

@@ -2,17 +2,24 @@
 
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
 from app.item_name_filters import is_excluded_item_id
-from app.models.item import Item
-from app.models.item_set import ItemSet
-from app.schemas import ActiveSetDetail, AggregateStatsRequest, AggregateStatsResponse
+from app.models import Build, CraftList, Item, ItemSet, User
+from app.schemas import (
+    ActiveSetDetail,
+    AggregateStatsRequest,
+    AggregateStatsResponse,
+    CommunityStatsResponse,
+    DofusduGameMeta,
+)
+from app.services.dofusdu_meta import fetch_dofusdu_game_meta
 from app.solver.slots import LEGACY_SLOT_ALIASES, SLOT_ORDER
 from app.solver.stats import aggregate_totals, merge_stats, set_tier_bonus_stats
 
@@ -47,6 +54,46 @@ def _formatted_effects_at_tier(bonus_effects: dict[str, Any] | None, piece_count
                 if isinstance(eff, dict) and eff.get("formatted")
             ]
     return []
+
+
+_ONLINE_WINDOW = timedelta(minutes=2)
+
+
+@router.get("/community", response_model=CommunityStatsResponse)
+async def community_stats(db: AsyncSession = Depends(get_db)) -> CommunityStatsResponse:
+    """Compteurs live pour la page d'accueil (communauté + meta dofusdu)."""
+    members = await db.scalar(select(func.count()).select_from(User)) or 0
+    cutoff = datetime.utcnow() - _ONLINE_WINDOW
+    online_users = (
+        await db.scalar(
+            select(func.count()).select_from(User).where(User.last_seen_at >= cutoff)
+        )
+        or 0
+    )
+    builds_total = await db.scalar(select(func.count()).select_from(Build)) or 0
+    builds_public = (
+        await db.scalar(
+            select(func.count()).select_from(Build).where(Build.is_public.is_(True))
+        )
+        or 0
+    )
+    craft_lists = await db.scalar(select(func.count()).select_from(CraftList)) or 0
+    items = await db.scalar(select(func.count()).select_from(Item)) or 0
+    item_sets = await db.scalar(select(func.count()).select_from(ItemSet)) or 0
+
+    game_meta_raw = await fetch_dofusdu_game_meta()
+    game_data = DofusduGameMeta(**game_meta_raw) if game_meta_raw else None
+
+    return CommunityStatsResponse(
+        members=members,
+        online_users=online_users,
+        builds_total=builds_total,
+        builds_public=builds_public,
+        craft_lists=craft_lists,
+        items=items,
+        item_sets=item_sets,
+        game_data=game_data,
+    )
 
 
 @router.post("/aggregate", response_model=AggregateStatsResponse)

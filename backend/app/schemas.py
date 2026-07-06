@@ -307,3 +307,26 @@ class CraftListOut(BaseModel):
     progress: dict[str, Any]
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+class CommunityStatsResponse(BaseModel):
+    """Compteurs agrégés de l'activité communautaire (page d'accueil)."""
+
+    members: int = Field(description="Nombre de comptes inscrits")
+    online_users: int = Field(description="Membres actifs dans les 2 dernières minutes")
+    builds_total: int = Field(description="Builds enregistrés (publics + privés)")
+    builds_public: int = Field(description="Builds partagés publiquement")
+    craft_lists: int = Field(description="Listes d'atelier créées")
+    items: int = Field(description="Objets référencés dans la base locale")
+    item_sets: int = Field(description="Panoplies référencées dans la base locale")
+    game_data: Optional["DofusduGameMeta"] = Field(
+        default=None,
+        description="Métadonnées Dofus 3 depuis api.dofusdu.de",
+    )
+
+
+class DofusduGameMeta(BaseModel):
+    """Meta Dofus 3 (version jeu et fraîcheur des données)."""
+
+    game_version: str
+    data_updated_at: Optional[datetime] = None

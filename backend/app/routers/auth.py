@@ -140,6 +140,16 @@ async def reset_password(
     return MessageResponse(message="Mot de passe mis à jour. Vous pouvez vous connecter.")
 
 
+@router.post("/heartbeat", status_code=status.HTTP_204_NO_CONTENT)
+async def heartbeat(
+    db: AsyncSession = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> None:
+    """Met à jour last_seen_at pour compter les membres actifs."""
+    current.last_seen_at = datetime.utcnow()
+    await db.commit()
+
+
 @router.get("/me", response_model=UserPublic)
 async def me(current: User = Depends(get_current_user)) -> User:
     return current

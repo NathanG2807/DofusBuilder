@@ -12,6 +12,7 @@ import type {
   ItemListResponse,
   PublicBuildOut,
   UserPublic,
+  CommunityStats,
 } from "@/types/api";
 
 export function getApiBase(): string {
@@ -286,6 +287,23 @@ export async function aggregateBuildStats(
   });
   if (!r.ok) throw new Error(await parseError(r));
   return r.json() as Promise<AggregateResult>;
+}
+
+export async function fetchCommunityStats(): Promise<CommunityStats> {
+  const r = await fetch(`${getApiBase()}/api/v1/stats/community`, {
+    cache: "no-store",
+  });
+  if (!r.ok) throw new Error(await parseError(r));
+  return r.json() as Promise<CommunityStats>;
+}
+
+export async function sendHeartbeat(): Promise<void> {
+  const t = getAccessToken();
+  if (!t) return;
+  await fetch(`${getApiBase()}/api/v1/auth/heartbeat`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${t}` },
+  });
 }
 
 export async function runOptimize(
