@@ -8,7 +8,7 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.db.session import engine
-from app.routers import auth, builds, craft_lists, items, optimize, sets, stats
+from app.routers import auth, builds, craft_lists, items, optimize, sets, stats, users
 
 
 @asynccontextmanager
@@ -56,6 +56,7 @@ app.include_router(builds.router, prefix="/api/v1")
 app.include_router(craft_lists.router, prefix="/api/v1")
 app.include_router(optimize.router, prefix="/api/v1")
 app.include_router(stats.router, prefix="/api/v1")
+app.include_router(users.router, prefix="/api/v1")
 
 
 @app.get("/health")

@@ -115,6 +115,17 @@ class UserPublic(BaseModel):
     username: str
     email: EmailStr
     created_at: datetime
+    total_upvotes: int = 0
+
+
+class UserProfilePublic(BaseModel):
+    """Profil public d'un utilisateur (sans email)."""
+
+    username: str
+    created_at: datetime
+    public_builds_count: int
+    total_upvotes: int = 0
+    builds: list["PublicBuildOut"] = Field(default_factory=list)
 
 
 class UserUpdate(BaseModel):
@@ -249,8 +260,14 @@ class BuildOut(BaseModel):
     is_public: bool = True
     tags: Optional[list[str]] = None
     slots_preview: Optional[dict[str, Any]] = None
+    upvote_count: int = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+
+
+class UpvoteResponse(BaseModel):
+    upvote_count: int
+    user_has_upvoted: bool
 
 
 class PublicBuildOut(BaseModel):
@@ -268,6 +285,8 @@ class PublicBuildOut(BaseModel):
     slots: Optional[dict[str, Any]] = None
     exo_fm: Optional[dict[str, str]] = None
     username: Optional[str] = None
+    upvote_count: int = 0
+    user_has_upvoted: bool = False
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
 

@@ -35,9 +35,13 @@ class Build(Base):
     is_public: Mapped[bool] = mapped_column(Boolean, default=True)
     tags: Mapped[Optional[list[Any]]] = mapped_column(JSONB, nullable=True, default=list)
     slots_preview: Mapped[Optional[dict[str, Any]]] = mapped_column(JSONB, nullable=True)
+    upvote_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         default=datetime.utcnow, onupdate=datetime.utcnow
     )
 
     user: Mapped[Optional["User"]] = relationship("User", back_populates="builds")
+    upvotes: Mapped[list["BuildUpvote"]] = relationship(
+        "BuildUpvote", back_populates="build", cascade="all, delete-orphan"
+    )

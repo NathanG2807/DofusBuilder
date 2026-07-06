@@ -25,6 +25,7 @@ from app.schemas import (
 )
 from app.security import create_access_token, hash_password, verify_password
 from app.services.email import send_password_reset_email
+from app.services.upvotes import user_total_upvotes
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -151,8 +152,18 @@ async def heartbeat(
 
 
 @router.get("/me", response_model=UserPublic)
-async def me(current: User = Depends(get_current_user)) -> User:
-    return current
+async def me(
+    current: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    total_upvotes = await user_total_upvotes(db, current.id)
+    return {
+        "id": current.id,
+        "username": current.username,
+        "email": current.email,
+        "created_at": current.created_at,
+        "total_upvotes": total_upvotes,
+    }
 
 
 @router.patch("/me", response_model=UserPublic)
@@ -160,7 +171,7 @@ async def update_me(
     body: UserUpdate,
     db: AsyncSession = Depends(get_db),
     current: User = Depends(get_current_user),
-) -> User:
+) -> dict:
     if body.username is not None:
         new_username = body.username.strip()
         if new_username != current.username:
@@ -182,4 +193,11 @@ async def update_me(
             detail="Ce pseudo est déjà pris.",
         )
     await db.refresh(current)
-    return current
+    total_upvotes = await user_total_upvotes(db, current.id)
+    return {
+        "id": current.id,
+        "username": current.username,
+        "email": current.email,
+        "created_at": current.created_at,
+        "total_upvotes": total_upvotes,
+    }

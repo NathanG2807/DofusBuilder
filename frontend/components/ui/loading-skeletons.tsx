@@ -185,15 +185,17 @@ export function AtelierEntrySkeleton({ className }: { className?: string }) {
 
 export function AtelierPanelSkeleton({ className }: { className?: string }) {
   return (
-    <div className={cn("space-y-6 px-6 py-5", className)}>
-      <div className="overflow-hidden rounded-xl border border-white/[0.07] bg-[#0c0d0a] p-4 space-y-2">
+    <div className={cn("flex min-h-0 flex-1 flex-col lg:flex-row", className)}>
+      <div className="flex-1 space-y-2 border-b border-white/[0.04] px-4 py-3 lg:w-[44%] lg:shrink-0 lg:border-b-0 lg:border-r">
         <Skeleton className="h-3 w-24" />
-        {Array.from({ length: 5 }).map((_, i) => (
-          <Skeleton key={i} className="h-8 w-full" />
-        ))}
+        <div className="space-y-1 rounded-xl border border-white/[0.06] p-2">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <Skeleton key={i} className="h-6 w-full" />
+          ))}
+        </div>
       </div>
-      <div className="space-y-2">
-        <Skeleton className="h-3 w-32" />
+      <div className="flex-1 space-y-1 px-4 py-3">
+        <Skeleton className="mb-2 h-3 w-20" />
         {Array.from({ length: 4 }).map((_, i) => (
           <AtelierEntrySkeleton key={i} />
         ))}

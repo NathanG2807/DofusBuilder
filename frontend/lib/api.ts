@@ -11,7 +11,9 @@ import type {
   OptimizationRequest,
   ItemListResponse,
   PublicBuildOut,
+  UpvoteResponse,
   UserPublic,
+  UserProfilePublic,
   CommunityStats,
 } from "@/types/api";
 
@@ -167,10 +169,28 @@ export async function listPublicBuilds(params: PublicBuildsParams = {}): Promise
     for (const t of params.tags) sp.append("tags", t);
   }
   const r = await fetch(`${getApiBase()}/api/v1/builds/public?${sp}`, {
+    headers: authHeaders(),
     cache: "no-store",
   });
   if (!r.ok) throw new Error(await parseError(r));
   return r.json() as Promise<PublicBuildOut[]>;
+}
+
+export async function toggleBuildUpvote(buildId: string): Promise<UpvoteResponse> {
+  const r = await fetch(`${getApiBase()}/api/v1/builds/${buildId}/upvote`, {
+    method: "POST",
+    headers: authHeaders(),
+  });
+  if (!r.ok) throw new Error(await parseError(r));
+  return r.json() as Promise<UpvoteResponse>;
+}
+
+export async function getPublicUserProfile(username: string): Promise<UserProfilePublic> {
+  const r = await fetch(`${getApiBase()}/api/v1/users/${encodeURIComponent(username)}`, {
+    cache: "no-store",
+  });
+  if (!r.ok) throw new Error(await parseError(r));
+  return r.json() as Promise<UserProfilePublic>;
 }
 
 export async function deleteBuild(buildId: string): Promise<void> {

@@ -115,6 +115,7 @@ export type BuildOut = {
   is_public: boolean;
   tags: string[] | null;
   slots_preview: Record<string, string | null> | null;
+  upvote_count?: number;
   created_at?: string | null;
   updated_at?: string | null;
 };
@@ -132,8 +133,15 @@ export type PublicBuildOut = {
   slots?: Record<string, number | null> | null;
   exo_fm?: Record<string, string> | null;
   username?: string | null;
+  upvote_count?: number;
+  user_has_upvoted?: boolean;
   created_at?: string | null;
   updated_at?: string | null;
+};
+
+export type UpvoteResponse = {
+  upvote_count: number;
+  user_has_upvoted: boolean;
 };
 
 export type BuildCreatePayload = {
@@ -177,6 +185,15 @@ export type UserPublic = {
   username: string;
   email: string;
   created_at: string;
+  total_upvotes?: number;
+};
+
+export type UserProfilePublic = {
+  username: string;
+  created_at: string;
+  public_builds_count: number;
+  total_upvotes?: number;
+  builds: PublicBuildOut[];
 };
 
 export type CraftEntryType = "item" | "set" | "build";

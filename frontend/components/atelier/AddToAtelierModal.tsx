@@ -6,8 +6,11 @@ import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
+import { fetchItem } from "@/lib/api";
+import { filterCraftableSlots, isCraftableItem } from "@/lib/craftRecipe";
 import { useAtelierStore } from "@/store/atelier-store";
 import { useBuildStore } from "@/store/build-store";
+import type { ItemOut } from "@/types/api";
 
 type AddToAtelierModalProps = {
   open: boolean;
@@ -47,6 +50,20 @@ export function AddToAtelierModal({ open, onClose }: AddToAtelierModalProps) {
     setBusy(true);
     setMsg(null);
     try {
+      const equippedIds = [
+        ...new Set(Object.values(currentBuild).filter((id): id is number => id != null)),
+      ];
+      const items = await Promise.all(equippedIds.map((id) => fetchItem(id).catch(() => null)));
+      const craftableIds = new Set<number>(
+        items
+          .filter((item): item is ItemOut => item != null && isCraftableItem(item))
+          .map((item) => item.ankama_id),
+      );
+      if (craftableIds.size === 0) {
+        setMsg("Aucun item craftable dans ce build.");
+        return;
+      }
+
       let listId = selectedListId;
       if (createNew) {
         const created = await createList(newListName.trim() || "Craft build");
@@ -61,7 +78,7 @@ export function AddToAtelierModal({ open, onClose }: AddToAtelierModalProps) {
         ref_id: listId,
         quantity: 1,
         label: buildName.trim() || "Build",
-        slots: { ...currentBuild },
+        slots: filterCraftableSlots({ ...currentBuild }, craftableIds),
       });
       setActiveList(listId);
       setMsg("Build ajouté à l'atelier !");

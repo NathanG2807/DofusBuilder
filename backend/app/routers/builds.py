@@ -11,8 +11,9 @@ from sqlalchemy.orm import selectinload
 
 from app.db.session import get_db
 from app.deps import get_current_user, get_optional_user
-from app.models import Build, Item, User
-from app.schemas import BuildCreate, BuildOut, BuildUpdate, PublicBuildOut
+from app.models import Build, BuildUpvote, Item, User
+from app.schemas import BuildCreate, BuildOut, BuildUpdate, PublicBuildOut, UpvoteResponse
+from app.services.upvotes import user_upvoted_build_ids
 
 router = APIRouter(prefix="/builds", tags=["builds"])
 
@@ -51,6 +52,31 @@ async def _slots_preview_from_slots(
     return preview
 
 
+def _serialize_public_build(
+    build: Build,
+    username: str | None,
+    *,
+    user_has_upvoted: bool = False,
+) -> dict:
+    return {
+        "id": build.id,
+        "name": build.name,
+        "class_id": build.class_id,
+        "level": build.level,
+        "sex": build.sex,
+        "is_public": build.is_public,
+        "tags": build.tags,
+        "slots_preview": build.slots_preview,
+        "slots": build.slots,
+        "exo_fm": build.exo_fm,
+        "username": username,
+        "upvote_count": build.upvote_count or 0,
+        "user_has_upvoted": user_has_upvoted,
+        "created_at": build.created_at,
+        "updated_at": build.updated_at,
+    }
+
+
 @router.get("/public", response_model=list[PublicBuildOut])
 async def list_public_builds(
     q: Optional[str] = Query(default=None, description="Search by build name"),
@@ -60,6 +86,7 @@ async def list_public_builds(
     page: int = Query(default=1, ge=1),
     page_size: int = Query(default=24, ge=1, le=100),
     db: AsyncSession = Depends(get_db),
+    current: Optional[User] = Depends(get_optional_user),
 ) -> list[dict]:
     stmt = (
         select(Build)
@@ -77,25 +104,24 @@ async def list_public_builds(
         from sqlalchemy.dialects.postgresql import JSONB
         for tag in tags:
             stmt = stmt.where(Build.tags.contains(cast([tag], JSONB)))
-    stmt = stmt.order_by(Build.updated_at.desc()).offset((page - 1) * page_size).limit(page_size)
+    stmt = (
+        stmt.order_by(Build.upvote_count.desc(), Build.updated_at.desc())
+        .offset((page - 1) * page_size)
+        .limit(page_size)
+    )
     result = await db.execute(stmt)
     builds = list(result.scalars().all())
+
+    upvoted_ids: set[uuid.UUID] = set()
+    if current is not None and builds:
+        upvoted_ids = await user_upvoted_build_ids(db, current.id, [b.id for b in builds])
+
     return [
-        {
-            "id": b.id,
-            "name": b.name,
-            "class_id": b.class_id,
-            "level": b.level,
-            "sex": b.sex,
-            "is_public": b.is_public,
-            "tags": b.tags,
-            "slots_preview": b.slots_preview,
-            "slots": b.slots,
-            "exo_fm": b.exo_fm,
-            "username": b.user.username if b.user else None,
-            "created_at": b.created_at,
-            "updated_at": b.updated_at,
-        }
+        _serialize_public_build(
+            b,
+            b.user.username if b.user else None,
+            user_has_upvoted=b.id in upvoted_ids,
+        )
         for b in builds
     ]
 
@@ -162,6 +188,35 @@ async def get_build(
     if current is None or b.user_id != current.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Build is private")
     return b
+
+
+@router.post("/{build_id}/upvote", response_model=UpvoteResponse)
+async def toggle_build_upvote(
+    build_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current: User = Depends(get_current_user),
+) -> dict:
+    b = await db.get(Build, build_id)
+    if b is None:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Build not found")
+    if not b.is_public:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Build is private")
+    if b.user_id == current.id:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Cannot upvote your own build")
+
+    existing = await db.get(BuildUpvote, {"user_id": current.id, "build_id": build_id})
+    if existing is not None:
+        await db.delete(existing)
+        b.upvote_count = max(0, (b.upvote_count or 0) - 1)
+        user_has_upvoted = False
+    else:
+        db.add(BuildUpvote(user_id=current.id, build_id=build_id))
+        b.upvote_count = (b.upvote_count or 0) + 1
+        user_has_upvoted = True
+
+    await db.commit()
+    await db.refresh(b)
+    return {"upvote_count": b.upvote_count, "user_has_upvoted": user_has_upvoted}
 
 
 @router.patch("/{build_id}", response_model=BuildOut)

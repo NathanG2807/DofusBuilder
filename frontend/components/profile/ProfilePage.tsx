@@ -519,10 +519,11 @@ export function ProfilePage() {
         </Plaque>
 
         {/* ── Stats ── */}
-        <div className="mb-8 grid grid-cols-3 gap-4">
+        <div className="mb-8 grid grid-cols-2 gap-4 sm:grid-cols-4">
           <StatCard label="Builds créés" value={builds.length} color="#f0d78c" />
           <StatCard label="Publics" value={publicCount} color="var(--dofus-green-active)" />
           <StatCard label="Privés" value={privateCount} color="#666" />
+          <StatCard label="Upvotes reçus" value={user.total_upvotes ?? 0} color="#f0d78c" />
         </div>
 
         {/* ── Action error ── */}

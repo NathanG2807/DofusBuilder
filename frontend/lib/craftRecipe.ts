@@ -73,6 +73,34 @@ export function recipeLines(item: ItemOut | undefined): RecipeLine[] {
   return item.recipe;
 }
 
+export function isCraftableItem(item: ItemOut | undefined): boolean {
+  return recipeLines(item).length > 0;
+}
+
+/** Ne conserve que les items ayant une recette de craft. */
+export function filterCraftableItemCounts(
+  counts: ItemQuantityMap,
+  itemCache: Record<number, ItemOut>,
+): ItemQuantityMap {
+  const filtered = new Map<number, number>();
+  for (const [itemId, qty] of counts) {
+    if (isCraftableItem(itemCache[itemId])) filtered.set(itemId, qty);
+  }
+  return filtered;
+}
+
+/** Slots de build limités aux items craftables (null sinon). */
+export function filterCraftableSlots(
+  slots: Record<string, number | null>,
+  craftableIds: ReadonlySet<number>,
+): Record<string, number | null> {
+  const filtered: Record<string, number | null> = {};
+  for (const [slot, id] of Object.entries(slots)) {
+    filtered[slot] = id != null && craftableIds.has(id) ? id : null;
+  }
+  return filtered;
+}
+
 export function aggregateIngredientNeeds(
   entries: CraftEntry[],
   entryItemCounts: Map<string, ItemQuantityMap>,
@@ -276,13 +304,15 @@ export function ingredientRowStatus(row: {
 }
 
 export function ingredientRowClassName(status: IngredientRowStatus): string {
-  if (status === "complete") {
-    return "bg-emerald-500/[0.08] border-l-2 border-emerald-500/70";
-  }
-  if (status === "partial") {
-    return "bg-amber-500/[0.08] border-l-2 border-amber-500/70";
-  }
-  return "bg-red-500/[0.06] border-l-2 border-red-500/50";
+  if (status === "complete") return "bg-emerald-500/[0.09]";
+  if (status === "partial") return "bg-amber-500/[0.08]";
+  return "bg-red-500/[0.05]";
+}
+
+export function ingredientCraftTextClassName(status: IngredientRowStatus): string {
+  if (status === "complete") return "text-emerald-400";
+  if (status === "partial") return "text-amber-400/90";
+  return "text-[var(--dofus-ui-selected-border,#98c030)]/85";
 }
 
 export type PerItemIngredientBreakdown = {
@@ -303,6 +333,7 @@ export function computePerItemIngredientRows(
   const sortedIds = [...itemCounts.keys()].sort((a, b) => a - b);
 
   for (const itemId of sortedIds) {
+    if (!isCraftableItem(itemCache[itemId])) continue;
     const craftQty = itemCounts.get(itemId) ?? 1;
     const singleMap = new Map<number, number>([[itemId, craftQty]]);
     const stubEntry: CraftEntry = {

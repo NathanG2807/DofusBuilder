@@ -29,6 +29,12 @@ import type { BuildOut, UserPublic } from "@/types/api";
 
 type AuthMode = "login" | "register" | "forgot";
 
+function getConfirmPasswordError(password: string, confirmPassword: string): string | null {
+  if (!confirmPassword) return null;
+  if (password !== confirmPassword) return "Les mots de passe ne correspondent pas.";
+  return null;
+}
+
 export function AccountButton() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
@@ -36,6 +42,8 @@ export function AccountButton() {
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const [confirmPasswordError, setConfirmPasswordError] = useState<string | null>(null);
   const [user, setUser] = useState<UserPublic | null>(null);
   const [authError, setAuthError] = useState<string | null>(null);
   const [authSuccess, setAuthSuccess] = useState<string | null>(null);
@@ -75,10 +83,27 @@ export function AccountButton() {
     return () => { cancel = true; };
   }, [refreshBuilds]);
 
+  function resetPasswordFields() {
+    setPassword("");
+    setConfirmPassword("");
+    setConfirmPasswordError(null);
+  }
+
   async function handleAuth(e: React.FormEvent) {
     e.preventDefault();
     setAuthError(null);
     setAuthSuccess(null);
+    if (authMode === "register") {
+      if (password.length < 8) {
+        setAuthError("Le mot de passe doit contenir au moins 8 caractères.");
+        return;
+      }
+      const mismatch = getConfirmPasswordError(password, confirmPassword);
+      if (mismatch) {
+        setConfirmPasswordError(mismatch);
+        return;
+      }
+    }
     setBusy(true);
     try {
       if (authMode === "forgot") {
@@ -93,7 +118,7 @@ export function AccountButton() {
       setAccessToken(access_token);
       const me = await authMe();
       setUser(me);
-      setPassword("");
+      resetPasswordFields();
       await refreshBuilds();
     } catch (err) {
       setAuthError(err instanceof Error ? err.message : "Erreur");
@@ -229,7 +254,12 @@ export function AccountButton() {
                     <button
                       key={m}
                       type="button"
-                      onClick={() => { setAuthMode(m); setAuthError(null); setAuthSuccess(null); }}
+                      onClick={() => {
+                        setAuthMode(m);
+                        setAuthError(null);
+                        setAuthSuccess(null);
+                        resetPasswordFields();
+                      }}
                       className={cn(
                         "flex-1 cursor-pointer rounded-md py-1.5 text-[12px] font-semibold transition-all duration-150",
                         authMode === m
@@ -289,10 +319,36 @@ export function AccountButton() {
                       label="Mot de passe"
                       placeholder="••••••••"
                       value={password}
-                      onChange={(e) => setPassword(e.target.value)}
+                      onChange={(e) => {
+                        const next = e.target.value;
+                        setPassword(next);
+                        if (authMode === "register") {
+                          setConfirmPasswordError(getConfirmPasswordError(next, confirmPassword));
+                        }
+                      }}
                       autoComplete={authMode === "register" ? "new-password" : "current-password"}
+                      showPasswordToggle
+                      minLength={authMode === "register" ? 8 : undefined}
                       required
                     />
+                    {authMode === "register" && (
+                      <Input
+                        type="password"
+                        label="Confirmer le mot de passe"
+                        placeholder="••••••••"
+                        value={confirmPassword}
+                        onChange={(e) => {
+                          const next = e.target.value;
+                          setConfirmPassword(next);
+                          setConfirmPasswordError(getConfirmPasswordError(password, next));
+                        }}
+                        autoComplete="new-password"
+                        showPasswordToggle
+                        minLength={8}
+                        error={confirmPasswordError ?? undefined}
+                        required
+                      />
+                    )}
                     {authMode === "login" && (
                       <div className="flex justify-end">
                         <button
