@@ -300,10 +300,14 @@ export async function fetchCommunityStats(): Promise<CommunityStats> {
 export async function sendHeartbeat(): Promise<void> {
   const t = getAccessToken();
   if (!t) return;
-  await fetch(`${getApiBase()}/api/v1/auth/heartbeat`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${t}` },
-  });
+  try {
+    await fetch(`${getApiBase()}/api/v1/auth/heartbeat`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${t}` },
+    });
+  } catch {
+    // Réseau indisponible — on réessaiera au prochain tick
+  }
 }
 
 export async function runOptimize(

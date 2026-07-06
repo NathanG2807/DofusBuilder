@@ -1,11 +1,13 @@
 "use client";
 
+import { ChevronRight } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
 import { Chip } from "@/components/ui/Chip";
 import { DofusSpinner } from "@/components/ui/DofusSpinner";
+import { cn } from "@/lib/cn";
 import { resolveDropItemForHover } from "@/lib/dofusDbItemMapper";
 import type { ItemOut } from "@/types/api";
 import {
@@ -48,6 +50,8 @@ import {
   isWantedMonster,
   monsterImgUrl,
   monsterGradeToCombatStats,
+  monsterGradeFuite,
+  monsterGradeTacle,
   searchMonsters,
   searchZones,
   DUNGEON_LEVEL_FILTERS,
@@ -215,6 +219,65 @@ function PvIcon({ size = 28 }: { size?: number }) {
       <img src="/assets/build/pvedge.png" alt="" width={size} height={size}
         className="absolute inset-0 h-full w-full object-contain" />
     </div>
+  );
+}
+
+function PvIconWithValue({ size, value }: { size: number; value: number }) {
+  const text = value.toLocaleString("fr-FR");
+  const fontSize = text.length > 5 ? size * 0.15 : text.length > 4 ? size * 0.17 : size * 0.21;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/assets/build/pv.png" alt="PV" width={size} height={size}
+        className="absolute inset-0 h-full w-full object-contain" />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src="/assets/build/pvedge.png" alt="" width={size} height={size}
+        className="absolute inset-0 h-full w-full object-contain" />
+      <span
+        className="absolute inset-0 flex items-center justify-center font-bold tabular-nums leading-none text-white"
+        style={{ fontSize, paddingTop: size * 0.04 }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
+function StatIconWithValue({
+  src,
+  alt,
+  value,
+  size = 32,
+  color = "#fff",
+}: {
+  src: string;
+  alt: string;
+  value: number;
+  size?: number;
+  color?: string;
+}) {
+  const text = String(value);
+  const fontSize = text.length > 2 ? size * 0.26 : size * 0.32;
+  return (
+    <div className="relative shrink-0" style={{ width: size, height: size }}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt={alt} width={size} height={size}
+        className="absolute inset-0 h-full w-full object-contain" />
+      <span
+        className="absolute inset-0 flex items-center justify-center font-bold tabular-nums leading-none"
+        style={{ fontSize, color, paddingTop: size * 0.06 }}
+      >
+        {text}
+      </span>
+    </div>
+  );
+}
+
+function DungeonStatLabel({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mb-1.5 text-[9px] font-bold uppercase tracking-[0.14em] text-[var(--dofus-green-active)]">
+      {children}
+    </p>
   );
 }
 
@@ -880,6 +943,471 @@ function GradeStats({ grade }: { grade: MonsterGrade }) {
             <span className="text-[12px] font-semibold tabular-nums text-[#f0d78c]">{grade.gradeXp.toLocaleString("fr-FR")}</span>
           </div>
         </div>
+      </div>
+    </div>
+  );
+}
+
+/* ── Dungeon drops list (inline, grade-aware) ──────────────────────────────── */
+function DungeonDropsList({
+  drops,
+  itemMap,
+  loading,
+}: {
+  drops: { objectId: number; pct: number }[];
+  itemMap: Record<number, DropItemOut>;
+  loading: boolean;
+}) {
+  const { hover, show, move, scheduleHide, cancelHide } = useItemHoverCard();
+  const itemCache = useRef<Map<number, ItemOut>>(new Map());
+
+  const handleHover = useCallback(async (objectId: number, e: React.MouseEvent) => {
+    let item = itemCache.current.get(objectId);
+    if (!item) {
+      const resolved = await resolveDropItemForHover(objectId, itemMap[objectId]);
+      if (!resolved) return;
+      itemCache.current.set(objectId, resolved);
+      item = resolved;
+    }
+    show(item, e);
+  }, [show, itemMap]);
+
+  if (loading) {
+    return (
+      <div className="flex justify-center py-4">
+        <DofusSpinner size={28} label="Chargement du butin…" />
+      </div>
+    );
+  }
+  if (drops.length === 0) {
+    return <p className="text-[10px] text-[#383838]">Aucun butin pour ce grade</p>;
+  }
+
+  return (
+    <>
+      <div className="grid grid-cols-2 gap-1.5 sm:grid-cols-3 md:grid-cols-4">
+        {drops.map(({ objectId, pct }) => {
+          const drop = itemMap[objectId];
+          return (
+            <div
+              key={objectId}
+              className="flex cursor-default items-center gap-2 rounded-lg border border-[#252525] bg-[#111] px-2 py-1.5 transition hover:border-[#303030]"
+              onMouseEnter={(e) => void handleHover(objectId, e)}
+              onMouseMove={move}
+              onMouseLeave={scheduleHide}
+            >
+              {drop ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={drop.img} alt="" width={24} height={24}
+                  className="h-6 w-6 shrink-0 rounded object-contain" />
+              ) : (
+                <div className="h-6 w-6 shrink-0 rounded bg-[#1a1a1a]" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-[10px] text-[#c0b880]">{drop?.name.fr ?? `#${objectId}`}</p>
+                <p className="text-[10px] font-semibold tabular-nums text-[#6db824]">{pct.toFixed(1)}%</p>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+      {hover && (
+        <ItemHoverCard
+          item={hover.item}
+          anchor={{ x: hover.x, y: hover.y }}
+          preferSide="left"
+          onMouseEnter={cancelHide}
+          onMouseLeave={scheduleHide}
+        />
+      )}
+    </>
+  );
+}
+
+/* ── Dungeon Monster Entry ─────────────────────────────────────────────────── */
+function DungeonMonsterEntry({
+  monster,
+  onOpenDetail,
+}: {
+  monster: MonsterBase;
+  onOpenDetail: (id: number) => void;
+}) {
+  const [gradeIdx, setGradeIdx] = useState(0);
+  const [spellsOpen, setSpellsOpen] = useState(false);
+  const [dropsOpen, setDropsOpen]   = useState(false);
+  const [spells, setSpells]         = useState<SpellOut[] | null>(null);
+  const [spellsLoading, setSpellsLoading] = useState(false);
+  const [itemMap, setItemMap]       = useState<Record<number, DropItemOut>>({});
+  const [dropsLoading, setDropsLoading]   = useState(false);
+  const [dropsLoaded, setDropsLoaded]     = useState(false);
+
+  const wanted = isWantedMonster(monster);
+  const accent = monster.isBoss
+    ? BOSS_ACCENT
+    : monster.isMiniBoss
+      ? ARCHI_ACCENT
+      : wanted
+        ? WANTED_ACCENT
+        : "#6db824";
+
+  const grades = monster.grades;
+  const grade  = grades[gradeIdx];
+
+  useEffect(() => { setGradeIdx(0); }, [monster.id]);
+
+  const drops = grade
+    ? monster.drops
+        .filter((d) => !d.isGlobal && !d.disableDropModificator)
+        .map((d) => {
+          const row = d as unknown as Record<string, number>;
+          const pct = row[`percentDropForGrade${gradeIdx + 1}`] ?? d.percentDropForGrade1;
+          return { objectId: d.objectId, pct };
+        })
+        .filter((d) => d.pct > 0)
+        .sort((a, b) => b.pct - a.pct)
+    : [];
+
+  const hasDrops = monster.drops.some((d) => !d.isGlobal && !d.disableDropModificator);
+
+  useEffect(() => {
+    if (!dropsOpen || dropsLoaded) return;
+    setDropsLoading(true);
+    void fetchDropItems(collectDropObjectIds(monster.drops ?? []))
+      .then((items) => {
+        const map: Record<number, DropItemOut> = {};
+        for (const item of items) map[item.id] = item;
+        setItemMap(map);
+        setDropsLoaded(true);
+      })
+      .finally(() => setDropsLoading(false));
+  }, [dropsOpen, dropsLoaded, monster.drops]);
+
+  useEffect(() => {
+    if (!spellsOpen || spells !== null) return;
+    setSpellsLoading(true);
+    void fetchSpells(monster.spells ?? [])
+      .then((data) => setSpells(data))
+      .finally(() => setSpellsLoading(false));
+  }, [spellsOpen, monster.spells, spells]);
+
+  if (!grade) return null;
+
+  const imgSize = 128;
+  const frameSize = imgSize + 8;
+  const frameOffset = -frameSize / 2;
+  const leftColWidth = 156;
+
+  return (
+    <div
+      className="relative ml-[68px] mt-[68px] overflow-visible rounded-xl border"
+      style={{ borderColor: `${accent}30`, background: "#131313" }}
+    >
+      {/* ── Zone haute : image débordante + identité ── */}
+      <div
+        className="relative border-b pb-2.5 pt-3"
+        style={{ borderColor: "#1c1c1c" }}
+      >
+        {/* Cadre image — centre sur le coin haut-gauche de la card */}
+        <button
+          type="button"
+          onClick={() => onOpenDetail(monster.id)}
+          className="absolute z-20 flex items-center justify-center rounded-lg border-2 transition hover:brightness-110"
+          style={{
+            left: frameOffset,
+            top: frameOffset,
+            width: frameSize,
+            height: frameSize,
+            borderColor: `${accent}55`,
+            background: "#0a0a0a",
+            boxShadow: `0 4px 20px rgba(0,0,0,0.85), inset 0 0 32px ${accent}0c`,
+          }}
+          title="Voir le détail complet"
+        >
+          {monster.isBoss && (
+            <div className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-6 w-6 items-center justify-center rounded border"
+              style={{ borderColor: BOSS_STYLE.borderSoft, background: "rgba(18,6,6,0.97)" }}>
+              <BossIcon size={14} />
+            </div>
+          )}
+          {monster.isMiniBoss && !monster.isBoss && (
+            <div className="pointer-events-none absolute -right-1 -top-1 z-10 flex h-6 w-6 items-center justify-center rounded border"
+              style={{ borderColor: ARCHI_STYLE.borderSoft, background: "rgba(6,12,22,0.97)" }}>
+              <ArchiIcon size={14} />
+            </div>
+          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={monsterImgUrl(monster)}
+            alt={monster.name.fr}
+            width={imgSize}
+            height={imgSize}
+            className="object-contain drop-shadow-[0_4px_16px_rgba(0,0,0,0.9)]"
+            style={{ width: imgSize, height: imgSize }}
+            onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0.1"; }}
+          />
+        </button>
+
+        {/* Nom + niveau — décalé à droite de l'image */}
+        <div className="relative ml-[76px] mr-3 min-h-[80px]">
+          <div className="flex items-start justify-between gap-2">
+            <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+              {monster.isBoss && <BossIcon size={14} />}
+              {monster.isMiniBoss && !monster.isBoss && <ArchiIcon size={14} />}
+              <button
+                type="button"
+                onClick={() => onOpenDetail(monster.id)}
+                className="shrink-0 text-left text-[14px] font-bold leading-tight transition hover:underline"
+                style={{ color: accent }}
+              >
+                {monster.name.fr}
+              </button>
+              <span className="text-[12px] font-medium text-[#444]">–</span>
+              <span className="flex items-center gap-1 text-[11px] font-semibold tabular-nums text-[#f0d78c]">
+                {grade.gradeXp.toLocaleString("fr-FR")}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/global/UI/iconsRef/xp.png" alt="XP" width={14} height={14}
+                  className="h-3.5 w-3.5 shrink-0 object-contain opacity-90" />
+              </span>
+            </div>
+            <span className="shrink-0 text-[10px] font-medium text-[#666]">
+              Niv.&nbsp;{levelRange(grades)}
+            </span>
+          </div>
+
+          {grades.length > 1 && (
+            <div className="mt-2 flex flex-wrap gap-1">
+              {grades.map((g, i) => (
+                <button
+                  key={g.grade}
+                  type="button"
+                  onClick={() => setGradeIdx(i)}
+                  className={`rounded px-1.5 py-0.5 text-[10px] font-semibold transition-all ${
+                    gradeIdx === i ? "text-[#0a0a0a]" : "border border-[#2a2a2a] bg-[#0e0e0e] text-[#505050] hover:text-[#888]"
+                  }`}
+                  style={gradeIdx === i ? { background: accent, border: `1px solid ${accent}` } : {}}
+                >
+                  Niv.&nbsp;{g.level}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* ── Corps stats ── */}
+      <div className="flex overflow-hidden rounded-b-xl">
+        {/* Colonne gauche — PV / PA / PM (pleine largeur) */}
+        <div
+          className="flex shrink-0 flex-col items-center justify-center gap-3 border-r px-2 py-3"
+          style={{ width: leftColWidth, borderColor: "#1c1c1c", background: "#131313" }}
+        >
+          <PvIconWithValue size={120} value={grade.lifePoints} />
+          <div className="flex w-full items-center justify-between px-1">
+            <StatIconWithValue
+              src={ELEM_ASSETS.pa.src}
+              alt="PA"
+              value={grade.actionPoints}
+              size={54}
+              color="#fff"
+            />
+            <StatIconWithValue
+              src={ELEM_ASSETS.pm.src}
+              alt="PM"
+              value={grade.movementPoints}
+              size={54}
+              color="#fff"
+            />
+          </div>
+        </div>
+
+        {/* Colonne droite — fuite/tacle/esquives / caractéristiques / résistances */}
+        <div className="flex min-w-0 flex-1 flex-col">
+          {/* Fuite + tacle + esquives */}
+          <div className="border-b px-3 py-2.5" style={{ borderColor: "#1c1c1c" }}>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              <div className="flex items-center gap-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/elements/fu.png" alt="Fuite" width={14} height={14}
+                  className="h-[14px] w-[14px] shrink-0 object-contain" />
+                <span className="text-[10px] text-[#555]">Fuite</span>
+                <span className="text-[12px] font-semibold tabular-nums text-[#98c030]">{monsterGradeFuite(grade)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/elements/ta.png" alt="Tacle" width={14} height={14}
+                  className="h-[14px] w-[14px] shrink-0 object-contain" />
+                <span className="text-[10px] text-[#555]">Tacle</span>
+                <span className="text-[12px] font-semibold tabular-nums text-[#98c030]">{monsterGradeTacle(grade)}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/elements/epa.png" alt="Esquive PA" width={14} height={14}
+                  className="h-[14px] w-[14px] shrink-0 object-contain" />
+                <span className="text-[10px] text-[#555]">Esquive PA</span>
+                <span className="text-[12px] font-semibold tabular-nums text-[#c8c0a8]">{grade.paDodge}</span>
+              </div>
+              <div className="flex items-center gap-1">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/elements/epm.png" alt="Esquive PM" width={14} height={14}
+                  className="h-[14px] w-[14px] shrink-0 object-contain" />
+                <span className="text-[10px] text-[#555]">Esquive PM</span>
+                <span className="text-[12px] font-semibold tabular-nums text-[#c8c0a8]">{grade.pmDodge}</span>
+              </div>
+              {grade.damageReflect > 0 && (
+                <div className="flex items-center gap-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/assets/global/UI/characteristic.png" alt="" width={14} height={14}
+                    className="h-[14px] w-[14px] shrink-0 object-contain opacity-55" />
+                  <span className="text-[10px] text-[#555]">Renvoi</span>
+                  <span className="text-[12px] font-semibold tabular-nums text-[#c0a060]">{grade.damageReflect}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Caractéristiques */}
+          <div className="border-b px-3 py-2.5" style={{ borderColor: "#1c1c1c" }}>
+            <DungeonStatLabel>Caractéristiques</DungeonStatLabel>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {CHARACTERISTICS.map(({ key, icon }) => {
+                const v = gradeNum(grade, key);
+                const a = ELEM_ASSETS[icon];
+                return (
+                  <div key={String(key)} className="flex items-center gap-0.5">
+                    <ElemIcon k={icon} size={14} />
+                    <span className="text-[12px] font-semibold tabular-nums" style={{ color: a.color }}>{v}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Résistances */}
+          <div className="px-3 py-2.5">
+            <DungeonStatLabel>Résistances</DungeonStatLabel>
+            <div className="flex flex-wrap gap-x-3 gap-y-1">
+              {RESISTANCES.map(({ key, icon }) => {
+                const v = gradeNum(grade, key);
+                return (
+                  <div key={String(key)} className="flex items-center gap-0.5">
+                    <ElemIcon k={icon} size={14} />
+                    <span className="text-[12px] font-bold tabular-nums" style={{ color: resColor(v) }}>{fmtRes(v)}</span>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Accordions : Sorts + Butin ── */}
+      {((monster.spells?.length ?? 0) > 0 || hasDrops) && (
+        <div className="overflow-hidden rounded-b-xl border-t" style={{ borderColor: "#1c1c1c" }}>
+          {(monster.spells?.length ?? 0) > 0 && (
+            <>
+              <button
+                type="button"
+                onClick={() => setSpellsOpen((v) => !v)}
+                className="flex w-full items-center gap-2 border-b px-3 py-2 text-left transition hover:bg-white/[0.015]"
+                style={{ borderColor: "#1c1c1c" }}
+              >
+                <span className={cn("shrink-0 transition-transform duration-200", spellsOpen && "rotate-90")}>
+                  <ChevronRight size={12} className="text-[#383838]" />
+                </span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/global/UI/spells.png" alt="" width={12} height={12}
+                  className="h-3 w-3 shrink-0 object-contain opacity-40" />
+                <span className="text-[10px] text-[#454545]">Sorts ({monster.spells?.length ?? 0})</span>
+              </button>
+              <div className={cn("grid transition-[grid-template-rows] duration-200", spellsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+                <div className="overflow-hidden">
+                  <div className="border-b px-3 pb-3 pt-2.5" style={{ borderColor: "#1c1c1c" }}>
+                    {spellsLoading ? (
+                      <div className="flex justify-center py-4"><DofusSpinner size={28} /></div>
+                    ) : spells && spells.length > 0 ? (
+                      <SpellsSection spells={spells} monsterGrade={grade} />
+                    ) : spells !== null ? (
+                      <p className="text-[10px] text-[#383838]">Aucun sort disponible</p>
+                    ) : null}
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+
+          {hasDrops && (
+            <>
+              <button
+                type="button"
+                onClick={() => setDropsOpen((v) => !v)}
+                className="flex w-full items-center gap-2 px-3 py-2 text-left transition hover:bg-white/[0.015]"
+              >
+                <span className={cn("shrink-0 transition-transform duration-200", dropsOpen && "rotate-90")}>
+                  <ChevronRight size={12} className="text-[#383838]" />
+                </span>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/assets/global/UI/iconsRef/kama.png" alt="" width={12} height={12}
+                  className="h-3 w-3 shrink-0 object-contain opacity-50" />
+                <span className="text-[10px] text-[#454545]">Butin ({drops.length})</span>
+              </button>
+              <div className={cn("grid transition-[grid-template-rows] duration-200", dropsOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+                <div className="overflow-hidden">
+                  <div className="px-3 pb-3 pt-1">
+                    <DungeonDropsList drops={drops} itemMap={itemMap} loading={dropsLoading} />
+                  </div>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Dungeon Monsters View ─────────────────────────────────────────────────── */
+function DungeonMonstersView({
+  dungeon,
+  monsters,
+  onOpenDetail,
+}: {
+  dungeon: DungeonOut;
+  monsters: MonsterBase[];
+  onOpenDetail: (id: number) => void;
+}) {
+  const sorted = [
+    ...monsters.filter((m) => m.isBoss),
+    ...monsters.filter((m) => m.isMiniBoss && !m.isBoss),
+    ...monsters
+      .filter((m) => !m.isBoss && !m.isMiniBoss)
+      .sort((a, b) => (a.grades[0]?.level ?? 0) - (b.grades[0]?.level ?? 0)),
+  ];
+
+  return (
+    <div>
+      {/* Dungeon title */}
+      <div className="mb-6 flex items-center gap-4">
+        <div className="h-px flex-1 bg-[#1e1e1e]" />
+        <div className="flex items-center gap-2.5">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/assets/global/UI/boss.png" alt="" width={18} height={18}
+            className="h-[18px] w-[18px] shrink-0 object-contain opacity-60" />
+          <h2 className="font-display text-[22px] font-bold text-[#d4c898]">{dungeon.name.fr}</h2>
+          <span className="rounded-md border border-[#2a2a2a] bg-[#111] px-2 py-0.5 text-[10px] font-semibold text-[#505050]">
+            {sorted.length} monstre{sorted.length !== 1 ? "s" : ""}
+          </span>
+        </div>
+        <div className="h-px flex-1 bg-[#1e1e1e]" />
+      </div>
+
+      <div className="grid grid-cols-1 items-start gap-x-4 gap-y-8 sm:grid-cols-2">
+        {sorted.map((monster) => (
+          <DungeonMonsterEntry
+            key={monster.id}
+            monster={monster}
+            onOpenDetail={onOpenDetail}
+          />
+        ))}
       </div>
     </div>
   );
@@ -1750,11 +2278,19 @@ export function BestiaryPanel() {
           <MonsterDetailPanel data={detailData} />
         )}
         {!loading && !detailData && !detailLoading && hasSearched && monsters.length > 0 && (
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
-            {monsters.map((m) => (
-              <MonsterCard key={m.id} monster={m} onClick={() => void openDetail(m.id)} />
-            ))}
-          </div>
+          locationSelection?.mode === "dungeon" ? (
+            <DungeonMonstersView
+              dungeon={locationSelection.dungeon}
+              monsters={monsters}
+              onOpenDetail={(id) => void openDetail(id)}
+            />
+          ) : (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
+              {monsters.map((m) => (
+                <MonsterCard key={m.id} monster={m} onClick={() => void openDetail(m.id)} />
+              ))}
+            </div>
+          )
         )}
         {!loading && hasSearched && monsters.length === 0 && !listError && (
           <div className="flex flex-col items-center justify-center py-20 text-center">

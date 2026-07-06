@@ -319,6 +319,16 @@ export function monsterImgUrl(m: Pick<MonsterBase, "img" | "gfxId">): string {
   return m.img ?? `${DOFUSDB}/img/monsters/${m.gfxId}.png`;
 }
 
+/** Fuite du monstre (Chance / 10, arrondi inférieur). */
+export function monsterGradeFuite(grade: MonsterGrade): number {
+  return Math.floor(grade.chance / 10);
+}
+
+/** Tacle du monstre (Agilité / 10, arrondi inférieur). */
+export function monsterGradeTacle(grade: MonsterGrade): number {
+  return Math.floor(grade.agility / 10);
+}
+
 /** Mappe les caractéristiques d'un grade de monstre vers le format de calcul de dégâts. */
 export function monsterGradeToCombatStats(grade: MonsterGrade): Record<string, number> {
   return {

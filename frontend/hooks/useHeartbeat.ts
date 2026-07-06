@@ -3,7 +3,6 @@
 import { useEffect } from "react";
 
 import { sendHeartbeat } from "@/lib/api";
-import { getAccessToken } from "@/lib/auth";
 
 const HEARTBEAT_MS = 30_000;
 
@@ -11,32 +10,26 @@ const HEARTBEAT_MS = 30_000;
  * Envoie un heartbeat toutes les 30 s tant que l'onglet est visible
  * et que l'utilisateur est authentifié. Utilisé pour alimenter le
  * compteur "membres en ligne" sur la page d'accueil.
+ *
+ * Le check du token est délégué à sendHeartbeat() (no-op si absent),
+ * ce qui permet de démarrer le compteur même si l'utilisateur se
+ * connecte après le premier rendu de la page.
  */
 export function useHeartbeat(): void {
   useEffect(() => {
-    if (!getAccessToken()) return;
-
-    let intervalId: ReturnType<typeof setInterval>;
-
     function ping() {
       if (document.visibilityState === "visible") {
         void sendHeartbeat();
       }
     }
 
-    function onVisibilityChange() {
-      if (document.visibilityState === "visible") {
-        void sendHeartbeat();
-      }
-    }
-
     ping();
-    intervalId = setInterval(ping, HEARTBEAT_MS);
-    document.addEventListener("visibilitychange", onVisibilityChange);
+    const intervalId = setInterval(ping, HEARTBEAT_MS);
+    document.addEventListener("visibilitychange", ping);
 
     return () => {
       clearInterval(intervalId);
-      document.removeEventListener("visibilitychange", onVisibilityChange);
+      document.removeEventListener("visibilitychange", ping);
     };
   }, []);
 }
