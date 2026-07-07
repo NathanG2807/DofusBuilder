@@ -136,6 +136,7 @@ function StatGroup({
   onParcho,
   onParchoAll,
   defaultOpen = true,
+  readOnly = false,
 }: {
   title: string;
   stats: { key: string; label: string; icon: string }[];
@@ -147,6 +148,7 @@ function StatGroup({
   onParcho: (key: string, value: number) => void;
   onParchoAll: () => void;
   defaultOpen?: boolean;
+  readOnly?: boolean;
 }) {
   const [open, setOpen] = useState(defaultOpen);
   const hasPrimaries = stats.some((s) => INVESTABLE_KEYS.has(s.key));
@@ -164,7 +166,7 @@ function StatGroup({
           {title}
         </span>
         <div className="flex items-center gap-2">
-          {hasPrimaries && open && (
+          {hasPrimaries && open && !readOnly && (
             <>
               <button
                 type="button"
@@ -188,7 +190,7 @@ function StatGroup({
       {open && (
         <div className={`flex flex-col gap-0.5 px-2 pb-2 ${hasPrimaries ? "" : "grid grid-cols-2 gap-x-1"}`}
           style={hasPrimaries ? {} : { display: "grid" }}>
-          {hasPrimaries ? (
+          {hasPrimaries && !readOnly ? (
             <>
               <div className="mb-0.5 grid grid-cols-[14px_1fr_48px_44px_36px] items-center gap-1 px-1.5 text-[9px] uppercase tracking-wide text-[#444444]">
                 <span />
@@ -282,7 +284,7 @@ function ForgemagieCard() {
 }
 
 /* ── Panel principal ──────────────────────────────────────────────────────── */
-export function StatsPanel() {
+export function StatsPanel({ readOnly = false }: { readOnly?: boolean } = {}) {
   const stats            = useDisplayStats();
   const level            = useBuildStore((s) => s.level);
   const charStats        = useBuildStore((s) => s.charStats);
@@ -325,11 +327,6 @@ export function StatsPanel() {
               {stuffLevel}
             </span>
           )}
-          {level >= 100 && (
-            <span className="rounded-full bg-[var(--dofus-ui-accent-tint-15)] px-1.5 py-0.5 text-[10px] font-medium text-[var(--dofus-green-active)]">
-              +1 PA niv.100
-            </span>
-          )}
         </div>
       </div>
 
@@ -364,6 +361,7 @@ export function StatsPanel() {
             }
           }}
           defaultOpen={i === 0}
+          readOnly={readOnly}
         />
       ))}
     </aside>

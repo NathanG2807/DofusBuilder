@@ -58,7 +58,7 @@ function ForeignBuildBanner({
   onDismiss,
 }: {
   build: ForeignBuild;
-  onDismiss: () => void;
+  onDismiss?: () => void;
 }) {
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);
@@ -104,7 +104,7 @@ function ForeignBuildBanner({
         slots_preview: slotsPreview,
       });
       setMsg("Build copié dans vos sauvegardes !");
-      setTimeout(onDismiss, 1800);
+      setTimeout(() => onDismiss?.(), 1800);
     } catch (e) {
       setMsg(e instanceof Error ? e.message : "Erreur lors de la copie.");
     } finally {
@@ -139,26 +139,44 @@ function ForeignBuildBanner({
         >
           {saving ? "Copie…" : "Copier dans mes builds"}
         </Button>
-        <button
-          type="button"
-          onClick={onDismiss}
-          className="rounded p-0.5 text-[#555] transition hover:text-[#999]"
-          title="Fermer"
-        >
-          <X size={14} />
-        </button>
+        {onDismiss && (
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="rounded p-0.5 text-[#555] transition hover:text-[#999]"
+            title="Fermer"
+          >
+            <X size={14} />
+          </button>
+        )}
       </div>
     </div>
   );
 }
 
 /* ── Dashboard principal ─────────────────────────────────────────────────── */
-export function DashboardApp({ initialTab = "buildroom" }: { initialTab?: AppTab } = {}) {
+export function DashboardApp({
+  initialTab = "buildroom",
+  readOnly = false,
+  sharedBuild = null,
+}: {
+  initialTab?: AppTab;
+  readOnly?: boolean;
+  sharedBuild?: { id: string; name: string } | null;
+} = {}) {
   const [showTools, setShowTools] = useState(false);
   const [activeTool, setActiveTool] = useState<ActiveTool>("optimize");
   const [mobileView, setMobileView] = useState<MobileView>("build");
   const [activeTab, setActiveTab] = useState<AppTab>(initialTab);
-  const [foreignBuild, setForeignBuild] = useState<ForeignBuild | null>(null);
+  const [foreignBuild, setForeignBuild] = useState<ForeignBuild | null>(
+    readOnly && sharedBuild ? sharedBuild : null,
+  );
+
+  useEffect(() => {
+    if (readOnly && sharedBuild) {
+      setForeignBuild(sharedBuild);
+    }
+  }, [readOnly, sharedBuild]);
 
   useEffect(() => {
     function handleSwitchTab(e: Event) {
@@ -182,15 +200,24 @@ export function DashboardApp({ initialTab = "buildroom" }: { initialTab?: AppTab
 
   return (
     <div className="flex min-h-screen flex-col">
-      <Navbar activeTab={activeTab} onTabChange={(tab) => { setActiveTab(tab); if (tab !== "buildroom") setForeignBuild(null); }} />
+      <Navbar
+        activeTab={activeTab}
+        onTabChange={(tab) => {
+          setActiveTab(tab);
+          if (!readOnly && tab !== "buildroom") setForeignBuild(null);
+        }}
+      />
 
       {activeTab === "stuffs" ? (
         <StuffsPanel />
       ) : (
         <>
           {/* ── Bannière build étranger ── */}
-          {foreignBuild && (
-            <ForeignBuildBanner build={foreignBuild} onDismiss={() => setForeignBuild(null)} />
+          {(foreignBuild || (readOnly && sharedBuild)) && (
+            <ForeignBuildBanner
+              build={foreignBuild ?? sharedBuild!}
+              onDismiss={readOnly ? undefined : () => setForeignBuild(null)}
+            />
           )}
 
           {/* ════════ Layout desktop (lg+) ════════ */}
@@ -206,13 +233,13 @@ export function DashboardApp({ initialTab = "buildroom" }: { initialTab?: AppTab
             {/* ── Centre : Inventaire + Sorts ── */}
             <div className="flex min-w-0 flex-1 items-start justify-center gap-4">
               <div className="w-full max-w-[660px] shrink-0">
-                <InventoryGrid onOpenTools={openTools} />
+                <InventoryGrid onOpenTools={readOnly ? undefined : openTools} readOnly={readOnly} />
                 <SpellsPanel />
               </div>
 
               {/* ── Stats ── */}
               <div className="w-[260px] shrink-0 xl:w-[290px]">
-                <StatsPanel />
+                <StatsPanel readOnly={readOnly} />
               </div>
             </div>
           </main>
@@ -222,13 +249,13 @@ export function DashboardApp({ initialTab = "buildroom" }: { initialTab?: AppTab
             <div className="flex-1 overflow-y-auto">
               {mobileView === "build" && (
                 <div className="p-3 pb-2">
-                  <InventoryGrid onOpenTools={openTools} />
+                  <InventoryGrid onOpenTools={readOnly ? undefined : openTools} readOnly={readOnly} />
                   <SpellsPanel />
                 </div>
               )}
               {mobileView === "stats" && (
                 <div className="p-3">
-                  <StatsPanel />
+                  <StatsPanel readOnly={readOnly} />
                 </div>
               )}
               {mobileView === "sets" && (
@@ -247,15 +274,16 @@ export function DashboardApp({ initialTab = "buildroom" }: { initialTab?: AppTab
           </div>
 
           {/* Tiroir Optimisation / Conseiller IA */}
-          <ToolsDrawer
-            isOpen={showTools}
-            activeTool={activeTool}
-            setActiveTool={setActiveTool}
-            onClose={() => setShowTools(false)}
-          />
+          {!readOnly && (
+            <ToolsDrawer
+              isOpen={showTools}
+              activeTool={activeTool}
+              setActiveTool={setActiveTool}
+              onClose={() => setShowTools(false)}
+            />
+          )}
 
-          {/* Catalogue en tiroir plein-écran */}
-          <CatalogDrawer />
+          {!readOnly && <CatalogDrawer />}
         </>
       )}
     </div>

@@ -18,6 +18,7 @@ export default function SharedBuildPage() {
 
   const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
   const [message, setMessage] = useState<string | null>(null);
+  const [sharedBuild, setSharedBuild] = useState<{ id: string; name: string } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,7 +37,10 @@ export default function SharedBuildPage() {
           useBuildStore.getState();
         hydrateFromPersistedBuild(b);
         await prefetchEquippedItems();
-        if (!cancelled) setPhase("ready");
+        if (!cancelled) {
+          setSharedBuild({ id: b.id, name: b.name });
+          setPhase("ready");
+        }
       } catch (e) {
         if (cancelled) return;
         setPhase("error");
@@ -70,5 +74,10 @@ export default function SharedBuildPage() {
     );
   }
 
-  return <DashboardApp />;
+  return (
+    <DashboardApp
+      readOnly
+      sharedBuild={sharedBuild}
+    />
+  );
 }

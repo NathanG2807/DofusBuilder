@@ -48,6 +48,7 @@ function BuildRow({
   onRequestDelete,
   onToggleVisibility,
   onUpdateTags,
+  onRenameBuild,
   toggling,
 }: {
   build: BuildOut;
@@ -57,6 +58,7 @@ function BuildRow({
   onRequestDelete: (b: BuildOut) => void;
   onToggleVisibility: (b: BuildOut) => void;
   onUpdateTags: (id: string, tags: string[]) => Promise<void>;
+  onRenameBuild: (id: string, name: string) => Promise<void>;
   toggling: boolean;
 }) {
   const classId = build.class_id ?? 8;
@@ -66,6 +68,27 @@ function BuildRow({
   const [editingTags, setEditingTags] = useState(false);
   const [draftTags, setDraftTags] = useState<string[]>(build.tags ?? []);
   const [savingTags, setSavingTags] = useState(false);
+
+  const [editingName, setEditingName] = useState(false);
+  const [draftName, setDraftName] = useState(build.name);
+  const [savingName, setSavingName] = useState(false);
+  const [nameError, setNameError] = useState<string | null>(null);
+
+  async function handleSaveName(e: React.FormEvent) {
+    e.preventDefault();
+    const trimmed = draftName.trim();
+    if (!trimmed || trimmed === build.name) { setEditingName(false); return; }
+    setSavingName(true);
+    setNameError(null);
+    try {
+      await onRenameBuild(build.id, trimmed);
+      setEditingName(false);
+    } catch (err) {
+      setNameError(err instanceof Error ? err.message : "Erreur");
+    } finally {
+      setSavingName(false);
+    }
+  }
 
   function toggleDraftTag(id: string) {
     setDraftTags((prev) =>
@@ -108,13 +131,53 @@ function BuildRow({
           {/* Info */}
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
-              <p className="truncate text-[13px] font-semibold text-[#e0d0a0]">{build.name}</p>
-              {build.level != null && (
+              {editingName ? (
+                <form
+                  onSubmit={(e) => void handleSaveName(e)}
+                  onClick={(e) => e.stopPropagation()}
+                  className="flex min-w-0 flex-1 items-center gap-1.5"
+                >
+                  <Input
+                    containerClassName="min-w-0 flex-1"
+                    className="h-6 py-0 text-[13px] font-semibold text-[#e0d0a0]"
+                    value={draftName}
+                    onChange={(e) => { setDraftName(e.target.value); setNameError(null); }}
+                    autoFocus
+                    minLength={1}
+                    maxLength={255}
+                    disabled={savingName}
+                  />
+                  <Button type="submit" size="xs" disabled={savingName}>
+                    {savingName ? "…" : "OK"}
+                  </Button>
+                  <button
+                    type="button"
+                    onClick={() => { setEditingName(false); setDraftName(build.name); setNameError(null); }}
+                    className="shrink-0 text-[11px] text-[#555] hover:text-[#999]"
+                  >
+                    Annuler
+                  </button>
+                  {nameError && <span className="shrink-0 text-[10px] text-red-400">{nameError}</span>}
+                </form>
+              ) : (
+                <>
+                  <p className="truncate text-[13px] font-semibold text-[#e0d0a0]">{build.name}</p>
+                  <button
+                    type="button"
+                    onClick={(e) => { e.stopPropagation(); setDraftName(build.name); setEditingName(true); }}
+                    className="shrink-0 rounded p-0.5 text-[#444] transition hover:text-[#999]"
+                    title="Renommer"
+                  >
+                    <Pencil size={11} />
+                  </button>
+                </>
+              )}
+              {!editingName && build.level != null && (
                 <span className="shrink-0 rounded-full bg-white/[0.06] px-1.5 py-0.5 text-[10px] text-[#666]">
                   Niv. {build.level}
                 </span>
               )}
-              <span className="shrink-0 text-[11px] text-[#4a4a4a]">{className}</span>
+              {!editingName && <span className="shrink-0 text-[11px] text-[#4a4a4a]">{className}</span>}
             </div>
             {/* Tags display + date */}
             {!editingTags && (
@@ -411,6 +474,17 @@ export function ProfilePage() {
     }
   }
 
+  async function handleRenameBuild(id: string, name: string) {
+    setActionError(null);
+    try {
+      const updated = await updateBuild(id, { name });
+      setBuilds((prev) => prev.map((b) => (b.id === id ? { ...b, name: updated.name } : b)));
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Impossible de renommer le build.");
+      throw e;
+    }
+  }
+
   async function handleUpdateTags(id: string, tags: string[]) {
     setActionError(null);
     try {
@@ -562,6 +636,7 @@ export function ProfilePage() {
                   onRequestDelete={setDeleteTarget}
                   onToggleVisibility={(build) => void handleToggleVisibility(build)}
                   onUpdateTags={handleUpdateTags}
+                  onRenameBuild={handleRenameBuild}
                   toggling={togglingId === b.id}
                 />
               ))}

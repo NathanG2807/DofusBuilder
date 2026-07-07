@@ -8,7 +8,8 @@ import {
   useItemHoverCard,
 } from "@/components/items/ItemHoverCard";
 import { AddToAtelierModal } from "@/components/atelier/AddToAtelierModal";
-import { Check, FilePlus } from "lucide-react";
+import { Modal } from "@/components/ui/Modal";
+import { Check, FilePlus, Link2 } from "lucide-react";
 
 import { Button } from "@/components/ui/Button";
 import {
@@ -20,6 +21,7 @@ import {
 import { useDisplayStats } from "@/hooks/useDisplayStats";
 import { createBuild, updateBuild } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
+import { copyBuildShareLink } from "@/lib/buildShare";
 import { SLOT_DEFS } from "@/lib/slots";
 import type { SlotId } from "@/lib/slots";
 import type { ItemOut } from "@/types/api";
@@ -53,6 +55,7 @@ function LockIcon({ locked, size = 10 }: { locked: boolean; size?: number }) {
 function SlotCell({
   slotId,
   compact = false,
+  readOnly = false,
   selected,
   item,
   rawItemId,
@@ -69,6 +72,7 @@ function SlotCell({
 }: {
   slotId: SlotId;
   compact?: boolean;
+  readOnly?: boolean;
   selected: boolean;
   item: ItemOut | undefined;
   rawItemId: number | null | undefined;
@@ -101,13 +105,10 @@ function SlotCell({
     ? "border-red-600/90 bg-[#250e0e]/90 shadow-[0_0_0_2px_rgba(220,50,50,0.35)] hover:border-red-500"
     : "border-[#383838] bg-[#111111]/90 shadow-[0_2px_8px_rgba(0,0,0,0.6)] hover:border-[#505050] hover:bg-[#1c1c1c]/90";
 
-  return (
-    <button
-      type="button"
-      onClick={onSelect}
-      title={label}
-      className={`group flex flex-col items-center gap-0.5 rounded-lg border p-1 sm:p-1.5 transition ${borderClass}`}
-    >
+  const cellClassName = `group flex flex-col items-center gap-0.5 rounded-lg border p-1 sm:p-1.5 transition ${borderClass}${readOnly ? " cursor-default" : ""}`;
+
+  const inner = (
+    <>
       <span className="max-w-[64px] truncate text-[8px] font-semibold uppercase tracking-wide text-[#555555]">
         {label}
       </span>
@@ -134,8 +135,8 @@ function SlotCell({
           <span className="text-[18px] font-extralight text-[#2a2a2a]">+</span>
         )}
 
-        {/* Bouton retirer — masqué si l'item est verrouillé */}
-        {item && !locked && (
+        {/* Bouton retirer — masqué si l'item est verrouillé ou lecture seule */}
+        {item && !locked && !readOnly && (
           <span
             role="button"
             tabIndex={0}
@@ -150,8 +151,8 @@ function SlotCell({
           </span>
         )}
 
-        {/* Bouton verrou — visible sur les items ; actif (doré) si verrouillé */}
-        {item && (
+        {/* Bouton verrou — masqué en lecture seule */}
+        {item && !readOnly && (
           <span
             role="button"
             tabIndex={0}
@@ -170,8 +171,8 @@ function SlotCell({
           </span>
         )}
 
-        {/* Boutons exo FM — apparaissent au hover (pas sur dofus/trophées/familier) */}
-        {item && !locked && !slotId.startsWith("dofus") && slotId !== "pet" && (
+        {/* Boutons exo FM — masqués en lecture seule */}
+        {item && !readOnly && !locked && !slotId.startsWith("dofus") && slotId !== "pet" && (
           <div className="absolute bottom-0 left-0 right-0 hidden justify-center gap-0.5 bg-[#0a0a0a]/85 py-0.5 group-hover:flex">
             <span
               role="button"
@@ -210,8 +211,8 @@ function SlotCell({
           </div>
         )}
 
-        {/* Exo FM sur item verrouillé : affiché sans modifier (lecture seule) */}
-        {item && locked && exoType && !slotId.startsWith("dofus") && slotId !== "pet" && (
+        {/* Exo FM affiché en lecture seule ou sur item verrouillé */}
+        {item && (readOnly || locked) && exoType && !slotId.startsWith("dofus") && slotId !== "pet" && (
           <div className="absolute bottom-0 left-0 right-0 flex justify-center gap-0.5 bg-[#0a0a0a]/85 py-0.5">
             <span className={`flex items-center gap-0.5 rounded px-1 py-0.5 text-[8px] font-bold ${
               exoType === "pa" ? "bg-[#051225] text-[#4a90d9]" : "bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
@@ -232,6 +233,20 @@ function SlotCell({
           {item.name}
         </p>
       )}
+    </>
+  );
+
+  if (readOnly) {
+    return (
+      <div title={label} className={cellClassName}>
+        {inner}
+      </div>
+    );
+  }
+
+  return (
+    <button type="button" onClick={onSelect} title={label} className={cellClassName}>
+      {inner}
     </button>
   );
 }
@@ -545,11 +560,8 @@ function StuffLevelBadge() {
   );
 }
 
-/* ─── Bouton de sauvegarde rapide ─── */
-function SaveBuildButton() {
-  const [errorMsg, setErrorMsg] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
+/* ─── Payload de sauvegarde partagé ─── */
+function useBuildSavePayload() {
   const currentBuild = useBuildStore((s) => s.currentBuild);
   const stats = useBuildStore((s) => s.stats);
   const activeSetBonuses = useBuildStore((s) => s.activeSetBonuses);
@@ -561,24 +573,9 @@ function SaveBuildButton() {
   const classId = useBuildStore((s) => s.classId);
   const sex = useBuildStore((s) => s.sex);
   const buildName = useBuildStore((s) => s.buildName);
-  const savedBuildId = useBuildStore((s) => s.savedBuildId);
-  const isDirty = useBuildStore((s) => s.isDirty);
-  const setSavedBuildId = useBuildStore((s) => s.setSavedBuildId);
-  const markClean = useBuildStore((s) => s.markClean);
   const itemById = useBuildStore((s) => s.itemById);
 
-  const isSaved = !!savedBuildId && !isDirty;
-
-  async function handleSave() {
-    if (!getAccessToken()) {
-      setErrorMsg("Connectez-vous pour sauvegarder.");
-      setTimeout(() => setErrorMsg(null), 3000);
-      return;
-    }
-    if (isSaved) return;
-
-    setBusy(true);
-    setErrorMsg(null);
+  return useMemo(() => {
     const lockedSlotsMap: Record<string, number> = {};
     for (const slot of lockedSlots) {
       const id = currentBuild[slot];
@@ -589,7 +586,7 @@ function SaveBuildButton() {
       if (itemId == null) continue;
       slotsPreview[slot] = itemById[itemId]?.image_url_icon ?? null;
     }
-    const payload = {
+    return {
       name: buildName.trim() || "Sans titre",
       slots: { ...currentBuild },
       total_stats: { ...stats },
@@ -604,6 +601,45 @@ function SaveBuildButton() {
       is_public: true,
       slots_preview: slotsPreview,
     };
+  }, [
+    activeSetBonuses,
+    buildName,
+    charStats,
+    classId,
+    currentBuild,
+    exoFm,
+    itemById,
+    level,
+    lockedSlots,
+    parchoStats,
+    sex,
+    stats,
+  ]);
+}
+
+/* ─── Bouton de sauvegarde rapide ─── */
+export function SaveBuildButton() {
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const savedBuildId = useBuildStore((s) => s.savedBuildId);
+  const isDirty = useBuildStore((s) => s.isDirty);
+  const setSavedBuildId = useBuildStore((s) => s.setSavedBuildId);
+  const markClean = useBuildStore((s) => s.markClean);
+  const payload = useBuildSavePayload();
+
+  const isSaved = !!savedBuildId && !isDirty;
+
+  async function handleSave() {
+    if (!getAccessToken()) {
+      setErrorMsg("Connectez-vous pour sauvegarder.");
+      setTimeout(() => setErrorMsg(null), 3000);
+      return;
+    }
+    if (isSaved) return;
+
+    setBusy(true);
+    setErrorMsg(null);
     try {
       if (savedBuildId) {
         await updateBuild(savedBuildId, payload);
@@ -646,26 +682,110 @@ function SaveBuildButton() {
   );
 }
 
-function NewBuildButton() {
+/* ─── Bouton de partage (lien public permanent) ─── */
+export function ShareBuildButton() {
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+  const [successMsg, setSuccessMsg] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const savedBuildId = useBuildStore((s) => s.savedBuildId);
+  const isDirty = useBuildStore((s) => s.isDirty);
+  const setSavedBuildId = useBuildStore((s) => s.setSavedBuildId);
+  const markClean = useBuildStore((s) => s.markClean);
+  const payload = useBuildSavePayload();
+
+  async function handleShare() {
+    if (!getAccessToken()) {
+      setErrorMsg("Connectez-vous pour partager.");
+      setTimeout(() => setErrorMsg(null), 3000);
+      return;
+    }
+
+    setBusy(true);
+    setErrorMsg(null);
+    setSuccessMsg(null);
+    try {
+      let buildId = savedBuildId;
+      if (!buildId || isDirty) {
+        if (buildId) {
+          await updateBuild(buildId, payload);
+        } else {
+          const created = await createBuild(payload);
+          buildId = created.id;
+          setSavedBuildId(created.id);
+        }
+        markClean();
+      } else {
+        await updateBuild(buildId, { is_public: true });
+      }
+      await copyBuildShareLink(buildId);
+      setSuccessMsg("Lien copié !");
+      setTimeout(() => setSuccessMsg(null), 2500);
+    } catch {
+      setErrorMsg("Impossible de générer le lien.");
+      setTimeout(() => setErrorMsg(null), 3000);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="flex items-center gap-1.5">
+      <Button
+        type="button"
+        variant="outline"
+        size="xs"
+        onClick={() => void handleShare()}
+        disabled={busy}
+        title="Générer et copier le lien de partage public"
+      >
+        <Link2 size={12} className="shrink-0" />
+        Partager
+      </Button>
+      {successMsg && <span className="text-[11px] text-emerald-400">{successMsg}</span>}
+      {errorMsg && <span className="text-[11px] text-red-400">{errorMsg}</span>}
+    </div>
+  );
+}
+
+export function NewBuildButton() {
   const isDirty = useBuildStore((s) => s.isDirty);
   const savedBuildId = useBuildStore((s) => s.savedBuildId);
   const resetBuild = useBuildStore((s) => s.resetBuild);
+  const [confirmOpen, setConfirmOpen] = useState(false);
 
   function handleNew() {
     const hasUnsaved = isDirty || savedBuildId != null;
-    if (hasUnsaved && !confirm("Créer un nouveau build ? Les modifications non sauvegardées seront perdues.")) return;
+    if (hasUnsaved) { setConfirmOpen(true); return; }
     resetBuild();
   }
 
   return (
-    <Button type="button" variant="outline" size="xs" onClick={handleNew} title="Nouveau build vide">
-      <FilePlus size={12} className="shrink-0" />
-      Nouveau
-    </Button>
+    <>
+      <Button type="button" variant="outline" size="xs" onClick={handleNew} title="Nouveau build vide">
+        <FilePlus size={12} className="shrink-0" />
+        Nouveau
+      </Button>
+
+      <Modal open={confirmOpen} onClose={() => setConfirmOpen(false)} title="Nouveau build" widthClassName="max-w-sm">
+        <p className="text-[13px] leading-relaxed text-[#999]">
+          Créer un nouveau build ? Les modifications non sauvegardées seront{" "}
+          <span className="font-medium text-[#e0d0a0]">définitivement perdues</span>.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setConfirmOpen(false)}>
+            Annuler
+          </Button>
+          <Button type="button" variant="danger" size="sm" onClick={() => { setConfirmOpen(false); resetBuild(); }}>
+            Nouveau build
+          </Button>
+        </div>
+      </Modal>
+    </>
   );
 }
 
-function AddToAtelierButton() {
+export function AddToAtelierButton() {
   const [open, setOpen] = useState(false);
   return (
     <>
@@ -680,7 +800,13 @@ function AddToAtelierButton() {
 }
 
 /* ─── Grille principale ─── */
-export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}) {
+export function InventoryGrid({
+  onOpenTools,
+  readOnly = false,
+}: {
+  onOpenTools?: () => void;
+  readOnly?: boolean;
+} = {}) {
   const currentBuild = useBuildStore((s) => s.currentBuild);
   const itemById = useBuildStore((s) => s.itemById);
   const selectedSlot = useBuildStore((s) => s.selectedSlot);
@@ -705,21 +831,22 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
   function slotProps(id: SlotId) {
     const itemId = currentBuild[id];
     const item = itemId != null ? itemById[itemId] : undefined;
-    const selected = selectedSlot === id;
+    const selected = !readOnly && selectedSlot === id;
     const conditionOk = item ? isConditionMet(item.conditions, displayStats) : true;
     const locked = lockedSlots.includes(id);
     return {
       slotId: id,
+      readOnly,
       selected,
       item,
       rawItemId: itemId,
       conditionOk,
       exoType: exoFm[id],
       locked,
-      onSelect: () => setSelectedSlot(selected ? null : id),
-      onUnequip: () => updateSlot(id, null),
-      onToggleExo: (type: ExoType) => setExoFm(id, type),
-      onToggleLock: () => toggleLockSlot(id),
+      onSelect: () => { if (!readOnly) setSelectedSlot(selected ? null : id); },
+      onUnequip: () => { if (!readOnly) updateSlot(id, null); },
+      onToggleExo: (type: ExoType) => { if (!readOnly) setExoFm(id, type); },
+      onToggleLock: () => { if (!readOnly) toggleLockSlot(id); },
       onHoverEnter: (e: React.MouseEvent) => { if (item) show(item, e); },
       onHoverMove: move,
       onHoverLeave: scheduleHide,
@@ -728,64 +855,93 @@ export function InventoryGrid({ onOpenTools }: { onOpenTools?: () => void } = {}
 
   return (
     <section className="relative rounded-xl border border-[#282828] bg-[#181818] p-3 overflow-hidden">
-      {/* ─── Sélecteurs : nom du build / classe / sexe / niveau ─── */}
-      <div className="relative z-10 mb-3 flex items-center gap-1.5">
-        {/* Nom du build */}
-        <input
-          value={buildName}
-          onChange={(e) => setBuildName(e.target.value)}
-          className="min-w-0 w-[130px] shrink rounded border border-transparent bg-transparent px-1.5 py-1 text-[12px] font-semibold text-[#f0d78c] placeholder:text-[#383838] hover:border-[#2a2a2a] focus:border-[#3a3a3a] focus:bg-[#141414] focus:outline-none"
-          placeholder="Nom du build…"
-          aria-label="Nom du build"
-        />
+      {/* ─── Barre de contrôle ─── */}
+      <div className="relative z-10 mb-3 flex items-start gap-2">
 
-        {/* Classe */}
-        <ClassPicker classId={classId} onSelect={setClassId} />
+        {/* ── Gauche : identité + outils ── */}
+        <div className="flex min-w-0 flex-1 flex-col gap-2">
 
-        {/* Sexe */}
-        <div className="flex overflow-hidden rounded border border-[#383838]">
-          {(["male", "female"] as const).map((s) => (
-            <button
-              key={s}
-              type="button"
-              onClick={() => setSex(s)}
-              className={`px-2 py-1 text-[11px] font-medium transition ${
-                sex === s
-                  ? "bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]"
-                  : "bg-[#141414] text-[#666666] hover:bg-[#1e1e1e]"
+          {/* Ligne 1 : nom / classe / sexe / niveau */}
+          <div className="flex items-center gap-1.5">
+            <input
+              value={buildName}
+              onChange={(e) => setBuildName(e.target.value)}
+              readOnly={readOnly}
+              className={`min-w-0 w-[130px] shrink rounded border border-transparent bg-transparent px-1.5 py-1 text-[12px] font-semibold text-[#f0d78c] placeholder:text-[#383838] focus:outline-none ${
+                readOnly ? "cursor-default" : "hover:border-[#2a2a2a] focus:border-[#3a3a3a] focus:bg-[#141414]"
               }`}
-            >
-              {s === "male" ? "♂" : "♀"}
-            </button>
-          ))}
+              placeholder="Nom du build…"
+              aria-label="Nom du build"
+            />
+
+            {readOnly ? (
+              <div className="flex h-[30px] w-[30px] items-center justify-center overflow-hidden rounded-md border border-[#383838] bg-[#141414]">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={classHeadUrl(classId, "male")} alt="" width={30} height={30} className="h-full w-full object-cover" />
+              </div>
+            ) : (
+              <ClassPicker classId={classId} onSelect={setClassId} />
+            )}
+
+            <div className="flex overflow-hidden rounded border border-[#383838]">
+              {(["male", "female"] as const).map((s) => (
+                readOnly ? (
+                  <span key={s} className={`px-2 py-1 text-[11px] font-medium ${sex === s ? "bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]" : "bg-[#141414] text-[#666666]"}`}>
+                    {s === "male" ? "♂" : "♀"}
+                  </span>
+                ) : (
+                  <button key={s} type="button" onClick={() => setSex(s)} className={`px-2 py-1 text-[11px] font-medium transition ${sex === s ? "bg-[var(--dofus-ui-select-bg)] text-[var(--dofus-green-active)]" : "bg-[#141414] text-[#666666] hover:bg-[#1e1e1e]"}`}>
+                    {s === "male" ? "♂" : "♀"}
+                  </button>
+                )
+              ))}
+            </div>
+
+            <div className="flex items-center gap-0.5 rounded border border-[#383838] bg-[#141414] px-1.5 py-1">
+              <span className="text-[10px] text-[#555555]">Niv.</span>
+              {readOnly ? (
+                <span className="w-10 text-center text-[12px] text-[#d0d0d0]">{level}</span>
+              ) : (
+                <input
+                  type="number" min={1} max={200} value={level}
+                  onChange={(e) => setLevel(Math.min(200, Math.max(1, Number(e.target.value))))}
+                  className="w-10 bg-transparent text-center text-[12px] text-[#d0d0d0] outline-none"
+                />
+              )}
+            </div>
+
+            {readOnly && <StuffLevelBadge />}
+          </div>
+
+          {/* Ligne 2 : outils (mode édition uniquement) */}
+          {!readOnly && (
+            <div className="flex items-center gap-1.5">
+              {onOpenTools && (
+                <Button type="button" variant="outline" size="xs" onClick={onOpenTools} title="Optimisation & Conseiller IA">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src="/assets/global/UI/optimizer.png" width={13} height={13} alt="" className="shrink-0" />
+                  Optimiseur
+                </Button>
+              )}
+              <AddToAtelierButton />
+              <StuffLevelBadge />
+            </div>
+          )}
         </div>
 
-        {/* Niveau personnage */}
-        <div className="flex items-center gap-0.5 rounded border border-[#383838] bg-[#141414] px-1.5 py-1">
-          <span className="text-[10px] text-[#555555]">Niv.</span>
-          <input
-            type="number"
-            min={1}
-            max={200}
-            value={level}
-            onChange={(e) => setLevel(Math.min(200, Math.max(1, Number(e.target.value))))}
-            className="w-10 bg-transparent text-center text-[12px] text-[#d0d0d0] outline-none"
-          />
-        </div>
-
-        {/* Bouton Optimisation */}
-        {onOpenTools && (
-          <Button type="button" variant="outline" size="xs" onClick={onOpenTools} title="Optimisation & Conseiller IA">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src="/assets/global/UI/optimizer.png" width={13} height={13} alt="" className="shrink-0" />
-            Optimiseur
-          </Button>
+        {/* ── Droite : actions primaires + Nouveau en dessous ── */}
+        {!readOnly && (
+          <div className="flex shrink-0 flex-col items-end gap-1.5">
+            {/* Partager + Sauvegarder */}
+            <div className="flex items-center gap-1.5">
+              <ShareBuildButton />
+              <SaveBuildButton />
+            </div>
+            {/* Nouveau aligné sous Sauvegarder */}
+            <NewBuildButton />
+          </div>
         )}
 
-        <AddToAtelierButton />
-        <SaveBuildButton />
-        <NewBuildButton />
-        <StuffLevelBadge />
       </div>
 
       {/* ─── Zone principale : gauche | portrait | droite ─── */}

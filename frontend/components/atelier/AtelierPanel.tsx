@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronRight, ListChecks, Pencil, Plus, Trash2, X } from "lucide-react";
+import { Check, ChevronRight, ListChecks, Loader2, Pencil, Plus, Save, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, Fragment, type ReactNode } from "react";
 
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
@@ -605,7 +605,7 @@ export function AtelierPanel() {
   const {
     lists, activeListId, loading, error, isGuest,
     loadLists, setActiveList, createList, renameList, deleteList,
-    addEntry, removeEntry, setProgress,
+    addEntry, removeEntry, setProgress, persistList,
   } = useAtelierStore();
 
   const activeList = lists.find((l) => l.id === activeListId) ?? null;
@@ -617,6 +617,21 @@ export function AtelierPanel() {
   const [newListName, setNewListName] = useState("");
   const [renaming, setRenaming] = useState(false);
   const [renameValue, setRenameValue] = useState("");
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
+
+  async function handleForceSave() {
+    if (!activeList || saveState !== "idle") return;
+    setSaveState("saving");
+    try {
+      await persistList(activeList);
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 2000);
+    } catch {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 2000);
+    }
+  }
 
   const fetchSetItemIds = useCallback(async (setId: number) => {
     const items = await fetchItemsBySet(setId, 100);
@@ -845,8 +860,30 @@ export function AtelierPanel() {
               <Button type="button" variant="outline" size="sm" onClick={() => setAddModalOpen(true)}>
                 <Plus size={12} /> Ajouter
               </Button>
+
+              {/* Sauvegarde manuelle */}
+              <button
+                type="button"
+                onClick={() => void handleForceSave()}
+                disabled={saveState === "saving"}
+                title="Sauvegarder"
+                className={`flex h-[30px] w-[30px] items-center justify-center rounded border transition ${
+                  saveState === "saved"
+                    ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-400"
+                    : saveState === "error"
+                    ? "border-red-500/30 bg-red-500/10 text-red-400"
+                    : "border-white/[0.08] bg-white/[0.03] text-white/40 hover:border-white/20 hover:text-white/70"
+                }`}
+              >
+                {saveState === "saving" ? <Loader2 size={13} className="animate-spin" /> :
+                 saveState === "saved"  ? <Check size={13} /> :
+                 saveState === "error"  ? <X size={13} /> :
+                 <Save size={13} />}
+              </button>
+
+              {/* Suppression */}
               <Button type="button" variant="danger" size="sm"
-                onClick={() => { if (confirm(`Supprimer « ${activeList.name} » ?`)) void deleteList(activeList.id); }}>
+                onClick={() => setDeleteConfirmOpen(true)}>
                 <Trash2 size={12} />
               </Button>
             </div>
@@ -1006,6 +1043,33 @@ export function AtelierPanel() {
           </>
         )}
       </div>
+
+      {/* Modal de confirmation suppression craft list */}
+      <Modal
+        open={deleteConfirmOpen}
+        onClose={() => setDeleteConfirmOpen(false)}
+        title="Supprimer la liste"
+        widthClassName="max-w-sm"
+      >
+        <p className="text-[13px] leading-relaxed text-[#999]">
+          Supprimer{" "}
+          <span className="font-medium text-[#e0d0a0]">« {activeList?.name} »</span> ?
+          Cette action est définitive.
+        </p>
+        <div className="mt-5 flex justify-end gap-2">
+          <Button type="button" variant="outline" size="sm" onClick={() => setDeleteConfirmOpen(false)}>
+            Annuler
+          </Button>
+          <Button
+            type="button"
+            variant="danger"
+            size="sm"
+            onClick={() => { setDeleteConfirmOpen(false); void deleteList(activeList!.id); }}
+          >
+            Supprimer
+          </Button>
+        </div>
+      </Modal>
 
       <AddEntryModal
         open={addModalOpen}
