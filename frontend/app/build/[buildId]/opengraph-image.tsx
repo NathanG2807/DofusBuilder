@@ -5,6 +5,7 @@ import { ImageResponse } from "next/og";
 
 import { computeDisplayStats } from "@/lib/buildDisplayStats";
 import { buildOgDescription, fetchBuildForOg } from "@/lib/buildOg";
+import { getBuildTag } from "@/lib/buildTags";
 import { dofusClassLabel } from "@/lib/dofusClasses";
 import type { BuildOut } from "@/types/api";
 
@@ -23,26 +24,48 @@ const LEFT_SLOTS = ["amulet", "shield", "ring1", "belt", "boots"] as const;
 const RIGHT_SLOTS = ["hat", "weapon", "ring2", "cloak", "pet"] as const;
 const DOFUS_SLOTS = ["dofus1", "dofus2", "dofus3", "dofus4", "dofus5", "dofus6"] as const;
 
-async function readPublicPng(relativePath: string): Promise<string | null> {
+function pngDimensions(buf: Buffer): { width: number; height: number } | null {
+  if (buf.length < 24) return null;
+  if (buf.toString("ascii", 1, 4) !== "PNG") return null;
+  return { width: buf.readUInt32BE(16), height: buf.readUInt32BE(20) };
+}
+
+function fitContain(
+  srcW: number,
+  srcH: number,
+  max: number,
+): { width: number; height: number } {
+  if (srcW <= 0 || srcH <= 0) return { width: max, height: max };
+  const ratio = srcW / srcH;
+  if (ratio >= 1) return { width: max, height: Math.round(max / ratio) };
+  return { width: Math.round(max * ratio), height: max };
+}
+
+async function readPublicPng(
+  relativePath: string,
+): Promise<{ src: string; width: number; height: number } | null> {
   try {
-    const buf = await readFile(join(process.cwd(), "public", relativePath));
+    const clean = relativePath.replace(/^\//, "");
+    const buf = await readFile(join(process.cwd(), "public", clean));
     if (buf.byteLength > 250_000) return null;
-    return `data:image/png;base64,${buf.toString("base64")}`;
+    const dims = pngDimensions(buf) ?? { width: 64, height: 64 };
+    return {
+      src: `data:image/png;base64,${buf.toString("base64")}`,
+      width: dims.width,
+      height: dims.height,
+    };
   } catch {
     return null;
   }
 }
 
-/** Préfère l’icône 256px quand l’API dofusdu expose `-128.png`. */
 function preferHiResIcon(url: string): string {
   return url.replace(/-128\.png(\?.*)?$/i, "-256.png$1");
 }
 
 async function fetchIconDataUrl(url: string | null | undefined): Promise<string | null> {
   if (!url || (!url.startsWith("https://") && !url.startsWith("http://"))) return null;
-  const candidates = [preferHiResIcon(url), url].filter(
-    (u, i, arr) => arr.indexOf(u) === i,
-  );
+  const candidates = [preferHiResIcon(url), url].filter((u, i, arr) => arr.indexOf(u) === i);
   for (const candidate of candidates) {
     try {
       const controller = new AbortController();
@@ -58,7 +81,7 @@ async function fetchIconDataUrl(url: string | null | undefined): Promise<string 
       const contentType = res.headers.get("content-type") ?? "image/png";
       return `data:${contentType};base64,${buf.toString("base64")}`;
     } catch {
-      /* try next candidate */
+      /* next */
     }
   }
   return null;
@@ -68,15 +91,13 @@ function normalizeClassId(classId: number): number {
   return classId === 19 ? 20 : classId;
 }
 
-async function loadClassImages(build: BuildOut): Promise<{ body: string | null; head: string | null }> {
-  if (build.class_id == null) return { body: null, head: null };
+async function loadClassHead(
+  build: BuildOut,
+): Promise<{ src: string; width: number; height: number } | null> {
+  if (build.class_id == null) return null;
   const cid = normalizeClassId(build.class_id);
   const sexCode = build.sex === "female" ? 1 : 0;
-  const [body, head] = await Promise.all([
-    readPublicPng(`assets/classes/${cid}-${sexCode}.png`),
-    readPublicPng(`assets/classes/Head_${cid}-${sexCode}.png`),
-  ]);
-  return { body, head };
+  return readPublicPng(`assets/classes/Head_${cid}-${sexCode}.png`);
 }
 
 async function loadSlotIcons(
@@ -89,10 +110,32 @@ async function loadSlotIcons(
   return Object.fromEntries(entries);
 }
 
+async function loadTagAssets(
+  tagIds: string[],
+): Promise<Record<string, { color: string; label: string; icon: string | null }>> {
+  const out: Record<string, { color: string; label: string; icon: string | null }> = {};
+  await Promise.all(
+    tagIds.map(async (id) => {
+      const tag = getBuildTag(id);
+      if (!tag) {
+        out[id] = { color: "#8fd63a", label: id, icon: null };
+        return;
+      }
+      const iconAsset = await readPublicPng(tag.icon);
+      out[id] = {
+        color: tag.color,
+        label: tag.label,
+        icon: iconAsset?.src ?? null,
+      };
+    }),
+  );
+  return out;
+}
+
 function exoBorder(exo: string | null | undefined): string {
   if (exo === "pa") return "2px solid #4a90d9";
   if (exo === "pm") return "2px solid #98c030";
-  return "2px solid rgba(240,215,140,0.32)";
+  return "2px solid rgba(240,215,140,0.28)";
 }
 
 function SlotBox({
@@ -104,15 +147,14 @@ function SlotBox({
   boxSize: number;
   exo?: string | null;
 }) {
-  const icon = Math.max(boxSize - (exo === "pa" || exo === "pm" ? 18 : 8), 28);
+  const icon = Math.round(boxSize * 0.78);
   return (
     <div
       style={{
         display: "flex",
-        flexDirection: "column",
         width: boxSize,
         height: boxSize,
-        borderRadius: 12,
+        borderRadius: 14,
         border: exoBorder(exo),
         backgroundColor: "#171714",
         alignItems: "center",
@@ -121,65 +163,81 @@ function SlotBox({
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} width={icon} height={icon} alt="" />
+        <img
+          src={src}
+          width={icon}
+          height={icon}
+          alt=""
+          style={{ objectFit: "contain" }}
+        />
       ) : (
         <div
           style={{
             display: "flex",
-            width: 16,
-            height: 16,
+            width: 14,
+            height: 14,
             borderRadius: 999,
             backgroundColor: "rgba(255,255,255,0.1)",
           }}
         />
       )}
-      {exo === "pa" || exo === "pm" ? (
-        <div
-          style={{
-            display: "flex",
-            marginTop: 2,
-            padding: "1px 5px",
-            borderRadius: 5,
-            backgroundColor: exo === "pa" ? "#4a90d9" : "#98c030",
-            color: "white",
-            fontSize: 10,
-            fontWeight: 800,
-            lineHeight: 1.15,
-          }}
-        >
-          {exo === "pa" ? "PA" : "PM"}
-        </div>
-      ) : null}
     </div>
   );
 }
 
-function StatChip({ label, value, bg, border, color }: {
-  label: string;
+function StatGem({
+  src,
+  overlaySrc,
+  value,
+  sizePx,
+  fontSize,
+}: {
+  src: string | null;
+  overlaySrc?: string | null;
   value: number;
-  bg: string;
-  border: string;
-  color: string;
+  sizePx: number;
+  fontSize: number;
 }) {
   return (
     <div
       style={{
         display: "flex",
-        flexDirection: "column",
+        position: "relative",
+        width: sizePx,
+        height: sizePx,
         alignItems: "center",
         justifyContent: "center",
-        minWidth: 84,
-        marginLeft: 10,
-        padding: "10px 14px",
-        borderRadius: 14,
-        backgroundColor: bg,
-        border,
+        marginLeft: 8,
       }}
     >
-      <div style={{ display: "flex", fontSize: 13, fontWeight: 700, color, letterSpacing: 1 }}>
-        {label}
-      </div>
-      <div style={{ display: "flex", fontSize: 30, fontWeight: 800, color: "white", marginTop: 2 }}>
+      {src ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={src}
+          width={sizePx}
+          height={sizePx}
+          alt=""
+          style={{ objectFit: "contain", position: "absolute", left: 0, top: 0 }}
+        />
+      ) : null}
+      {overlaySrc ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          src={overlaySrc}
+          width={sizePx}
+          height={sizePx}
+          alt=""
+          style={{ objectFit: "contain", position: "absolute", left: 0, top: 0 }}
+        />
+      ) : null}
+      <div
+        style={{
+          display: "flex",
+          fontSize,
+          fontWeight: 800,
+          color: "white",
+        }}
+      >
         {String(value)}
       </div>
     </div>
@@ -214,14 +272,21 @@ function FallbackCard({ title, description }: { title: string; description: stri
 
 function BuildCard({
   build,
-  headSrc,
-  bodySrc,
+  head,
   icons,
+  tagAssets,
+  gemAssets,
 }: {
   build: BuildOut;
-  headSrc: string | null;
-  bodySrc: string | null;
+  head: { src: string; width: number; height: number } | null;
   icons: Record<string, string | null>;
+  tagAssets: Record<string, { color: string; label: string; icon: string | null }>;
+  gemAssets: {
+    pa: string | null;
+    pm: string | null;
+    pv: string | null;
+    pvedge: string | null;
+  };
 }) {
   const classLabel = build.class_id != null ? dofusClassLabel(build.class_id) : null;
   const tags = (build.tags ?? []).filter(Boolean).slice(0, 5);
@@ -244,11 +309,14 @@ function BuildCard({
   const pm = display.pm ?? 0;
   const pv = display.vitality ?? 0;
   const exoFm = build.exo_fm ?? {};
-  const centerSrc = bodySrc ?? headSrc;
 
-  const slotSize = 66;
-  const dofusSize = 54;
+  const slotSize = 70;
+  const dofusSize = 56;
   const slotGap = 8;
+  const headBox = 156;
+  const headFit = head
+    ? fitContain(head.width, head.height, 132)
+    : { width: 132, height: 132 };
 
   return (
     <div
@@ -260,7 +328,7 @@ function BuildCard({
         backgroundColor: "#0c100c",
         color: "white",
         fontFamily: "sans-serif",
-        padding: "24px 36px 22px",
+        padding: "22px 34px 20px",
       }}
     >
       {/* Header */}
@@ -269,14 +337,14 @@ function BuildCard({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 14,
+          marginBottom: 12,
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", maxWidth: 700 }}>
+        <div style={{ display: "flex", flexDirection: "column", maxWidth: 620 }}>
           <div
             style={{
               display: "flex",
-              fontSize: 38,
+              fontSize: 36,
               fontWeight: 800,
               color: "#f3e6b8",
               lineHeight: 1.05,
@@ -285,40 +353,48 @@ function BuildCard({
             {build.name}
           </div>
           <div style={{ display: "flex", alignItems: "center", marginTop: 8 }}>
-            {headSrc ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={headSrc}
-                width={32}
-                height={32}
-                alt=""
-                style={{ borderRadius: 8, marginRight: 10 }}
-              />
-            ) : null}
             <div style={{ display: "flex", fontSize: 20, color: "rgba(255,255,255,0.72)" }}>
               {metaLine || buildOgDescription(build)}
             </div>
           </div>
           {tags.length > 0 ? (
             <div style={{ display: "flex", marginTop: 10 }}>
-              {tags.map((tag, i) => (
-                <div
-                  key={tag}
-                  style={{
-                    display: "flex",
-                    marginLeft: i === 0 ? 0 : 8,
-                    padding: "6px 12px",
-                    borderRadius: 999,
-                    backgroundColor: "rgba(143,214,58,0.14)",
-                    border: "1px solid rgba(143,214,58,0.35)",
-                    color: "#c8f08a",
-                    fontSize: 16,
-                    fontWeight: 600,
-                  }}
-                >
-                  {tag.startsWith("#") ? tag : `#${tag}`}
-                </div>
-              ))}
+              {tags.map((tagId, i) => {
+                const tag = tagAssets[tagId] ?? {
+                  color: "#8fd63a",
+                  label: tagId,
+                  icon: null,
+                };
+                return (
+                  <div
+                    key={tagId}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      marginLeft: i === 0 ? 0 : 8,
+                      padding: "6px 12px",
+                      borderRadius: 999,
+                      backgroundColor: `${tag.color}22`,
+                      border: `1px solid ${tag.color}66`,
+                      color: tag.color,
+                      fontSize: 16,
+                      fontWeight: 600,
+                    }}
+                  >
+                    {tag.icon ? (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img
+                        src={tag.icon}
+                        width={16}
+                        height={16}
+                        alt=""
+                        style={{ objectFit: "contain", marginRight: 6 }}
+                      />
+                    ) : null}
+                    <div style={{ display: "flex" }}>{tag.label}</div>
+                  </div>
+                );
+              })}
             </div>
           ) : null}
         </div>
@@ -327,39 +403,27 @@ function BuildCard({
           <div
             style={{
               display: "flex",
-              fontSize: 26,
+              fontSize: 24,
               fontWeight: 800,
               color: "#8fd63a",
-              marginRight: 8,
+              marginRight: 10,
             }}
           >
             Zaap
           </div>
-          <StatChip
-            label="PA"
-            value={pa}
-            bg="rgba(74,144,217,0.18)"
-            border="1px solid rgba(74,144,217,0.45)"
-            color="#9ec5f0"
-          />
-          <StatChip
-            label="PM"
-            value={pm}
-            bg="rgba(152,192,48,0.18)"
-            border="1px solid rgba(152,192,48,0.45)"
-            color="#c5e070"
-          />
-          <StatChip
-            label="PV"
+          <StatGem src={gemAssets.pa} value={pa} sizePx={58} fontSize={15} />
+          <StatGem
+            src={gemAssets.pv}
+            overlaySrc={gemAssets.pvedge}
             value={pv}
-            bg="rgba(224,112,112,0.18)"
-            border="1px solid rgba(224,112,112,0.45)"
-            color="#f0a0a0"
+            sizePx={74}
+            fontSize={16}
           />
+          <StatGem src={gemAssets.pm} value={pm} sizePx={58} fontSize={15} />
         </div>
       </div>
 
-      {/* Inventory block */}
+      {/* Inventory */}
       <div
         style={{
           display: "flex",
@@ -370,7 +434,7 @@ function BuildCard({
           backgroundColor: "#121612",
           borderRadius: 24,
           border: "1px solid rgba(255,255,255,0.06)",
-          padding: "18px 28px 16px",
+          padding: "16px 24px 14px",
         }}
       >
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
@@ -391,20 +455,25 @@ function BuildCard({
           <div
             style={{
               display: "flex",
-              width: 210,
-              height: 270,
-              marginLeft: 26,
-              marginRight: 26,
-              borderRadius: 22,
-              border: "2px solid rgba(143,214,58,0.42)",
+              width: headBox,
+              height: headBox,
+              marginLeft: 28,
+              marginRight: 28,
+              borderRadius: 28,
+              border: "2px solid rgba(143,214,58,0.45)",
               backgroundColor: "#182418",
               alignItems: "center",
               justifyContent: "center",
             }}
           >
-            {centerSrc ? (
+            {head ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={centerSrc} width={180} height={240} alt="" />
+              <img
+                src={head.src}
+                width={headFit.width}
+                height={headFit.height}
+                alt=""
+              />
             ) : (
               <div style={{ display: "flex", fontSize: 22, color: "rgba(255,255,255,0.35)" }}>
                 Classe
@@ -427,7 +496,7 @@ function BuildCard({
           </div>
         </div>
 
-        <div style={{ display: "flex", marginTop: 14 }}>
+        <div style={{ display: "flex", marginTop: 12 }}>
           {DOFUS_SLOTS.map((key, i) => (
             <div key={key} style={{ display: "flex", marginLeft: i === 0 ? 0 : 10 }}>
               <SlotBox src={icons[key] ?? null} boxSize={dofusSize} exo={exoFm[key]} />
@@ -455,13 +524,30 @@ export default async function Image({ params }: Props) {
       );
     }
 
-    const [{ body, head }, icons] = await Promise.all([
-      loadClassImages(build),
+    const tagIds = (build.tags ?? []).filter(Boolean).slice(0, 5);
+    const [head, icons, tagAssets, pa, pm, pv, pvedge] = await Promise.all([
+      loadClassHead(build),
       loadSlotIcons(build.slots_preview),
+      loadTagAssets(tagIds),
+      readPublicPng("assets/build/pa.png"),
+      readPublicPng("assets/build/pm.png"),
+      readPublicPng("assets/build/pv.png"),
+      readPublicPng("assets/build/pvedge.png"),
     ]);
 
     return new ImageResponse(
-      <BuildCard build={build} headSrc={head} bodySrc={body} icons={icons} />,
+      <BuildCard
+        build={build}
+        head={head}
+        icons={icons}
+        tagAssets={tagAssets}
+        gemAssets={{
+          pa: pa?.src ?? null,
+          pm: pm?.src ?? null,
+          pv: pv?.src ?? null,
+          pvedge: pvedge?.src ?? null,
+        }}
+      />,
       { ...size },
     );
   } catch {
