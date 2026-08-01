@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowLeft, ChevronDown, Eye, EyeOff, Pencil, User as UserIcon } from "lucide-react";
+import { ArrowLeft, ChevronDown, Eye, EyeOff, Link2, Pencil, User as UserIcon } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
@@ -17,12 +17,12 @@ import {
   authMe,
   authRegister,
   deleteBuild,
-  getApiBase,
   listMyBuilds,
   updateBuild,
 } from "@/lib/api";
 import { cn } from "@/lib/cn";
 import { clearAccessToken, getAccessToken, setAccessToken } from "@/lib/auth";
+import { copyBuildShareLink } from "@/lib/buildShare";
 import { classHeadUrl } from "@/lib/classImage";
 import { useBuildStore } from "@/store/build-store";
 import type { BuildOut, UserPublic } from "@/types/api";
@@ -171,19 +171,21 @@ export function AccountButton() {
     }
   }
 
-  function shareUrl(buildId: string) {
-    if (typeof window === "undefined") return `${getApiBase()}/build/${buildId}`;
-    return `${window.location.origin}/build/${buildId}`;
-  }
-
-  async function copyLink(buildId: string) {
-    const url = shareUrl(buildId);
+  async function handleShare(b: BuildOut) {
     try {
-      await navigator.clipboard.writeText(url);
-      setActionMsg("Lien copié !");
+      if (!b.is_public) {
+        if (b.tags == null || b.tags.length === 0) {
+          setListError("Ajoutez des tags avant de partager ce build.");
+          return;
+        }
+        await updateBuild(b.id, { is_public: true });
+        await refreshBuilds();
+      }
+      await copyBuildShareLink(b.id);
+      setActionMsg("Lien de partage copié !");
       setTimeout(() => setActionMsg(null), 2000);
-    } catch {
-      setActionMsg(url);
+    } catch (err) {
+      setListError(err instanceof Error ? err.message : "Impossible de partager");
     }
   }
 
@@ -477,8 +479,14 @@ export function AccountButton() {
                           <Pencil size={10} />
                           Éditer
                         </button>
-                        <button type="button" onClick={() => void copyLink(b.id)} className="shrink-0 text-[11px] text-[#888888] hover:underline">
-                          Lien
+                        <button
+                          type="button"
+                          onClick={() => void handleShare(b)}
+                          title="Copier le lien de partage (Discord, etc.)"
+                          className="flex shrink-0 items-center gap-1 text-[11px] text-[#888888] hover:text-[var(--dofus-green-active)] hover:underline"
+                        >
+                          <Link2 size={11} />
+                          Partager
                         </button>
                         <button type="button" onClick={() => void handleDelete(b.id)} className="shrink-0 text-[11px] text-red-400/80 hover:underline">
                           ×

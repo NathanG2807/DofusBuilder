@@ -36,7 +36,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const url = `${getSiteUrl()}/build/${buildId}`;
 
   return {
-    title,
+    title: { absolute: title },
     description,
     openGraph: {
       title,

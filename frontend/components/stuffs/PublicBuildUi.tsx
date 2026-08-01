@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { InventoryPreview } from "@/components/build/InventoryPreview";
 import { SpellsPanel } from "@/components/dashboard/SpellsPanel";
 import { InventoryGridSkeleton, LoadingShell } from "@/components/ui/loading-skeletons";
+import { ShareLinkButton } from "@/components/ui/ShareLinkButton";
 import { createBuild, getBuildById, toggleBuildUpvote } from "@/lib/api";
 import { getAccessToken } from "@/lib/auth";
 import { getBuildTag } from "@/lib/buildTags";
@@ -184,6 +185,7 @@ export function PublicBuildCard({
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <ShareLinkButton buildId={build.id} compact stopPropagation />
           <UpvoteButton
             buildId={build.id}
             upvoteCount={build.upvote_count ?? 0}
@@ -403,6 +405,7 @@ export function PublicBuildFullscreenView({
                     setUserHasUpvoted(result.user_has_upvoted);
                   }}
                 />
+                <ShareLinkButton buildId={build.id} />
                 {copyMsg && (
                   <span className={`text-[12px] ${copyMsg.includes("Connectez") ? "text-amber-400" : "text-red-400"}`}>
                     {copyMsg}

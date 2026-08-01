@@ -9,6 +9,7 @@ import { InventoryPreview } from "@/components/build/InventoryPreview";
 import { Button } from "@/components/ui/Button";
 import { Chip } from "@/components/ui/Chip";
 import { DofusSpinner } from "@/components/ui/DofusSpinner";
+import { ShareLinkButton } from "@/components/ui/ShareLinkButton";
 import { UserAvatar } from "@/components/ui/UserAvatar";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
@@ -245,6 +246,13 @@ function BuildRow({
             {build.is_public ? <Eye size={13} /> : <EyeOff size={13} />}
             {build.is_public ? "Public" : "Privé"}
           </button>
+          {build.is_public && (
+            <ShareLinkButton
+              buildId={build.id}
+              compact
+              className="!rounded-[8px] !px-2.5 !py-1"
+            />
+          )}
           {/* Edit (load into builder for editing, save will PATCH the same build) */}
           <button
             type="button"

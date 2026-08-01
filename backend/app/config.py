@@ -33,7 +33,9 @@ class Settings(BaseSettings):
     cors_origins: str = (
         "http://localhost:3000,"
         "http://127.0.0.1:3000,"
-        "https://zaap-builder.vercel.app"
+        "https://zaap-builder.vercel.app,"
+        "https://zaaap.vercel.app,"
+        "https://dofus-builder.vercel.app"
     )
     # Regex matching Vercel preview deployments and any *.vercel.app subdomain.
     cors_origin_regex: str = r"https://.*\.vercel\.app$"

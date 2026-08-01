@@ -24,9 +24,17 @@ const fraunces = Fraunces({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL?.replace(/\/$/, "") ?? "https://zaaap.vercel.app",
+  ),
   title: "Dofus Builder — Création de stuff",
   description:
     "Compose ton équipement, optimise tes stats et partage tes builds (Dofus 3).",
+  openGraph: {
+    siteName: "Zaap Builder",
+    type: "website",
+    locale: "fr_FR",
+  },
 };
 
 export default function RootLayout({

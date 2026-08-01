@@ -13,7 +13,7 @@ export function getSiteUrl(): string {
   if (process.env.VERCEL_URL) {
     return `https://${process.env.VERCEL_URL.replace(/\/$/, "")}`;
   }
-  return "https://zaap-builder.vercel.app";
+  return "https://zaaap.vercel.app";
 }
 
 function getApiBase(): string {
