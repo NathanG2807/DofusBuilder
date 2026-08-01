@@ -3,9 +3,12 @@ import { join } from "node:path";
 
 import { ImageResponse } from "next/og";
 
+import { computeDisplayStats } from "@/lib/buildDisplayStats";
 import { buildOgDescription, fetchBuildForOg } from "@/lib/buildOg";
 import { dofusClassLabel } from "@/lib/dofusClasses";
 import type { BuildOut } from "@/types/api";
+
+type ExoType = "pa" | "pm";
 
 export const alt = "Aperçu du build Zaap";
 export const size = { width: 1200, height: 630 };
@@ -30,21 +33,35 @@ async function readPublicPng(relativePath: string): Promise<string | null> {
   }
 }
 
+/** Préfère l’icône 256px quand l’API dofusdu expose `-128.png`. */
+function preferHiResIcon(url: string): string {
+  return url.replace(/-128\.png(\?.*)?$/i, "-256.png$1");
+}
+
 async function fetchIconDataUrl(url: string | null | undefined): Promise<string | null> {
   if (!url || (!url.startsWith("https://") && !url.startsWith("http://"))) return null;
-  try {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 2500);
-    const res = await fetch(url, { signal: controller.signal, next: { revalidate: 3600 } });
-    clearTimeout(timer);
-    if (!res.ok) return null;
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.byteLength === 0 || buf.byteLength > 200_000) return null;
-    const contentType = res.headers.get("content-type") ?? "image/png";
-    return `data:${contentType};base64,${buf.toString("base64")}`;
-  } catch {
-    return null;
+  const candidates = [preferHiResIcon(url), url].filter(
+    (u, i, arr) => arr.indexOf(u) === i,
+  );
+  for (const candidate of candidates) {
+    try {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 2500);
+      const res = await fetch(candidate, {
+        signal: controller.signal,
+        next: { revalidate: 3600 },
+      });
+      clearTimeout(timer);
+      if (!res.ok) continue;
+      const buf = Buffer.from(await res.arrayBuffer());
+      if (buf.byteLength === 0 || buf.byteLength > 300_000) continue;
+      const contentType = res.headers.get("content-type") ?? "image/png";
+      return `data:${contentType};base64,${buf.toString("base64")}`;
+    } catch {
+      /* try next candidate */
+    }
   }
+  return null;
 }
 
 function normalizeClassId(classId: number): number {
@@ -72,34 +89,99 @@ async function loadSlotIcons(
   return Object.fromEntries(entries);
 }
 
-function SlotBox({ src, boxSize }: { src: string | null; boxSize: number }) {
+function exoBorder(exo: string | null | undefined): string {
+  if (exo === "pa") return "2px solid #4a90d9";
+  if (exo === "pm") return "2px solid #98c030";
+  return "2px solid rgba(240,215,140,0.32)";
+}
+
+function SlotBox({
+  src,
+  boxSize,
+  exo,
+}: {
+  src: string | null;
+  boxSize: number;
+  exo?: string | null;
+}) {
+  const icon = Math.max(boxSize - (exo === "pa" || exo === "pm" ? 18 : 8), 28);
   return (
     <div
       style={{
         display: "flex",
+        flexDirection: "column",
         width: boxSize,
         height: boxSize,
-        borderRadius: 10,
-        border: "2px solid rgba(240,215,140,0.28)",
-        backgroundColor: "#1a1a18",
+        borderRadius: 12,
+        border: exoBorder(exo),
+        backgroundColor: "#171714",
         alignItems: "center",
         justifyContent: "center",
       }}
     >
       {src ? (
         // eslint-disable-next-line @next/next/no-img-element
-        <img src={src} width={boxSize - 10} height={boxSize - 10} alt="" />
+        <img src={src} width={icon} height={icon} alt="" />
       ) : (
         <div
           style={{
             display: "flex",
-            width: 14,
-            height: 14,
+            width: 16,
+            height: 16,
             borderRadius: 999,
-            backgroundColor: "rgba(255,255,255,0.12)",
+            backgroundColor: "rgba(255,255,255,0.1)",
           }}
         />
       )}
+      {exo === "pa" || exo === "pm" ? (
+        <div
+          style={{
+            display: "flex",
+            marginTop: 2,
+            padding: "1px 5px",
+            borderRadius: 5,
+            backgroundColor: exo === "pa" ? "#4a90d9" : "#98c030",
+            color: "white",
+            fontSize: 10,
+            fontWeight: 800,
+            lineHeight: 1.15,
+          }}
+        >
+          {exo === "pa" ? "PA" : "PM"}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function StatChip({ label, value, bg, border, color }: {
+  label: string;
+  value: number;
+  bg: string;
+  border: string;
+  color: string;
+}) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "center",
+        minWidth: 84,
+        marginLeft: 10,
+        padding: "10px 14px",
+        borderRadius: 14,
+        backgroundColor: bg,
+        border,
+      }}
+    >
+      <div style={{ display: "flex", fontSize: 13, fontWeight: 700, color, letterSpacing: 1 }}>
+        {label}
+      </div>
+      <div style={{ display: "flex", fontSize: 30, fontWeight: 800, color: "white", marginTop: 2 }}>
+        {String(value)}
+      </div>
     </div>
   );
 }
@@ -151,13 +233,22 @@ function BuildCard({
     .filter(Boolean)
     .join(" · ");
 
-  const stats = build.total_stats ?? {};
-  const pa = typeof stats.pa === "number" ? stats.pa : null;
-  const pm = typeof stats.pm === "number" ? stats.pm : null;
-  const pv = typeof stats.vitality === "number" ? stats.vitality : null;
+  const display = computeDisplayStats(
+    build.total_stats ?? {},
+    build.level ?? 200,
+    build.char_stats ?? {},
+    build.parcho_stats ?? {},
+    (build.exo_fm ?? {}) as Partial<Record<string, ExoType>>,
+  );
+  const pa = display.pa ?? 0;
+  const pm = display.pm ?? 0;
+  const pv = display.vitality ?? 0;
+  const exoFm = build.exo_fm ?? {};
   const centerSrc = bodySrc ?? headSrc;
-  const slotSize = 54;
-  const dofusSize = 44;
+
+  const slotSize = 66;
+  const dofusSize = 54;
+  const slotGap = 8;
 
   return (
     <div
@@ -166,213 +257,180 @@ function BuildCard({
         width: "100%",
         height: "100%",
         flexDirection: "column",
-        backgroundColor: "#0d120e",
+        backgroundColor: "#0c100c",
         color: "white",
         fontFamily: "sans-serif",
-        padding: "30px 40px 26px",
+        padding: "24px 36px 22px",
       }}
     >
+      {/* Header */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          marginBottom: 20,
+          marginBottom: 14,
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column", maxWidth: 820 }}>
+        <div style={{ display: "flex", flexDirection: "column", maxWidth: 700 }}>
           <div
             style={{
               display: "flex",
-              fontSize: 40,
+              fontSize: 38,
               fontWeight: 800,
               color: "#f3e6b8",
-              lineHeight: 1.1,
+              lineHeight: 1.05,
             }}
           >
             {build.name}
           </div>
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              marginTop: 10,
-            }}
-          >
+          <div style={{ display: "flex", alignItems: "center", marginTop: 8 }}>
             {headSrc ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={headSrc}
-                width={34}
-                height={34}
+                width={32}
+                height={32}
                 alt=""
                 style={{ borderRadius: 8, marginRight: 10 }}
               />
             ) : null}
-            <div style={{ display: "flex", fontSize: 22, color: "rgba(255,255,255,0.72)" }}>
+            <div style={{ display: "flex", fontSize: 20, color: "rgba(255,255,255,0.72)" }}>
               {metaLine || buildOgDescription(build)}
             </div>
           </div>
+          {tags.length > 0 ? (
+            <div style={{ display: "flex", marginTop: 10 }}>
+              {tags.map((tag, i) => (
+                <div
+                  key={tag}
+                  style={{
+                    display: "flex",
+                    marginLeft: i === 0 ? 0 : 8,
+                    padding: "6px 12px",
+                    borderRadius: 999,
+                    backgroundColor: "rgba(143,214,58,0.14)",
+                    border: "1px solid rgba(143,214,58,0.35)",
+                    color: "#c8f08a",
+                    fontSize: 16,
+                    fontWeight: 600,
+                  }}
+                >
+                  {tag.startsWith("#") ? tag : `#${tag}`}
+                </div>
+              ))}
+            </div>
+          ) : null}
         </div>
 
-        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end" }}>
+        <div style={{ display: "flex", alignItems: "center" }}>
           <div
             style={{
               display: "flex",
-              fontSize: 28,
+              fontSize: 26,
               fontWeight: 800,
               color: "#8fd63a",
-              marginBottom: 8,
+              marginRight: 8,
             }}
           >
             Zaap
           </div>
-          {(pa != null || pm != null || pv != null) && (
-            <div style={{ display: "flex" }}>
-              {pa != null ? (
-                <div
-                  style={{
-                    display: "flex",
-                    marginLeft: 8,
-                    padding: "8px 12px",
-                    borderRadius: 12,
-                    backgroundColor: "rgba(74,144,217,0.18)",
-                    border: "1px solid rgba(74,144,217,0.4)",
-                    color: "#9ec5f0",
-                    fontSize: 20,
-                    fontWeight: 700,
-                  }}
-                >
-                  {`${pa} PA`}
-                </div>
-              ) : null}
-              {pm != null ? (
-                <div
-                  style={{
-                    display: "flex",
-                    marginLeft: 8,
-                    padding: "8px 12px",
-                    borderRadius: 12,
-                    backgroundColor: "rgba(152,192,48,0.18)",
-                    border: "1px solid rgba(152,192,48,0.4)",
-                    color: "#c5e070",
-                    fontSize: 20,
-                    fontWeight: 700,
-                  }}
-                >
-                  {`${pm} PM`}
-                </div>
-              ) : null}
-              {pv != null ? (
-                <div
-                  style={{
-                    display: "flex",
-                    marginLeft: 8,
-                    padding: "8px 12px",
-                    borderRadius: 12,
-                    backgroundColor: "rgba(224,112,112,0.18)",
-                    border: "1px solid rgba(224,112,112,0.4)",
-                    color: "#f0a0a0",
-                    fontSize: 20,
-                    fontWeight: 700,
-                  }}
-                >
-                  {`${pv} PV`}
-                </div>
-              ) : null}
-            </div>
-          )}
+          <StatChip
+            label="PA"
+            value={pa}
+            bg="rgba(74,144,217,0.18)"
+            border="1px solid rgba(74,144,217,0.45)"
+            color="#9ec5f0"
+          />
+          <StatChip
+            label="PM"
+            value={pm}
+            bg="rgba(152,192,48,0.18)"
+            border="1px solid rgba(152,192,48,0.45)"
+            color="#c5e070"
+          />
+          <StatChip
+            label="PV"
+            value={pv}
+            bg="rgba(224,112,112,0.18)"
+            border="1px solid rgba(224,112,112,0.45)"
+            color="#f0a0a0"
+          />
         </div>
       </div>
 
+      {/* Inventory block */}
       <div
         style={{
           display: "flex",
           flex: 1,
+          flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
+          backgroundColor: "#121612",
+          borderRadius: 24,
+          border: "1px solid rgba(255,255,255,0.06)",
+          padding: "18px 28px 16px",
         }}
       >
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {LEFT_SLOTS.map((key, i) => (
-            <div
-              key={key}
-              style={{ display: "flex", marginBottom: i === LEFT_SLOTS.length - 1 ? 0 : 8 }}
-            >
-              <SlotBox src={icons[key] ?? null} boxSize={slotSize} />
-            </div>
-          ))}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "center" }}>
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {LEFT_SLOTS.map((key, i) => (
+              <div
+                key={key}
+                style={{
+                  display: "flex",
+                  marginBottom: i === LEFT_SLOTS.length - 1 ? 0 : slotGap,
+                }}
+              >
+                <SlotBox src={icons[key] ?? null} boxSize={slotSize} exo={exoFm[key]} />
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              display: "flex",
+              width: 210,
+              height: 270,
+              marginLeft: 26,
+              marginRight: 26,
+              borderRadius: 22,
+              border: "2px solid rgba(143,214,58,0.42)",
+              backgroundColor: "#182418",
+              alignItems: "center",
+              justifyContent: "center",
+            }}
+          >
+            {centerSrc ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={centerSrc} width={180} height={240} alt="" />
+            ) : (
+              <div style={{ display: "flex", fontSize: 22, color: "rgba(255,255,255,0.35)" }}>
+                Classe
+              </div>
+            )}
+          </div>
+
+          <div style={{ display: "flex", flexDirection: "column" }}>
+            {RIGHT_SLOTS.map((key, i) => (
+              <div
+                key={key}
+                style={{
+                  display: "flex",
+                  marginBottom: i === RIGHT_SLOTS.length - 1 ? 0 : slotGap,
+                }}
+              >
+                <SlotBox src={icons[key] ?? null} boxSize={slotSize} exo={exoFm[key]} />
+              </div>
+            ))}
+          </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            width: 200,
-            height: 250,
-            marginLeft: 28,
-            marginRight: 28,
-            borderRadius: 24,
-            border: "2px solid rgba(143,214,58,0.4)",
-            backgroundColor: "#152015",
-            alignItems: "center",
-            justifyContent: "center",
-          }}
-        >
-          {centerSrc ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={centerSrc} width={170} height={220} alt="" />
-          ) : (
-            <div style={{ display: "flex", fontSize: 22, color: "rgba(255,255,255,0.35)" }}>
-              Classe
-            </div>
-          )}
-        </div>
-
-        <div style={{ display: "flex", flexDirection: "column" }}>
-          {RIGHT_SLOTS.map((key, i) => (
-            <div
-              key={key}
-              style={{ display: "flex", marginBottom: i === RIGHT_SLOTS.length - 1 ? 0 : 8 }}
-            >
-              <SlotBox src={icons[key] ?? null} boxSize={slotSize} />
-            </div>
-          ))}
-        </div>
-      </div>
-
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          marginTop: 18,
-        }}
-      >
-        <div style={{ display: "flex" }}>
+        <div style={{ display: "flex", marginTop: 14 }}>
           {DOFUS_SLOTS.map((key, i) => (
-            <div key={key} style={{ display: "flex", marginLeft: i === 0 ? 0 : 8 }}>
-              <SlotBox src={icons[key] ?? null} boxSize={dofusSize} />
-            </div>
-          ))}
-        </div>
-
-        <div style={{ display: "flex" }}>
-          {tags.map((tag, i) => (
-            <div
-              key={tag}
-              style={{
-                display: "flex",
-                marginLeft: i === 0 ? 0 : 8,
-                padding: "8px 14px",
-                borderRadius: 999,
-                backgroundColor: "rgba(143,214,58,0.14)",
-                border: "1px solid rgba(143,214,58,0.35)",
-                color: "#c8f08a",
-                fontSize: 18,
-                fontWeight: 600,
-              }}
-            >
-              {tag.startsWith("#") ? tag : `#${tag}`}
+            <div key={key} style={{ display: "flex", marginLeft: i === 0 ? 0 : 10 }}>
+              <SlotBox src={icons[key] ?? null} boxSize={dofusSize} exo={exoFm[key]} />
             </div>
           ))}
         </div>
