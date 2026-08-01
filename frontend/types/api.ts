@@ -115,6 +115,7 @@ export type BuildOut = {
   is_public: boolean;
   tags: string[] | null;
   slots_preview: Record<string, string | null> | null;
+  username?: string | null;
   upvote_count?: number;
   created_at?: string | null;
   updated_at?: string | null;

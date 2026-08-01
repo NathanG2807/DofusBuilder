@@ -1,0 +1,76 @@
+"use client";
+
+import { useEffect, useState } from "react";
+
+import { DashboardApp } from "@/components/dashboard/DashboardApp";
+import { BuilderPageSkeleton, LoadingShell } from "@/components/ui/loading-skeletons";
+import { getBuildById } from "@/lib/api";
+import { isValidBuildId } from "@/lib/buildId";
+import { useBuildStore } from "@/store/build-store";
+
+export function SharedBuildClient({ buildId }: { buildId: string }) {
+  const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
+  const [message, setMessage] = useState<string | null>(null);
+  const [sharedBuild, setSharedBuild] = useState<{ id: string; name: string } | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    if (!buildId || !isValidBuildId(buildId)) {
+      setPhase("error");
+      setMessage("Identifiant de build invalide.");
+      return;
+    }
+
+    (async () => {
+      try {
+        const b = await getBuildById(buildId);
+        if (cancelled) return;
+        const { hydrateFromPersistedBuild, prefetchEquippedItems } =
+          useBuildStore.getState();
+        hydrateFromPersistedBuild(b);
+        await prefetchEquippedItems();
+        if (!cancelled) {
+          setSharedBuild({ id: b.id, name: b.name });
+          setPhase("ready");
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setPhase("error");
+        setMessage(
+          e instanceof Error ? e.message : "Impossible de charger le build.",
+        );
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [buildId]);
+
+  if (phase === "loading") {
+    return (
+      <LoadingShell spinnerSize={56} label="Chargement du build partagé…" minHeight="min-h-screen">
+        <BuilderPageSkeleton />
+      </LoadingShell>
+    );
+  }
+
+  if (phase === "error") {
+    return (
+      <div className="mx-auto max-w-lg p-8">
+        <p className="text-sm text-red-400/90">{message ?? "Erreur"}</p>
+        <a href="/" className="mt-4 inline-block text-sm text-amber-500 hover:underline">
+          Retour à l’accueil
+        </a>
+      </div>
+    );
+  }
+
+  return (
+    <DashboardApp
+      readOnly
+      sharedBuild={sharedBuild}
+    />
+  );
+}

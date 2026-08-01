@@ -1,83 +1,60 @@
-"use client";
+import type { Metadata } from "next";
 
-import { useParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { SharedBuildClient } from "./SharedBuildClient";
+import {
+  buildOgDescription,
+  buildOgTitle,
+  fetchBuildForOg,
+  getSiteUrl,
+  isValidBuildId,
+} from "@/lib/buildOg";
 
-import { DashboardApp } from "@/components/dashboard/DashboardApp";
-import { BuilderPageSkeleton, LoadingShell } from "@/components/ui/loading-skeletons";
-import { getBuildById } from "@/lib/api";
-import { useBuildStore } from "@/store/build-store";
+type PageProps = {
+  params: Promise<{ buildId: string }>;
+};
 
-const UUID_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { buildId } = await params;
 
-export default function SharedBuildPage() {
-  const params = useParams();
-  const raw = params.buildId;
-  const buildId = typeof raw === "string" ? raw : Array.isArray(raw) ? raw[0] : "";
-
-  const [phase, setPhase] = useState<"loading" | "ready" | "error">("loading");
-  const [message, setMessage] = useState<string | null>(null);
-  const [sharedBuild, setSharedBuild] = useState<{ id: string; name: string } | null>(null);
-
-  useEffect(() => {
-    let cancelled = false;
-
-    if (!buildId || !UUID_RE.test(buildId)) {
-      setPhase("error");
-      setMessage("Identifiant de build invalide.");
-      return;
-    }
-
-    (async () => {
-      try {
-        const b = await getBuildById(buildId);
-        if (cancelled) return;
-        const { hydrateFromPersistedBuild, prefetchEquippedItems } =
-          useBuildStore.getState();
-        hydrateFromPersistedBuild(b);
-        await prefetchEquippedItems();
-        if (!cancelled) {
-          setSharedBuild({ id: b.id, name: b.name });
-          setPhase("ready");
-        }
-      } catch (e) {
-        if (cancelled) return;
-        setPhase("error");
-        setMessage(
-          e instanceof Error ? e.message : "Impossible de charger le build.",
-        );
-      }
-    })();
-
-    return () => {
-      cancelled = true;
+  if (!isValidBuildId(buildId)) {
+    return {
+      title: "Build introuvable — Zaap Builder",
+      description: "Ce lien de build est invalide.",
     };
-  }, [buildId]);
-
-  if (phase === "loading") {
-    return (
-      <LoadingShell spinnerSize={56} label="Chargement du build partagé…" minHeight="min-h-screen">
-        <BuilderPageSkeleton />
-      </LoadingShell>
-    );
   }
 
-  if (phase === "error") {
-    return (
-      <div className="mx-auto max-w-lg p-8">
-        <p className="text-sm text-red-400/90">{message ?? "Erreur"}</p>
-        <a href="/" className="mt-4 inline-block text-sm text-amber-500 hover:underline">
-          Retour à l’accueil
-        </a>
-      </div>
-    );
+  const build = await fetchBuildForOg(buildId);
+  if (!build) {
+    return {
+      title: "Build introuvable — Zaap Builder",
+      description: "Ce build n’existe pas ou n’est plus public.",
+    };
   }
 
-  return (
-    <DashboardApp
-      readOnly
-      sharedBuild={sharedBuild}
-    />
-  );
+  const title = buildOgTitle(build);
+  const description = buildOgDescription(build);
+  const url = `${getSiteUrl()}/build/${buildId}`;
+
+  return {
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      url,
+      siteName: "Zaap Builder",
+      type: "website",
+      locale: "fr_FR",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+    },
+  };
+}
+
+export default async function SharedBuildPage({ params }: PageProps) {
+  const { buildId } = await params;
+  return <SharedBuildClient buildId={buildId} />;
 }

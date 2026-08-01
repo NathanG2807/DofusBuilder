@@ -52,6 +52,36 @@ async def _slots_preview_from_slots(
     return preview
 
 
+def _serialize_build(build: Build, *, username: str | None = None) -> dict:
+    """Full build payload including optional author username."""
+    resolved_username = username
+    if resolved_username is None and build.user is not None:
+        resolved_username = build.user.username
+    return {
+        "id": build.id,
+        "user_id": build.user_id,
+        "name": build.name,
+        "description": build.description,
+        "class_id": build.class_id,
+        "level": build.level,
+        "sex": build.sex,
+        "slots": build.slots,
+        "total_stats": build.total_stats,
+        "active_set_bonuses": build.active_set_bonuses,
+        "char_stats": build.char_stats,
+        "parcho_stats": build.parcho_stats,
+        "exo_fm": build.exo_fm,
+        "locked_slots": build.locked_slots,
+        "is_public": build.is_public,
+        "tags": build.tags,
+        "slots_preview": build.slots_preview,
+        "username": resolved_username,
+        "upvote_count": build.upvote_count or 0,
+        "created_at": build.created_at,
+        "updated_at": build.updated_at,
+    }
+
+
 def _serialize_public_build(
     build: Build,
     username: str | None,
@@ -179,15 +209,20 @@ async def get_build(
     build_id: uuid.UUID,
     db: AsyncSession = Depends(get_db),
     current: Optional[User] = Depends(get_optional_user),
-) -> Build:
-    b = await db.get(Build, build_id)
+) -> dict:
+    result = await db.execute(
+        select(Build)
+        .where(Build.id == build_id)
+        .options(selectinload(Build.user))
+    )
+    b = result.scalar_one_or_none()
     if b is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, detail="Build not found")
     if b.is_public:
-        return b
+        return _serialize_build(b)
     if current is None or b.user_id != current.id:
         raise HTTPException(status.HTTP_403_FORBIDDEN, detail="Build is private")
-    return b
+    return _serialize_build(b)
 
 
 @router.post("/{build_id}/upvote", response_model=UpvoteResponse)

@@ -260,6 +260,7 @@ class BuildOut(BaseModel):
     is_public: bool = True
     tags: Optional[list[str]] = None
     slots_preview: Optional[dict[str, Any]] = None
+    username: Optional[str] = None
     upvote_count: int = 0
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
