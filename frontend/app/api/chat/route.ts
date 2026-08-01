@@ -119,7 +119,7 @@ export async function POST(req: Request) {
   const messages = body.messages ?? [];
   const buildContext = body.buildContext ?? {};
   const modelId =
-    process.env.ANTHROPIC_MODEL ?? "claude-sonnet-4-20250514";
+    process.env.ANTHROPIC_MODEL ?? "claude-sonnet-5";
 
   const result = streamText({
     model: anthropic(modelId),

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 
 import { AccountButton } from "@/components/layout/AccountButton";
+import { DiscordIcon, DISCORD_INVITE_URL } from "@/components/ui/DiscordIcon";
 
 export type AppTab = "buildroom" | "stuffs" | "bestiaire" | "atelier";
 
@@ -84,8 +85,19 @@ export function Navbar({ activeTab, onTabChange }: NavbarProps) {
 
         <div className="flex-1" />
 
-        {/* Compte */}
-        <AccountButton />
+        {/* Compte + Discord */}
+        <div className="flex items-center gap-2">
+          <AccountButton />
+          <a
+            href={DISCORD_INVITE_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label="Rejoindre le Discord Zaap"
+            className="group flex h-[34px] w-[34px] items-center justify-center rounded-lg border border-white/[0.08] bg-white/[0.03] transition-all duration-150 hover:border-[#5865F2]/40 hover:bg-[#5865F2]/10"
+          >
+            <DiscordIcon size={20} className="opacity-90 transition-opacity group-hover:opacity-100" />
+          </a>
+        </div>
       </div>
     </header>
   );
