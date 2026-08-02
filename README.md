@@ -30,9 +30,9 @@ Crée un compte pour sauvegarder tes builds, gérer leur visibilité et afficher
 
 | | |
 |---|---|
-| **Frontend** | Next.js, React, TypeScript, Tailwind CSS |
-| **Backend** | FastAPI, PostgreSQL |
-| **Optimisation** | Google OR-Tools |
+| **Frontend** | Next.js, React, TypeScript, Tailwind, Zustand, Vercel AI SDK |
+| **Backend** | Python, FastAPI, SQLAlchemy, PostgreSQL, JWT |
+| **Optimisation** | Google OR-Tools · Anthropic (assistant IA) |
 | **Données** | [API DofusDude](https://docs.dofusdu.de/) |
 
 ---
