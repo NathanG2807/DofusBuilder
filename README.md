@@ -1,6 +1,6 @@
 # Zaap Builder
 
-Plateforme de theorycrafting pour **Dofus 3** : compose ton équipement, optimise tes stats et partage tes builds avec la communauté.
+Outil communautaire de theorycrafting pour **[Dofus 3](https://www.dofus.com/)** : compose ton équipement, optimise tes stats et partage tes builds avec d’autres joueurs.
 
 **Site :** [zaaap.vercel.app](https://zaaap.vercel.app)  
 **Discord :** [discord.gg/hj6Yy4Dcz](https://discord.gg/hj6Yy4Dcz)
@@ -9,26 +9,42 @@ Plateforme de theorycrafting pour **Dofus 3** : compose ton équipement, optimis
 
 ## Fonctionnalités
 
-- Builder d’équipement avec calcul de stats en temps réel
-- Optimisation de stuff (moteur de contraintes + assistant IA)
-- Builds publics, liens de partage et upvotes
-- Atelier / listes de craft
-- Comptes, profils et catalogue communautaire
+### Buildroom
+Compose ton stuff emplacement par emplacement, visualise les stats en temps réel et applique les bonus de panoplie. Un optimiseur (contraintes + assistant IA) t’aide à trouver des configurations adaptées à ton objectif.
+
+### Stuffs publics
+Parcours les builds partagés par la communauté, like ceux qui t’inspirent et ouvre un build via un lien permanent — même sans compte.
+
+### Bestiaire
+Consulte les monstres, leurs stats, sorts et drops pour préparer tes combats et tes farm.
+
+### Atelier
+Suis tes crafts : listes d’ingrédients, builds liés et validation progressive des ressources.
+
+### Compte & profil
+Crée un compte pour sauvegarder tes builds, gérer leur visibilité et afficher un profil public.
 
 ---
 
 ## Stack
 
-**Frontend** — Next.js, React, TypeScript, Tailwind  
-**Backend** — FastAPI, PostgreSQL  
-**Optimisation** — OR-Tools · **Données** — [DofusDude](https://docs.dofusdu.de/)
+| | |
+|---|---|
+| **Frontend** | Next.js, React, TypeScript, Tailwind CSS |
+| **Backend** | FastAPI, PostgreSQL |
+| **Optimisation** | Google OR-Tools |
+| **Données** | [API DofusDude](https://docs.dofusdu.de/) |
 
 ---
 
-## Mentions
+## Mentions légales
 
-Fan site communautaire non officiel.  
-Dofus © Ankama Games — ce projet n’est pas affilié à Ankama.
+Zaap Builder est un **fan site non officiel**, indépendant d’[Ankama Games](https://www.ankama.com/).
+
+- **[Dofus](https://www.dofus.com/)** et tous les contenus associés © Ankama Games  
+- Données de jeu fournies via l’API communautaire [DofusDude](https://github.com/dofusdude)
+
+Ce projet n’est ni affilié, ni sponsorisé, ni approuvé par Ankama.
 
 ---
 
