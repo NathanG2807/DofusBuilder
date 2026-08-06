@@ -5,6 +5,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react
 import { createPortal } from "react-dom";
 
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
+import { SetDetailModal } from "@/components/items/SetDetailModal";
 import { Chip } from "@/components/ui/Chip";
 import { DofusSpinner } from "@/components/ui/DofusSpinner";
 import { cn } from "@/lib/cn";
@@ -640,7 +641,7 @@ function DropsSection({
   grades: MonsterGrade[];
   onGradeChange: (idx: number) => void;
 }) {
-  const { hover, show, move, scheduleHide, cancelHide } = useItemHoverCard();
+  const { hover, show, move, scheduleHide, cancelHide, openSetId, openSet, closeSet } = useItemHoverCard();
   const itemCache = useRef<Map<number, ItemOut>>(new Map());
   const [extraItems, setExtraItems] = useState<Record<number, DropItemOut>>({});
 
@@ -736,8 +737,10 @@ function DropsSection({
           preferSide="left"
           onMouseEnter={cancelHide}
           onMouseLeave={scheduleHide}
+          onOpenSet={openSet}
         />
       )}
+      {openSetId != null && <SetDetailModal setId={openSetId} onClose={closeSet} />}
     </div>
   );
 }
@@ -958,7 +961,7 @@ function DungeonDropsList({
   itemMap: Record<number, DropItemOut>;
   loading: boolean;
 }) {
-  const { hover, show, move, scheduleHide, cancelHide } = useItemHoverCard();
+  const { hover, show, move, scheduleHide, cancelHide, openSetId, openSet, closeSet } = useItemHoverCard();
   const itemCache = useRef<Map<number, ItemOut>>(new Map());
 
   const handleHover = useCallback(async (objectId: number, e: React.MouseEvent) => {
@@ -1018,8 +1021,10 @@ function DungeonDropsList({
           preferSide="left"
           onMouseEnter={cancelHide}
           onMouseLeave={scheduleHide}
+          onOpenSet={openSet}
         />
       )}
+      {openSetId != null && <SetDetailModal setId={openSetId} onClose={closeSet} />}
     </>
   );
 }

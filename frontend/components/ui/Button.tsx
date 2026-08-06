@@ -13,7 +13,7 @@ import { cn } from "@/lib/cn";
  * le Buildroom (tailles "xs"/"icon" pour les contextes denses).
  */
 const buttonVariants = cva(
-  "inline-flex select-none items-center justify-center gap-1.5 rounded-[10px] font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-45",
+  "inline-flex cursor-pointer select-none items-center justify-center gap-1.5 rounded-[10px] font-semibold transition-all duration-150 disabled:cursor-not-allowed disabled:opacity-45",
   {
     variants: {
       variant: {

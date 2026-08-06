@@ -237,7 +237,7 @@ export function ActiveSetCards() {
         );
       })}
       {openSetId != null && (
-        <SetDetailModal setId={openSetId} onClose={() => setOpenSetId(null)} />
+        <SetDetailModal setId={openSetId} onClose={() => setOpenSetId(null)} allowEquip />
       )}
     </div>
   );

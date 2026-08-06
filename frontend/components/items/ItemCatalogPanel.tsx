@@ -207,7 +207,7 @@ function SetsCatalog() {
       )}
 
       {openSetId != null && (
-        <SetDetailModal setId={openSetId} onClose={() => setOpenSetId(null)} />
+        <SetDetailModal setId={openSetId} onClose={() => setOpenSetId(null)} allowEquip />
       )}
     </div>
   );
@@ -218,7 +218,7 @@ export function ItemCatalogPanel() {
   const selectedSlot = useBuildStore((s) => s.selectedSlot);
   const equipItemOnSlot = useBuildStore((s) => s.equipItemOnSlot);
   const level = useBuildStore((s) => s.level);
-  const { hover, show, move, scheduleHide, cancelHide, hide } = useItemHoverCard();
+  const { hover, show, move, scheduleHide, cancelHide, openSetId, openSet, closeSet } = useItemHoverCard();
 
   const currentBuild = useBuildStore((s) => s.currentBuild);
   const itemById     = useBuildStore((s) => s.itemById);
@@ -620,10 +620,14 @@ export function ItemCatalogPanel() {
                 preferSide="left"
                 onMouseEnter={cancelHide}
                 onMouseLeave={scheduleHide}
-                onForceHide={hide}
+                onOpenSet={openSet}
               />
             );
           })()}
+
+          {openSetId != null && (
+            <SetDetailModal setId={openSetId} onClose={closeSet} allowEquip />
+          )}
 
           {/* ── Pagination ── */}
           {total > pageSize && (

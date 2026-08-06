@@ -4,6 +4,7 @@ import { Check, ChevronRight, ListChecks, Loader2, Pencil, Plus, Save, Trash2, X
 import { useCallback, useEffect, useMemo, useState, Fragment, type ReactNode } from "react";
 
 import { ItemHoverCard, useItemHoverCard } from "@/components/items/ItemHoverCard";
+import { SetDetailModal } from "@/components/items/SetDetailModal";
 import { Button } from "@/components/ui/Button";
 import { AtelierPanelSkeleton, LoadingShell } from "@/components/ui/loading-skeletons";
 import { Input } from "@/components/ui/Input";
@@ -194,7 +195,7 @@ function IngredientList({
   /** Zone scrollable avec en-tête fixe (recette totale ou listes longues). */
   scrollable?: boolean;
 }) {
-  const { hover, show, move, scheduleHide, cancelHide, hide } = useItemHoverCard();
+  const { hover, show, move, scheduleHide, cancelHide, openSetId, openSet, closeSet } = useItemHoverCard();
 
   if (rows.length === 0) {
     return <p className="py-2 text-center text-[11px] text-white/25">Rien à crafter.</p>;
@@ -318,8 +319,9 @@ function IngredientList({
       </div>
       {hover && (
         <ItemHoverCard item={hover.item} anchor={{ x: hover.x, y: hover.y }}
-          onMouseEnter={cancelHide} onMouseLeave={scheduleHide} onForceHide={hide} />
+          onMouseEnter={cancelHide} onMouseLeave={scheduleHide} onOpenSet={openSet} />
       )}
+      {openSetId != null && <SetDetailModal setId={openSetId} onClose={closeSet} />}
     </>
   );
 }

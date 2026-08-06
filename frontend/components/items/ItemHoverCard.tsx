@@ -19,7 +19,6 @@ import { isWeaponDamagesBucketEffect } from "@/lib/effectFormat";
 import { formatConditionString } from "@/lib/conditionFormat";
 import { isConditionMet } from "@/lib/conditionCheck";
 import { WeaponCombatProvider } from "@/components/items/weaponCombatContext";
-import { SetDetailModal } from "@/components/items/SetDetailModal";
 import { useDisplayStats } from "@/hooks/useDisplayStats";
 import type { ItemOut, ItemSetOut } from "@/types/api";
 
@@ -34,8 +33,11 @@ type Props = {
   onMouseEnter?: () => void;
   /** Appelé quand la souris quitte la carte (pour déclencher le timer de fermeture). */
   onMouseLeave?: () => void;
-  /** Appelé pour forcer la fermeture immédiate (ex: ouverture d'un modal de panoplie). */
-  onForceHide?: () => void;
+  /**
+   * Ouvre la panoplie (géré hors du hover card — le survol se démonte au clic).
+   * Voir `useItemHoverCard().openSet`.
+   */
+  onOpenSet?: (setId: number) => void;
 };
 
 function fmtRange(lo: number, hi: number): string {
@@ -53,10 +55,9 @@ function StatRow({ children }: { children: React.ReactNode }) {
 }
 
 /* ── Carte d'un item (corps réutilisable) ─────────────────────────────────── */
-function ItemCardBody({ item, label, onOpenSetModal }: { item: ItemOut; label?: string; onOpenSetModal?: () => void }) {
+function ItemCardBody({ item, label, onOpenSet }: { item: ItemOut; label?: string; onOpenSet?: (setId: number) => void }) {
   const [setInfo, setSetInfo] = useState<ItemSetOut | null>(null);
   const [setErr, setSetErr] = useState<string | null>(null);
-  const [showSetModal, setShowSetModal] = useState(false);
   const pid = item.parent_set_id;
   const stats = useDisplayStats();
   const conditionMet = isConditionMet(item.conditions, stats);
@@ -316,8 +317,15 @@ function ItemCardBody({ item, label, onOpenSetModal }: { item: ItemOut; label?: 
           {setErr ? (
             <p className="text-[11px] text-red-400/90">{setErr}</p>
           ) : setInfo ? (
-            <button type="button" onClick={() => { setShowSetModal(true); onOpenSetModal?.(); }}
-              className="mt-0.5 text-left text-[11px] font-medium text-[#e8c96e] underline decoration-dotted underline-offset-2 hover:text-[#f5d980]">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onOpenSet?.(pid);
+              }}
+              className="mt-0.5 text-left text-[11px] font-medium text-[#e8c96e] underline decoration-dotted underline-offset-2 hover:text-[#f5d980]"
+            >
               {setInfo.name ?? `Panoplie #${setInfo.ankama_id}`} →
             </button>
           ) : (
@@ -325,14 +333,11 @@ function ItemCardBody({ item, label, onOpenSetModal }: { item: ItemOut; label?: 
           )}
         </div>
       )}
-
-      {showSetModal && pid != null &&
-        createPortal(<SetDetailModal setId={pid} onClose={() => setShowSetModal(false)} />, document.body)}
     </>
   );
 }
 
-export function ItemHoverCard({ item, anchor, compareItem, preferSide, onMouseEnter, onMouseLeave, onForceHide }: Props) {
+export function ItemHoverCard({ item, anchor, compareItem, preferSide, onMouseEnter, onMouseLeave, onOpenSet }: Props) {
   const cardRef = useRef<HTMLDivElement>(null);
   const [pos, setPos] = useState<{ top: number; left: number; visible: boolean }>({
     top: -9999,
@@ -409,7 +414,7 @@ export function ItemHoverCard({ item, anchor, compareItem, preferSide, onMouseEn
         <div className="flex gap-2">
           {/* Item équipé — gauche */}
           <div className="min-w-0 flex-1 rounded-lg border border-[#2a2a2a] bg-[#141414] p-2">
-            <ItemCardBody item={compareItem!} label="Équipé" onOpenSetModal={onForceHide} />
+            <ItemCardBody item={compareItem!} label="Équipé" onOpenSet={onOpenSet} />
           </div>
           {/* Séparateur */}
           <div className="flex flex-col items-center justify-center gap-1 shrink-0">
@@ -419,11 +424,11 @@ export function ItemHoverCard({ item, anchor, compareItem, preferSide, onMouseEn
           </div>
           {/* Item survolé — droite */}
           <div className="min-w-0 flex-1 rounded-lg border border-[var(--dofus-ui-olive-border-45)] bg-[var(--dofus-ui-deep-panel)] p-2">
-            <ItemCardBody item={item} label="Survol" onOpenSetModal={onForceHide} />
+            <ItemCardBody item={item} label="Survol" onOpenSet={onOpenSet} />
           </div>
         </div>
       ) : (
-        <ItemCardBody item={item} onOpenSetModal={onForceHide} />
+        <ItemCardBody item={item} onOpenSet={onOpenSet} />
       )}
     </div>,
     document.body,
@@ -437,6 +442,8 @@ export function useItemHoverCard() {
     x: number;
     y: number;
   } | null>(null);
+  /** Modal panoplie — vit hors du hover card (sinon le hide démonte le modal). */
+  const [openSetId, setOpenSetId] = useState<number | null>(null);
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const clearClose = useCallback(() => {
@@ -467,11 +474,33 @@ export function useItemHoverCard() {
     closeTimer.current = setTimeout(() => setHover(null), 180);
   }, [clearClose]);
 
-  /** Fermeture immédiate (ex: ouverture d'un modal de panoplie). */
+  /** Fermeture immédiate du survol. */
   const hide = useCallback(() => {
     clearClose();
     setHover(null);
   }, [clearClose]);
 
-  return { hover, show, move, scheduleHide, cancelHide: clearClose, hide };
+  /** Ferme le survol puis ouvre le modal panoplie (état survivant au démontage). */
+  const openSet = useCallback(
+    (setId: number) => {
+      clearClose();
+      setHover(null);
+      setOpenSetId(setId);
+    },
+    [clearClose],
+  );
+
+  const closeSet = useCallback(() => setOpenSetId(null), []);
+
+  return {
+    hover,
+    show,
+    move,
+    scheduleHide,
+    cancelHide: clearClose,
+    hide,
+    openSetId,
+    openSet,
+    closeSet,
+  };
 }

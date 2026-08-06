@@ -7,6 +7,7 @@ import {
   ItemHoverCard,
   useItemHoverCard,
 } from "@/components/items/ItemHoverCard";
+import { SetDetailModal } from "@/components/items/SetDetailModal";
 import { AddToAtelierModal } from "@/components/atelier/AddToAtelierModal";
 import { Modal } from "@/components/ui/Modal";
 import { Check, FilePlus, Link2 } from "lucide-react";
@@ -827,7 +828,7 @@ export function InventoryGrid({
   const lockedSlots = useBuildStore((s) => s.lockedSlots);
   const toggleLockSlot = useBuildStore((s) => s.toggleLockSlot);
 
-  const { hover, show, move, scheduleHide, cancelHide, hide } = useItemHoverCard();
+  const { hover, show, move, scheduleHide, cancelHide, openSetId, openSet, closeSet } = useItemHoverCard();
   function slotProps(id: SlotId) {
     const itemId = currentBuild[id];
     const item = itemId != null ? itemById[itemId] : undefined;
@@ -990,7 +991,8 @@ export function InventoryGrid({
         </div>
       </div>
 
-      {hover && <ItemHoverCard item={hover.item} anchor={{ x: hover.x, y: hover.y }} onMouseEnter={cancelHide} onMouseLeave={scheduleHide} onForceHide={hide} />}
+      {hover && <ItemHoverCard item={hover.item} anchor={{ x: hover.x, y: hover.y }} onMouseEnter={cancelHide} onMouseLeave={scheduleHide} onOpenSet={openSet} />}
+      {openSetId != null && <SetDetailModal setId={openSetId} onClose={closeSet} allowEquip />}
     </section>
   );
 }
